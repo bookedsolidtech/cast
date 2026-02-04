@@ -1,0 +1,17 @@
+[
+  {
+    "title": "Add rate limiting to API",
+    "description": "Implement rate limiting on all /api/* endpoints.\n\nRequirements:\n- Use express-rate-limit package\n- 100 requests per 15 minutes per IP\n- Return 429 with JSON error message\n- Skip rate limiting for health endpoint",
+    "status": "backlog"
+  },
+  {
+    "title": "Add request logging middleware",
+    "description": "Log all incoming requests with timestamp, method, path, and response time.\n\nFormat: [timestamp] METHOD /path - 200 (45ms)\n\nUse the existing logger from @automaker/utils.",
+    "status": "backlog"
+  },
+  {
+    "title": "Create API documentation page",
+    "description": "Add /docs route that displays available API endpoints.\n\nList all routes from the routes/ directory with:\n- HTTP method\n- Path\n- Brief description\n\nUse a simple HTML template, no external dependencies.",
+    "status": "backlog"
+  }
+]
