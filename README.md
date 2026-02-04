@@ -626,7 +626,7 @@ automaker/
 
 ### Security & Isolation
 
-- **Git Worktrees** - Each feature executes in an isolated git worktree, protecting your main branch
+- **Git Worktrees** - Each feature executes in an isolated git worktree, protecting your main branch. Worktrees are **auto-created** when an agent starts if one doesn't exist for the feature's branch.
 - **Path Sandboxing** - Optional `ALLOWED_ROOT_DIRECTORY` restricts file access
 - **Docker Isolation** - Recommended deployment uses Docker with no host filesystem access
 - **Plan Approval** - Optional plan review before implementation prevents unwanted changes

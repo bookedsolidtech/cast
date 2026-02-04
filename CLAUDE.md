@@ -149,7 +149,7 @@ All server operations emit events that stream to the frontend via WebSocket. Eve
 
 ### Git Worktree Isolation
 
-Each feature executes in an isolated git worktree, created via `@automaker/git-utils`. This protects the main branch during AI agent execution.
+Each feature executes in an isolated git worktree, protecting the main branch during AI agent execution. Worktrees are **auto-created** when an agent starts if one doesn't exist for the feature's branch. Worktrees are stored in `{projectPath}/.worktrees/{branch-name}`.
 
 ### Context Files
 

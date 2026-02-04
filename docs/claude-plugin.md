@@ -913,6 +913,11 @@ Epics provide visual grouping on the Kanban board and help track milestone progr
 2. **`list_running_agents` endpoint** (Fixed)
    - MCP tool now correctly calls `/running-agents` endpoint
 
+3. **Auto-create worktrees for agents** (Fixed)
+   - Agents now automatically create git worktrees if one doesn't exist for the feature's branch
+   - Worktrees are created in `{projectPath}/.worktrees/{branch-name}`
+   - No manual worktree creation required - just start an agent and isolation is automatic
+
 ### Planned Improvements
 
 1. **Auto branchName generation**
