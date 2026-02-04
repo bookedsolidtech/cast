@@ -26,7 +26,51 @@ import {
 const API_URL = process.env.AUTOMAKER_API_URL || 'http://localhost:3008';
 const API_KEY = process.env.AUTOMAKER_API_KEY || 'automaker-dev-key-2026';
 
-// Helper for API calls
+// Retry configuration
+const RETRY_CONFIG = {
+  maxRetries: 3,
+  baseDelayMs: 1000, // 1 second base delay
+  maxDelayMs: 10000, // 10 seconds max delay
+};
+
+/**
+ * Determines if an error is retryable (transient)
+ * - 5xx server errors are retryable
+ * - Network errors (fetch failures) are retryable
+ * - 4xx client errors are NOT retryable
+ */
+function isRetryableError(error: unknown, statusCode?: number): boolean {
+  // Network errors (no response received) are retryable
+  if (error instanceof TypeError && error.message.includes('fetch')) {
+    return true;
+  }
+  // 5xx server errors are retryable
+  if (statusCode && statusCode >= 500 && statusCode < 600) {
+    return true;
+  }
+  // 4xx client errors are NOT retryable
+  return false;
+}
+
+/**
+ * Calculates exponential backoff delay with jitter
+ * Formula: min(baseDelay * 2^attempt + jitter, maxDelay)
+ */
+function calculateBackoffDelay(attempt: number): number {
+  const exponentialDelay = RETRY_CONFIG.baseDelayMs * Math.pow(2, attempt);
+  // Add jitter (0-25% of delay) to prevent thundering herd
+  const jitter = Math.random() * 0.25 * exponentialDelay;
+  return Math.min(exponentialDelay + jitter, RETRY_CONFIG.maxDelayMs);
+}
+
+/**
+ * Sleep for a specified number of milliseconds
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Helper for API calls with retry logic
 async function apiCall(
   endpoint: string,
   body: Record<string, unknown>,
@@ -45,14 +89,55 @@ async function apiCall(
     options.body = JSON.stringify(body);
   }
 
-  const response = await fetch(`${API_URL}/api${endpoint}`, options);
+  let lastError: Error | null = null;
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`API error ${response.status}: ${text}`);
+  for (let attempt = 0; attempt <= RETRY_CONFIG.maxRetries; attempt++) {
+    try {
+      const response = await fetch(`${API_URL}/api${endpoint}`, options);
+
+      if (!response.ok) {
+        const text = await response.text();
+        const statusCode = response.status;
+
+        // Don't retry 4xx client errors
+        if (statusCode >= 400 && statusCode < 500) {
+          throw new Error(`API error ${statusCode}: ${text}`);
+        }
+
+        // For 5xx errors, check if we should retry
+        if (isRetryableError(null, statusCode) && attempt < RETRY_CONFIG.maxRetries) {
+          const delay = calculateBackoffDelay(attempt);
+          console.error(
+            `[MCP] Retry attempt ${attempt + 1}/${RETRY_CONFIG.maxRetries} for ${endpoint} after ${Math.round(delay)}ms (status: ${statusCode})`
+          );
+          await sleep(delay);
+          continue;
+        }
+
+        throw new Error(`API error ${statusCode}: ${text}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      // Check if this is a retryable error (network failure)
+      if (isRetryableError(error) && attempt < RETRY_CONFIG.maxRetries) {
+        const delay = calculateBackoffDelay(attempt);
+        console.error(
+          `[MCP] Retry attempt ${attempt + 1}/${RETRY_CONFIG.maxRetries} for ${endpoint} after ${Math.round(delay)}ms (error: ${lastError.message})`
+        );
+        await sleep(delay);
+        continue;
+      }
+
+      // Not retryable or max retries exceeded
+      throw lastError;
+    }
   }
 
-  return response.json();
+  // Should not reach here, but throw last error if we do
+  throw lastError || new Error('Unknown error during API call');
 }
 
 // Define all tools

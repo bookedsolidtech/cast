@@ -2838,6 +2838,31 @@ Format your response as a structured markdown document.`;
   }
 
   /**
+   * Get all branch names that have existing worktrees
+   * Used to identify orphaned features (features with branchNames but no worktrees)
+   */
+  private async getAllWorktreeBranches(projectPath: string): Promise<Set<string>> {
+    const branches = new Set<string>();
+    try {
+      const { stdout } = await execAsync('git worktree list --porcelain', {
+        cwd: projectPath,
+      });
+
+      const lines = stdout.split('\n');
+      for (const line of lines) {
+        if (line.startsWith('branch ')) {
+          const branch = line.slice(7).replace('refs/heads/', '');
+          branches.add(branch);
+        }
+      }
+    } catch {
+      // If we can't get worktrees, return empty set
+      // This will cause all features to be treated as orphaned on main worktree
+    }
+    return branches;
+  }
+
+  /**
    * Create a new worktree for a given branch
    * Returns the worktree path on success, null on failure
    */
@@ -3065,6 +3090,10 @@ Format your response as a structured markdown document.`;
     // This is needed to correctly match features when branchName is null (main worktree)
     const primaryBranch = await getCurrentBranch(projectPath);
 
+    // Get all branches that have existing worktrees
+    // Used to identify orphaned features (features with branchNames but no worktrees)
+    const worktreeBranches = await this.getAllWorktreeBranches(projectPath);
+
     try {
       const entries = await secureFs.readdir(featuresDir, {
         withFileTypes: true,
@@ -3105,20 +3134,29 @@ Format your response as a structured markdown document.`;
           ) {
             // Filter by branchName:
             // - If branchName is null (main worktree), include features with:
-            //   - branchName === null, OR
-            //   - branchName === primaryBranch (e.g., "main", "master", "develop")
+            //   - branchName === null (unassigned), OR
+            //   - branchName === primaryBranch (e.g., "main", "master", "develop"), OR
+            //   - branchName has no corresponding worktree (orphaned - will auto-create worktree)
             // - If branchName is set, only include features with matching branchName
             const featureBranch = feature.branchName ?? null;
             if (branchName === null) {
-              // Main worktree: include features without branchName OR with branchName matching primary branch
-              // This handles repos where the primary branch is named something other than "main"
-              const isPrimaryBranch =
+              // Main worktree: include features that are unassigned, on primary branch, or orphaned
+              const isPrimaryOrUnassigned =
                 featureBranch === null || (primaryBranch && featureBranch === primaryBranch);
-              if (isPrimaryBranch) {
+              // Orphaned = has branchName but no corresponding worktree exists
+              const isOrphaned = featureBranch !== null && !worktreeBranches.has(featureBranch);
+
+              if (isPrimaryOrUnassigned || isOrphaned) {
+                if (isOrphaned) {
+                  logger.debug(
+                    `[loadPendingFeatures] Including orphaned feature ${feature.id} (branchName: ${featureBranch} has no worktree) for main worktree`
+                  );
+                }
                 pendingFeatures.push(feature);
               } else {
+                // Feature belongs to a specific worktree (has branchName with existing worktree)
                 logger.debug(
-                  `[loadPendingFeatures] Filtering out feature ${feature.id} (branchName: ${featureBranch}, primaryBranch: ${primaryBranch}) for main worktree`
+                  `[loadPendingFeatures] Filtering out feature ${feature.id} (branchName: ${featureBranch} has worktree) for main worktree`
                 );
               }
             } else {
