@@ -505,7 +505,22 @@ export {
   applyEffects,
 } from './goap.js';
 
-// Policy and trust types
+// Policy engine types (used by @automaker/policy-engine)
+export type {
+  AgentRoleName,
+  PolicyAction,
+  PolicyDecisionType,
+  WorkflowStatus,
+  AgentTrustProfile,
+  EngineActionProposal,
+  PermissionMatrixEntry,
+  PermissionMatrix,
+  StatusTransitionGuard,
+  EnginePolicyConfig,
+  EnginePolicyDecision,
+} from './policy.js';
+
+// Authority system types (used by authority service)
 export type {
   TrustLevel,
   RiskLevel,
@@ -520,6 +535,9 @@ export type {
   ApprovalRequest,
   DelegationRule,
 } from './policy.js';
+
+// Role mapping utilities
+export { ROLE_NAME_TO_AUTHORITY, AUTHORITY_TO_ROLE_NAME } from './policy.js';
 
 // Authority and work item types
 export type { WorkItemState, AuthorityAgent, AuthorizedWorkItem } from './authority.js';

@@ -1,10 +1,151 @@
 /**
  * Policy and Trust Types - Authorization and decision-making for Automaker agents
  *
- * Defines the type system for policy-based access control, trust levels, risk assessment,
- * and authorization workflows. Enables role-based permissions, approval workflows, and
- * delegation rules for autonomous agents.
+ * This file contains TWO layers of types:
+ * 1. Policy Engine Types - Used by @automaker/policy-engine for checkPolicy() evaluation
+ * 2. Authority System Types - Used by the authority service for organizational workflows
+ *
+ * The engine types are optimized for fast policy checks (short role codes, indexed permission matrix).
+ * The authority types are optimized for organizational clarity (full role names, approval workflows).
  */
+
+// ============================================================================
+// POLICY ENGINE TYPES
+// Used by @automaker/policy-engine checkPolicy() function
+// ============================================================================
+
+/**
+ * AgentRoleName - Short role codes for policy engine permission matrix
+ * Maps to AuthorityRole: CTO=cto, PM=product-manager, ProjM=project-manager, etc.
+ */
+export type AgentRoleName = 'CTO' | 'PM' | 'ProjM' | 'EM' | 'PE';
+
+/**
+ * PolicyAction - Actions evaluated by the policy engine
+ */
+export type PolicyAction =
+  | 'create_work'
+  | 'assign'
+  | 'change_scope'
+  | 'block_release'
+  | 'modify_architecture'
+  | 'approve_work';
+
+/**
+ * PolicyDecisionType - Outcome types from policy engine evaluation
+ */
+export type PolicyDecisionType = 'allow' | 'deny' | 'require_approval';
+
+/**
+ * WorkflowStatus - Status values used in transition guards
+ */
+export type WorkflowStatus = 'backlog' | 'in_progress' | 'review' | 'done' | 'blocked';
+
+/**
+ * AgentTrustProfile - Agent's trust credentials for policy evaluation
+ * Passed to checkPolicy() to determine what the agent can do
+ */
+export interface AgentTrustProfile {
+  /** Agent identifier */
+  agentId: string;
+  /** Agent role (short code) */
+  role: AgentRoleName;
+  /** Maximum risk level this agent can handle without approval */
+  maxRiskLevel: RiskLevel;
+  /** Custom overrides for specific actions */
+  customPermissions?: Partial<Record<PolicyAction, boolean>>;
+}
+
+/**
+ * EngineActionProposal - Proposal evaluated by the policy engine
+ * Focused on the action itself, not the organizational context
+ */
+export interface EngineActionProposal {
+  /** The action being proposed */
+  action: PolicyAction;
+  /** Risk level of this specific action */
+  actionRisk: RiskLevel;
+  /** Current workflow status (if applicable) */
+  currentStatus?: WorkflowStatus;
+  /** Target workflow status (if applicable) */
+  targetStatus?: WorkflowStatus;
+  /** Additional context for the action */
+  context?: Record<string, unknown>;
+}
+
+/**
+ * PermissionMatrixEntry - Role capabilities in the permission matrix
+ */
+export interface PermissionMatrixEntry {
+  /** Actions allowed for this role */
+  allowedActions: PolicyAction[];
+  /** Maximum risk level without approval */
+  maxRisk: RiskLevel;
+  /** Per-action risk overrides */
+  actionRiskLimits?: Partial<Record<PolicyAction, RiskLevel>>;
+}
+
+/**
+ * PermissionMatrix - Maps roles to their capabilities
+ */
+export type PermissionMatrix = Record<AgentRoleName, PermissionMatrixEntry>;
+
+/**
+ * StatusTransitionGuard - Guards for status transitions
+ */
+export interface StatusTransitionGuard {
+  /** Source status */
+  from: WorkflowStatus;
+  /** Target status */
+  to: WorkflowStatus;
+  /** Roles allowed to make this transition */
+  allowedRoles: AgentRoleName[];
+  /** Minimum risk level required for approval */
+  requiresApprovalAbove?: RiskLevel;
+}
+
+/**
+ * EnginePolicyConfig - Configuration for the policy engine
+ */
+export interface EnginePolicyConfig {
+  /** Permission matrix for role-based access */
+  permissionMatrix: PermissionMatrix;
+  /** Status transition guards */
+  statusTransitions?: StatusTransitionGuard[];
+  /** Whether to enforce strict risk gating */
+  strictRiskGating?: boolean;
+}
+
+/**
+ * EnginePolicyDecision - Detailed result from the policy engine
+ * Includes diagnostic information for debugging and audit
+ */
+export interface EnginePolicyDecision {
+  /** The decision outcome */
+  decision: PolicyDecisionType;
+  /** Reason for the decision */
+  reason: string;
+  /** Whether role has permission for the action */
+  hasPermission: boolean;
+  /** Whether transition is allowed (if applicable) */
+  transitionAllowed: boolean;
+  /** Whether risk gate was triggered */
+  riskGateTriggered: boolean;
+  /** Additional details about the decision */
+  details?: {
+    /** Agent's maximum risk level */
+    agentMaxRisk?: RiskLevel;
+    /** Action's risk level */
+    actionRisk?: RiskLevel;
+    /** Permission level risk limit */
+    permissionRiskLimit?: RiskLevel;
+  };
+}
+
+// ============================================================================
+// AUTHORITY SYSTEM TYPES
+// Used by the authority service for organizational workflows
+// ============================================================================
 
 /**
  * TrustLevel - Determines the autonomy level for an agent or role
@@ -14,9 +155,10 @@ export type TrustLevel = 0 | 1 | 2 | 3;
 
 /**
  * RiskLevel - Categorizes the risk impact of an action
- * Used to determine approval requirements and audit trails
+ * Used by both engine and authority system
+ * 'critical' is engine-only (for CTO-level unlimited risk)
  */
-export type RiskLevel = 'low' | 'medium' | 'high';
+export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 
 /**
  * AuthorityRole - Available organizational roles for policy definitions
@@ -31,7 +173,7 @@ export type AuthorityRole =
 
 /**
  * PolicyActionType - All actions that can be controlled by policies
- * Encompasses work creation, modifications, approvals, and release gates
+ * Superset of PolicyAction - includes organizational actions
  */
 export type PolicyActionType =
   | 'create_work'
@@ -51,6 +193,7 @@ export type PolicyActionType =
 /**
  * ActionProposal - Request to perform a policy-controlled action
  * Submitted by agents and evaluated against policies before execution
+ * Rich organizational context - gets mapped to EngineActionProposal for checkPolicy()
  */
 export interface ActionProposal {
   /** Agent or entity proposing the action */
@@ -73,6 +216,7 @@ export interface ActionProposal {
 /**
  * PolicyDecision - Result of policy evaluation
  * Determines whether an action is allowed, denied, or requires approval
+ * Simplified view - EnginePolicyDecision has full diagnostics
  */
 export interface PolicyDecision {
   /** Allow, deny, or require approval */
@@ -105,7 +249,7 @@ export interface TrustProfile {
 
 /**
  * PermissionEntry - Single permission rule mapping role, action, and risk
- * Core building block for policy configuration
+ * Core building block for authority system policy configuration
  */
 export interface PermissionEntry {
   /** Target role */
@@ -181,3 +325,30 @@ export interface DelegationRule {
   /** Specific actions that can be delegated */
   allowedActions: PolicyActionType[];
 }
+
+// ============================================================================
+// MAPPING UTILITIES
+// Bridge between engine types and authority types
+// ============================================================================
+
+/**
+ * Map from AgentRoleName (engine) to AuthorityRole (authority system)
+ */
+export const ROLE_NAME_TO_AUTHORITY: Record<AgentRoleName, AuthorityRole> = {
+  CTO: 'cto',
+  PM: 'product-manager',
+  ProjM: 'project-manager',
+  EM: 'engineering-manager',
+  PE: 'principal-engineer',
+};
+
+/**
+ * Map from AuthorityRole to AgentRoleName
+ */
+export const AUTHORITY_TO_ROLE_NAME: Record<AuthorityRole, AgentRoleName> = {
+  cto: 'CTO',
+  'product-manager': 'PM',
+  'project-manager': 'ProjM',
+  'engineering-manager': 'EM',
+  'principal-engineer': 'PE',
+};
