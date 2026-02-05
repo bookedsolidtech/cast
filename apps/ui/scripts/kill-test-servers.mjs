@@ -3,6 +3,7 @@
  * This ensures the test server starts fresh with the correct API key
  */
 
+/* global setTimeout */
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
@@ -29,7 +30,7 @@ async function killProcessOnPort(port) {
           try {
             await execAsync(`kill -9 ${pid}`);
             console.log(`[KillTestServers] Killed process ${pid}`);
-          } catch (error) {
+          } catch {
             // Process might have already exited
           }
         }
@@ -47,7 +48,7 @@ async function killProcessOnPort(port) {
       await new Promise((resolve) => setTimeout(resolve, 500));
       return;
     }
-  } catch (error) {
+  } catch {
     // No process on port, which is fine
   }
 }

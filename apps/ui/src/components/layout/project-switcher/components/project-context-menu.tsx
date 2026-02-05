@@ -199,7 +199,7 @@ export function ProjectContextMenu({
   } = useAppStore();
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const [showThemeSubmenu, setShowThemeSubmenu] = useState(false);
-  const [removeConfirmed, setRemoveConfirmed] = useState(false);
+  const [, setRemoveConfirmed] = useState(false);
   const themeSubmenuRef = useRef<HTMLDivElement>(null);
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
