@@ -26,6 +26,7 @@ import type {
 import {
   DEFAULT_PHASE_MODELS,
   DEFAULT_MAX_CONCURRENCY,
+  MAX_SYSTEM_CONCURRENCY,
   isClaudeModel,
   stripProviderPrefix,
 } from '@automaker/types';
@@ -572,35 +573,47 @@ export class AutoModeService {
     branchName: string | null,
     provided?: number
   ): Promise<number> {
+    let resolvedValue: number;
+
     if (typeof provided === 'number' && Number.isFinite(provided)) {
-      return provided;
-    }
+      resolvedValue = provided;
+    } else if (!this.settingsService) {
+      resolvedValue = DEFAULT_MAX_CONCURRENCY;
+    } else {
+      try {
+        const settings = await this.settingsService.getGlobalSettings();
+        const globalMax =
+          typeof settings.maxConcurrency === 'number'
+            ? settings.maxConcurrency
+            : DEFAULT_MAX_CONCURRENCY;
+        const projectId = settings.projects?.find((project) => project.path === projectPath)?.id;
+        const autoModeByWorktree = settings.autoModeByWorktree;
 
-    if (!this.settingsService) {
-      return DEFAULT_MAX_CONCURRENCY;
-    }
-
-    try {
-      const settings = await this.settingsService.getGlobalSettings();
-      const globalMax =
-        typeof settings.maxConcurrency === 'number'
-          ? settings.maxConcurrency
-          : DEFAULT_MAX_CONCURRENCY;
-      const projectId = settings.projects?.find((project) => project.path === projectPath)?.id;
-      const autoModeByWorktree = settings.autoModeByWorktree;
-
-      if (projectId && autoModeByWorktree && typeof autoModeByWorktree === 'object') {
-        const key = `${projectId}::${branchName ?? '__main__'}`;
-        const entry = autoModeByWorktree[key];
-        if (entry && typeof entry.maxConcurrency === 'number') {
-          return entry.maxConcurrency;
+        if (projectId && autoModeByWorktree && typeof autoModeByWorktree === 'object') {
+          const key = `${projectId}::${branchName ?? '__main__'}`;
+          const entry = autoModeByWorktree[key];
+          if (entry && typeof entry.maxConcurrency === 'number') {
+            resolvedValue = entry.maxConcurrency;
+          } else {
+            resolvedValue = globalMax;
+          }
+        } else {
+          resolvedValue = globalMax;
         }
+      } catch {
+        resolvedValue = DEFAULT_MAX_CONCURRENCY;
       }
-
-      return globalMax;
-    } catch {
-      return DEFAULT_MAX_CONCURRENCY;
     }
+
+    // Enforce hard system limit to prevent resource exhaustion
+    if (resolvedValue > MAX_SYSTEM_CONCURRENCY) {
+      logger.warn(
+        `maxConcurrency ${resolvedValue} exceeds system limit of ${MAX_SYSTEM_CONCURRENCY}, capping to ${MAX_SYSTEM_CONCURRENCY}`
+      );
+      return MAX_SYSTEM_CONCURRENCY;
+    }
+
+    return resolvedValue;
   }
 
   /**
@@ -1364,7 +1377,9 @@ export class AutoModeService {
           });
         } else {
           // Sync failed for other reasons - emit warning but continue (non-blocking)
-          logger.warn(`Failed to sync branch ${branchName}: ${syncResult.error || 'Unknown error'}`);
+          logger.warn(
+            `Failed to sync branch ${branchName}: ${syncResult.error || 'Unknown error'}`
+          );
           this.emitAutoModeEvent('sync_warning', {
             featureId,
             branchName,
@@ -3237,10 +3252,7 @@ Format your response as a structured markdown document.`;
    * @param branchName - Name of the branch being worked on
    * @returns true if restack succeeded or wasn't needed, false if conflicts occurred
    */
-  private async attemptGraphiteRestack(
-    worktreePath: string,
-    branchName: string
-  ): Promise<boolean> {
+  private async attemptGraphiteRestack(worktreePath: string, branchName: string): Promise<boolean> {
     try {
       // Check if Graphite should be used
       const settings = await this.settingsService?.getGlobalSettings();
