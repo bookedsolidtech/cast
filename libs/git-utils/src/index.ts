@@ -17,3 +17,6 @@ export {
   generateDiffsForNonGitDirectory,
   getGitRepositoryDiffs,
 } from './diff.js';
+
+// Export merge detection utilities
+export { isBranchMerged, isCommitOnBranch, getBranchHeadCommit, branchExists } from './merge.js';
