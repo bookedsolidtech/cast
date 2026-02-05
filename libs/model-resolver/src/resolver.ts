@@ -48,59 +48,44 @@ export function resolveModelString(
   modelKey?: string,
   defaultModel: string = DEFAULT_MODELS.claude
 ): string {
-  console.log(
-    `[ModelResolver] resolveModelString called with modelKey: "${modelKey}", defaultModel: "${defaultModel}"`
-  );
-
   // No model specified - use default
   if (!modelKey) {
-    console.log(`[ModelResolver] No model specified, using default: ${defaultModel}`);
     return defaultModel;
   }
 
   // First, migrate legacy IDs to canonical format
   const canonicalKey = migrateModelId(modelKey);
-  if (canonicalKey !== modelKey) {
-    console.log(`[ModelResolver] Migrated legacy ID: "${modelKey}" -> "${canonicalKey}"`);
-  }
 
   // Cursor model with explicit prefix (e.g., "cursor-auto", "cursor-composer-1")
   // Pass through unchanged - provider will extract bare ID for CLI
   if (canonicalKey.startsWith(PROVIDER_PREFIXES.cursor)) {
-    console.log(`[ModelResolver] Using Cursor model: ${canonicalKey}`);
     return canonicalKey;
   }
 
   // Codex model with explicit prefix (e.g., "codex-gpt-5.1-codex-max")
   if (canonicalKey.startsWith(PROVIDER_PREFIXES.codex)) {
-    console.log(`[ModelResolver] Using Codex model: ${canonicalKey}`);
     return canonicalKey;
   }
 
   // OpenCode model (static with opencode- prefix or dynamic with provider/model format)
   if (isOpencodeModel(canonicalKey)) {
-    console.log(`[ModelResolver] Using OpenCode model: ${canonicalKey}`);
     return canonicalKey;
   }
 
   // Claude canonical ID (claude-haiku, claude-sonnet, claude-opus)
   // Map to full model string
   if (canonicalKey in CLAUDE_CANONICAL_MAP) {
-    const resolved = CLAUDE_CANONICAL_MAP[canonicalKey as keyof typeof CLAUDE_CANONICAL_MAP];
-    console.log(`[ModelResolver] Resolved Claude canonical ID: "${canonicalKey}" -> "${resolved}"`);
-    return resolved;
+    return CLAUDE_CANONICAL_MAP[canonicalKey as keyof typeof CLAUDE_CANONICAL_MAP];
   }
 
   // Full Claude model string (e.g., claude-sonnet-4-5-20250929) - pass through
   if (canonicalKey.includes('claude-')) {
-    console.log(`[ModelResolver] Using full Claude model string: ${canonicalKey}`);
     return canonicalKey;
   }
 
   // Legacy Claude model alias (sonnet, opus, haiku) - support for backward compatibility
   const resolved = CLAUDE_MODEL_MAP[canonicalKey];
   if (resolved) {
-    console.log(`[ModelResolver] Resolved Claude legacy alias: "${canonicalKey}" -> "${resolved}"`);
     return resolved;
   }
 
@@ -109,15 +94,11 @@ export function resolveModelString(
     CODEX_MODEL_PREFIXES.some((prefix) => canonicalKey.startsWith(prefix)) ||
     (OPENAI_O_SERIES_PATTERN.test(canonicalKey) && OPENAI_O_SERIES_ALLOWED_MODELS.has(canonicalKey))
   ) {
-    console.log(`[ModelResolver] Using OpenAI/Codex model: ${canonicalKey}`);
     return canonicalKey;
   }
 
   // Unknown model key - pass through as-is (could be a provider model like GLM-4.7, MiniMax-M2.1)
   // This allows ClaudeCompatibleProvider models to work without being registered here
-  console.log(
-    `[ModelResolver] Unknown model key "${canonicalKey}", passing through unchanged (may be a provider model)`
-  );
   return canonicalKey;
 }
 
@@ -175,15 +156,8 @@ export function resolvePhaseModel(
   phaseModel: string | PhaseModelEntry | null | undefined,
   defaultModel: string = DEFAULT_MODELS.claude
 ): ResolvedPhaseModel {
-  console.log(
-    `[ModelResolver] resolvePhaseModel called with:`,
-    JSON.stringify(phaseModel),
-    `type: ${typeof phaseModel}`
-  );
-
   // Handle null/undefined (defensive against corrupted JSON)
   if (!phaseModel) {
-    console.log(`[ModelResolver] phaseModel is null/undefined, using default`);
     return {
       model: resolveModelString(undefined, defaultModel),
       thinkingLevel: undefined,
@@ -192,24 +166,15 @@ export function resolvePhaseModel(
 
   // Handle legacy string format
   if (typeof phaseModel === 'string') {
-    console.log(`[ModelResolver] phaseModel is string format (legacy): "${phaseModel}"`);
     return {
       model: resolveModelString(phaseModel, defaultModel),
       thinkingLevel: undefined,
     };
   }
 
-  // Handle new PhaseModelEntry object format
-  console.log(
-    `[ModelResolver] phaseModel is object format: model="${phaseModel.model}", thinkingLevel="${phaseModel.thinkingLevel}", providerId="${phaseModel.providerId}"`
-  );
-
   // If providerId is set, pass through the model string unchanged
   // (it's a provider-specific model ID like "GLM-4.5-Air", not a Claude alias)
   if (phaseModel.providerId) {
-    console.log(
-      `[ModelResolver] Using provider model: providerId="${phaseModel.providerId}", model="${phaseModel.model}"`
-    );
     return {
       model: phaseModel.model, // Pass through unchanged
       thinkingLevel: phaseModel.thinkingLevel,

@@ -1528,7 +1528,7 @@ export class AutoModeService {
         // Extract and record learnings from the agent output
         await this.recordLearningsFromFeature(projectPath, feature, agentOutput);
       } catch (learningError) {
-        console.warn('[AutoMode] Failed to record learnings:', learningError);
+        logger.warn('Failed to record learnings:', learningError);
       }
 
       // Run git workflow (commit, push, PR) if enabled
@@ -1984,9 +1984,7 @@ Complete the pipeline step instructions above. Review the previous work and appl
     pipelineInfo: PipelineStatusInfo
   ): Promise<void> {
     const featureId = feature.id;
-    console.log(
-      `[AutoMode] Resuming feature ${featureId} from pipeline step ${pipelineInfo.stepId}`
-    );
+    logger.info(`Resuming feature ${featureId} from pipeline step ${pipelineInfo.stepId}`);
 
     // Check for context file
     const featureDir = getFeatureDir(projectPath, featureId);
@@ -2002,9 +2000,7 @@ Complete the pipeline step instructions above. Review the previous work and appl
 
     // Edge Case 1: No context file - restart entire pipeline from beginning
     if (!hasContext) {
-      console.warn(
-        `[AutoMode] No context found for pipeline feature ${featureId}, restarting from beginning`
-      );
+      logger.warn(`No context found for pipeline feature ${featureId}, restarting from beginning`);
 
       // Reset status to in_progress and start fresh
       await this.updateFeatureStatus(projectPath, featureId, 'in_progress');
@@ -2014,8 +2010,8 @@ Complete the pipeline step instructions above. Review the previous work and appl
 
     // Edge Case 2: Step no longer exists in pipeline config
     if (pipelineInfo.stepIndex === -1) {
-      console.warn(
-        `[AutoMode] Step ${pipelineInfo.stepId} no longer exists in pipeline, completing feature without pipeline`
+      logger.warn(
+        `Step ${pipelineInfo.stepId} no longer exists in pipeline, completing feature without pipeline`
       );
 
       const finalStatus = feature.skipTests ? 'waiting_approval' : 'verified';
@@ -2090,8 +2086,8 @@ Complete the pipeline step instructions above. Review the previous work and appl
     // Get steps to execute (from startFromStepIndex onwards)
     const stepsToExecute = sortedSteps.slice(startFromStepIndex);
 
-    console.log(
-      `[AutoMode] Resuming pipeline for feature ${featureId} from step ${startFromStepIndex + 1}/${sortedSteps.length}`
+    logger.info(
+      `Resuming pipeline for feature ${featureId} from step ${startFromStepIndex + 1}/${sortedSteps.length}`
     );
 
     // Add to running features immediately
@@ -2119,19 +2115,15 @@ Complete the pipeline step instructions above. Review the previous work and appl
       if (useWorktrees && branchName) {
         worktreePath = await this.findExistingWorktreeForBranch(projectPath, branchName);
         if (worktreePath) {
-          console.log(
-            `[AutoMode] Using existing worktree for branch "${branchName}": ${worktreePath}`
-          );
+          logger.debug(`Using existing worktree for branch "${branchName}": ${worktreePath}`);
         } else {
           // Auto-create worktree if it doesn't exist
-          console.log(`[AutoMode] Auto-creating worktree for branch "${branchName}"`);
+          logger.info(`Auto-creating worktree for branch "${branchName}"`);
           worktreePath = await this.createWorktreeForBranch(projectPath, branchName);
           if (worktreePath) {
-            console.log(`[AutoMode] Created worktree for branch "${branchName}": ${worktreePath}`);
+            logger.info(`Created worktree for branch "${branchName}": ${worktreePath}`);
           } else {
-            console.warn(
-              `[AutoMode] Failed to create worktree for branch "${branchName}", using project path`
-            );
+            logger.warn(`Failed to create worktree for branch "${branchName}", using project path`);
           }
         }
       }
@@ -2187,7 +2179,7 @@ Complete the pipeline step instructions above. Review the previous work and appl
       const finalStatus = feature.skipTests ? 'waiting_approval' : 'verified';
       await this.updateFeatureStatus(projectPath, featureId, finalStatus);
 
-      console.log('[AutoMode] Pipeline resume completed successfully');
+      logger.info('Pipeline resume completed successfully');
 
       // Run git workflow (commit, push, PR) if enabled
       let gitWorkflowResult: Awaited<
@@ -2266,7 +2258,7 @@ Complete the pipeline step instructions above. Review the previous work and appl
           projectPath,
         });
       } else {
-        console.error(`[AutoMode] Pipeline resume failed for feature ${featureId}:`, error);
+        logger.error(`Pipeline resume failed for feature ${featureId}:`, error);
         await this.updateFeatureStatus(projectPath, featureId, 'backlog');
         this.emitAutoModeEvent('auto_mode_error', {
           featureId,
@@ -4905,9 +4897,7 @@ After generating the revised spec, output:
     const stepId = pipelineService.getStepIdFromStatus(currentStatus);
 
     if (!stepId) {
-      console.warn(
-        `[AutoMode] Feature ${featureId} has invalid pipeline status format: ${currentStatus}`
-      );
+      logger.warn(`Feature ${featureId} has invalid pipeline status format: ${currentStatus}`);
       return {
         isPipeline: true,
         stepId: null,
@@ -4923,9 +4913,7 @@ After generating the revised spec, output:
 
     if (!config || config.steps.length === 0) {
       // Pipeline config doesn't exist or empty - feature stuck with invalid pipeline status
-      console.warn(
-        `[AutoMode] Feature ${featureId} has pipeline status but no pipeline config exists`
-      );
+      logger.warn(`Feature ${featureId} has pipeline status but no pipeline config exists`);
       return {
         isPipeline: true,
         stepId,
@@ -4943,8 +4931,8 @@ After generating the revised spec, output:
 
     if (!step) {
       // Step not found in current config - step was deleted/changed
-      console.warn(
-        `[AutoMode] Feature ${featureId} stuck in step ${stepId} which no longer exists in pipeline config`
+      logger.warn(
+        `Feature ${featureId} stuck in step ${stepId} which no longer exists in pipeline config`
       );
       return {
         isPipeline: true,
@@ -4956,8 +4944,8 @@ After generating the revised spec, output:
       };
     }
 
-    console.log(
-      `[AutoMode] Detected pipeline status for feature ${featureId}: step ${stepIndex + 1}/${sortedSteps.length} (${step.name})`
+    logger.debug(
+      `Detected pipeline status for feature ${featureId}: step ${stepIndex + 1}/${sortedSteps.length} (${step.name})`
     );
 
     return {
@@ -5225,14 +5213,14 @@ After generating the revised spec, output:
   ): Promise<void> {
     if (!agentOutput || agentOutput.length < 100) {
       // Not enough output to extract learnings from
-      console.log(
-        `[AutoMode] Skipping learning extraction - output too short (${agentOutput?.length || 0} chars)`
+      logger.debug(
+        `Skipping learning extraction - output too short (${agentOutput?.length || 0} chars)`
       );
       return;
     }
 
-    console.log(
-      `[AutoMode] Extracting learnings from feature "${feature.title}" (${agentOutput.length} chars)`
+    logger.info(
+      `Extracting learnings from feature "${feature.title}" (${agentOutput.length} chars)`
     );
 
     // Limit output to avoid token limits
@@ -5260,13 +5248,13 @@ After generating the revised spec, output:
           ? resolveModelString(feature.model, DEFAULT_MODELS.autoMode)
           : null;
         if (fallbackModel && !isClaudeModel(fallbackModel)) {
-          console.log(
-            `[AutoMode] Claude not configured for memory extraction; using feature model "${fallbackModel}".`
+          logger.debug(
+            `Claude not configured for memory extraction; using feature model "${fallbackModel}".`
           );
           resolvedModel = fallbackModel;
         } else {
-          console.log(
-            '[AutoMode] Claude not configured for memory extraction; skipping learning extraction.'
+          logger.debug(
+            'Claude not configured for memory extraction; skipping learning extraction.'
           );
           return;
         }
@@ -5283,8 +5271,8 @@ After generating the revised spec, output:
 
       const responseText = result.text;
 
-      console.log(`[AutoMode] Learning extraction response: ${responseText.length} chars`);
-      console.log(`[AutoMode] Response preview: ${responseText.substring(0, 300)}`);
+      logger.debug(`Learning extraction response: ${responseText.length} chars`);
+      logger.debug(`Response preview: ${responseText.substring(0, 300)}`);
 
       // Parse the response - handle JSON in markdown code blocks or raw
       let jsonStr: string | null = null;
@@ -5292,7 +5280,7 @@ After generating the revised spec, output:
       // First try to find JSON in markdown code blocks
       const codeBlockMatch = responseText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
       if (codeBlockMatch) {
-        console.log('[AutoMode] Found JSON in code block');
+        logger.debug('Found JSON in code block');
         jsonStr = codeBlockMatch[1];
       } else {
         // Fall back to finding balanced braces containing "learnings"
@@ -5321,26 +5309,26 @@ After generating the revised spec, output:
       }
 
       if (!jsonStr) {
-        console.log('[AutoMode] Could not extract JSON from response');
+        logger.debug('Could not extract JSON from response');
         return;
       }
 
-      console.log(`[AutoMode] Extracted JSON: ${jsonStr.substring(0, 200)}`);
+      logger.debug(`Extracted JSON: ${jsonStr.substring(0, 200)}`);
 
       let parsed: { learnings?: unknown[] };
       try {
         parsed = JSON.parse(jsonStr);
       } catch {
-        console.warn('[AutoMode] Failed to parse learnings JSON:', jsonStr.substring(0, 200));
+        logger.warn('Failed to parse learnings JSON:', jsonStr.substring(0, 200));
         return;
       }
 
       if (!parsed.learnings || !Array.isArray(parsed.learnings)) {
-        console.log('[AutoMode] No learnings array in parsed response');
+        logger.debug('No learnings array in parsed response');
         return;
       }
 
-      console.log(`[AutoMode] Found ${parsed.learnings.length} potential learnings`);
+      logger.debug(`Found ${parsed.learnings.length} potential learnings`);
 
       // Valid learning types
       const validTypes = new Set(['decision', 'learning', 'pattern', 'gotcha']);
@@ -5367,9 +5355,7 @@ After generating the revised spec, output:
           ? (typeStr as 'decision' | 'learning' | 'pattern' | 'gotcha')
           : 'learning';
 
-        console.log(
-          `[AutoMode] Appending learning: category=${learning.category}, type=${learningType}`
-        );
+        logger.debug(`Appending learning: category=${learning.category}, type=${learningType}`);
         await appendLearning(
           projectPath,
           {
@@ -5390,12 +5376,10 @@ After generating the revised spec, output:
         (l) => l && typeof l === 'object' && (l as Record<string, unknown>).content
       );
       if (validLearnings.length > 0) {
-        console.log(
-          `[AutoMode] Recorded ${parsed.learnings.length} learning(s) from feature ${feature.id}`
-        );
+        logger.info(`Recorded ${parsed.learnings.length} learning(s) from feature ${feature.id}`);
       }
     } catch (error) {
-      console.warn(`[AutoMode] Failed to extract learnings from feature ${feature.id}:`, error);
+      logger.warn(`Failed to extract learnings from feature ${feature.id}:`, error);
     }
   }
 }

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { resolveModelString, getEffectiveModel, resolvePhaseModel } from '../src/resolver';
 import {
   CLAUDE_MODEL_MAP,
@@ -8,19 +8,6 @@ import {
 } from '@automaker/types';
 
 describe('model-resolver', () => {
-  let consoleLogSpy: ReturnType<typeof vi.spyOn>;
-  let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
-
-  beforeEach(() => {
-    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-    consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    consoleLogSpy.mockRestore();
-    consoleWarnSpy.mockRestore();
-  });
-
   describe('resolveModelString', () => {
     describe('with undefined/null input', () => {
       it('should return default model when modelKey is undefined', () => {
@@ -46,9 +33,6 @@ describe('model-resolver', () => {
         const result = resolveModelString(fullModel);
 
         expect(result).toBe(fullModel);
-        expect(consoleLogSpy).toHaveBeenCalledWith(
-          expect.stringContaining('Using full Claude model string')
-        );
       });
 
       it('should handle claude-opus model strings', () => {
@@ -78,19 +62,12 @@ describe('model-resolver', () => {
         const result = resolveModelString('sonnet');
 
         expect(result).toBe(CLAUDE_MODEL_MAP.sonnet);
-        // Legacy aliases are migrated to canonical IDs then resolved
-        expect(consoleLogSpy).toHaveBeenCalledWith(
-          expect.stringContaining('Migrated legacy ID: "sonnet" -> "claude-sonnet"')
-        );
       });
 
       it("should resolve 'opus' alias", () => {
         const result = resolveModelString('opus');
 
         expect(result).toBe(CLAUDE_MODEL_MAP.opus);
-        expect(consoleLogSpy).toHaveBeenCalledWith(
-          expect.stringContaining('Migrated legacy ID: "opus" -> "claude-opus"')
-        );
       });
 
       it("should resolve 'haiku' alias", () => {
@@ -99,16 +76,13 @@ describe('model-resolver', () => {
         expect(result).toBe(CLAUDE_MODEL_MAP.haiku);
       });
 
-      it('should log the resolution for aliases', () => {
-        resolveModelString('sonnet');
-
-        // Legacy aliases get migrated and resolved via canonical map
-        expect(consoleLogSpy).toHaveBeenCalledWith(
-          expect.stringContaining('Resolved Claude canonical ID')
-        );
-        expect(consoleLogSpy).toHaveBeenCalledWith(
-          expect.stringContaining(CLAUDE_MODEL_MAP.sonnet)
-        );
+      it('should resolve all known aliases to valid Claude model strings', () => {
+        const aliases = ['sonnet', 'opus', 'haiku'];
+        for (const alias of aliases) {
+          const resolved = resolveModelString(alias);
+          expect(resolved).toContain('claude-');
+          expect(resolved).toBe(CLAUDE_MODEL_MAP[alias]);
+        }
       });
     });
 
@@ -117,7 +91,6 @@ describe('model-resolver', () => {
         const result = resolveModelString('cursor-composer-1');
 
         expect(result).toBe('cursor-composer-1');
-        expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Using Cursor model'));
       });
 
       it('should handle cursor-auto model', () => {
@@ -136,10 +109,6 @@ describe('model-resolver', () => {
         const result = resolveModelString('composer-1');
 
         expect(result).toBe('cursor-composer-1');
-        // Legacy bare IDs are migrated to canonical prefixed format
-        expect(consoleLogSpy).toHaveBeenCalledWith(
-          expect.stringContaining('Migrated legacy ID: "composer-1" -> "cursor-composer-1"')
-        );
       });
 
       it('should add cursor- prefix to auto model', () => {
@@ -152,8 +121,6 @@ describe('model-resolver', () => {
         const result = resolveModelString('cursor-unknown-future-model');
 
         expect(result).toBe('cursor-unknown-future-model');
-        // Unknown cursor-prefixed models pass through as Cursor models
-        expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Using Cursor model'));
       });
 
       it('should handle all known Cursor model IDs', () => {
@@ -175,9 +142,6 @@ describe('model-resolver', () => {
         const result = resolveModelString('unknown-model');
 
         expect(result).toBe('unknown-model');
-        expect(consoleLogSpy).toHaveBeenCalledWith(
-          expect.stringContaining('passing through unchanged')
-        );
       });
 
       it('should pass through provider-like model names', () => {
@@ -186,12 +150,6 @@ describe('model-resolver', () => {
 
         expect(glmModel).toBe('GLM-4.7');
         expect(minimaxModel).toBe('MiniMax-M2.1');
-      });
-
-      it('should not warn about unknown model keys (they are valid provider models)', () => {
-        resolveModelString('unknown-model');
-
-        expect(consoleWarnSpy).not.toHaveBeenCalled();
       });
 
       it('should ignore custom default for unknown model key (passthrough takes precedence)', () => {
