@@ -436,3 +436,21 @@ export type {
   AutoMergeSettings,
 } from './webhook.js';
 export { DEFAULT_WEBHOOK_SETTINGS, DEFAULT_AUTO_MERGE_SETTINGS } from './webhook.js';
+
+// Discord types
+export type {
+  DiscordChannelType,
+  DiscordChannel,
+  DiscordCategory,
+  DiscordServerInfo,
+  DiscordMessage,
+  DiscordWebhook,
+  DiscordUser,
+  CreateChannelOptions,
+  CreateCategoryOptions,
+  DiscordSendMessageOptions,
+  ReadMessagesOptions,
+  CreateWebhookOptions,
+  SendWebhookMessageOptions,
+  DiscordOperationResult,
+} from './discord.js';
