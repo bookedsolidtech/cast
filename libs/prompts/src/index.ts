@@ -113,3 +113,6 @@ export type {
   ResolvedSuggestionsPrompts,
   ResolvedTaskExecutionPrompts,
 } from '@automaker/types';
+
+// Agent role prompts
+export { getProductManagerPrompt, getResearchPrompt } from './agents/product-manager-prompt.js';
