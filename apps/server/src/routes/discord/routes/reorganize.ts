@@ -161,10 +161,13 @@ export function createAuditHandler(discordService: DiscordService) {
         audit: auditResult,
       });
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      const isNotImplemented = message.includes('not yet implemented');
+      const statusCode = isNotImplemented ? 501 : 500;
       logger.error('Audit handler error:', error);
-      res.status(500).json({
+      res.status(statusCode).json({
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: message,
       });
     }
   };

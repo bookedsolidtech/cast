@@ -69,48 +69,8 @@ export class DiscordService {
    */
   async auditChannels(): Promise<ChannelAuditResult> {
     logger.info('Starting Discord channel audit');
-
-    try {
-      // Note: This implementation assumes Discord MCP tools are available
-      // In a real implementation, we would call the MCP tools here
-      // For now, we'll structure the response to match the expected format
-
-      // TODO: Implement actual MCP tool calls when Discord MCP is available
-      // const serverInfo = await mcpDiscordGetServerInfo();
-      // const channels = await mcpDiscordListChannels();
-      // const webhooks = await mcpDiscordListWebhooks();
-
-      const issues: AuditIssue[] = [];
-      const channelMap = new Map<string, DiscordChannel>();
-      const categoryMap = new Map<string, DiscordCategory>();
-
-      // Mock data structure - replace with actual MCP calls
-      logger.warn('Discord MCP tools not yet integrated - returning mock audit structure');
-
-      const result: ChannelAuditResult = {
-        serverName: 'Unknown Server',
-        totalChannels: 0,
-        totalCategories: 0,
-        issues,
-        summary: {
-          emptyCategories: 0,
-          inactiveChannels: 0,
-          duplicateNames: 0,
-          orphanedChannels: 0,
-          unusedWebhooks: 0,
-        },
-      };
-
-      logger.info('Channel audit complete', {
-        totalIssues: issues.length,
-        summary: result.summary,
-      });
-
-      return result;
-    } catch (error) {
-      logger.error('Error auditing channels:', error);
-      throw error;
-    }
+    logger.warn('Discord MCP integration not yet implemented for channel audit');
+    throw new Error('Discord MCP integration not yet implemented');
   }
 
   /**
