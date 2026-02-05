@@ -22,6 +22,7 @@ import { createLogger, atomicWriteJson, readJsonWithRecovery } from '@automaker/
 import { EXAMPLE_GOAP_GOALS } from '@automaker/types';
 import { DiscordMonitor } from './discord-monitor.js';
 import { LinearMonitor } from './linear-monitor.js';
+import { GitHubMonitor } from './github-monitor.js';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'node:path';
 import { existsSync } from 'node:fs';
@@ -56,6 +57,9 @@ export class HeadsdownService {
   /** Linear monitor for detecting projects and issues */
   private linearMonitor: LinearMonitor;
 
+  /** GitHub monitor for detecting PRs needing review */
+  private githubMonitor: GitHubMonitor;
+
   constructor(
     private events: EventEmitter,
     private settingsService: SettingsService,
@@ -63,6 +67,7 @@ export class HeadsdownService {
   ) {
     this.discordMonitor = new DiscordMonitor(events);
     this.linearMonitor = new LinearMonitor(events);
+    this.githubMonitor = new GitHubMonitor(events);
 
     // Listen for Discord message detection events
     this.events.on('discord:message:detected', (data) => {
@@ -81,6 +86,12 @@ export class HeadsdownService {
     this.events.on('linear:issue:detected', (data) => {
       logger.info(`Linear issue detected: ${data.issue.identifier}`);
       // Add issue to work queue for engineer agents
+    });
+
+    // Listen for GitHub PR detection events
+    this.events.on('github:pr:detected', (data) => {
+      logger.info(`GitHub PR detected: #${data.pr.number}`);
+      // Add PR to work queue for QA agents
     });
   }
 
@@ -124,6 +135,12 @@ export class HeadsdownService {
       logger.info(`Started Linear monitoring for agent ${agentId}`);
     }
 
+    // Start GitHub monitoring if configured
+    if (config.monitors.github) {
+      await this.githubMonitor.startMonitoring(config.monitors.github);
+      logger.info(`Started GitHub monitoring for agent ${agentId}`);
+    }
+
     // Emit start event
     this.events.emit('headsdown:agent:started', {
       agentId,
@@ -162,6 +179,12 @@ export class HeadsdownService {
     if (agent.monitoring.linear) {
       this.linearMonitor.stopAll();
       logger.info(`Stopped Linear monitoring for agent ${agentId}`);
+    }
+
+    // Stop GitHub monitoring if configured
+    if (agent.monitoring.github) {
+      this.githubMonitor.stopAll();
+      logger.info(`Stopped GitHub monitoring for agent ${agentId}`);
     }
 
     // Stop work loop

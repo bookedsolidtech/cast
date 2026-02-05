@@ -116,6 +116,8 @@ export type EventType =
   | 'discord:message:detected'
   // Linear monitoring events
   | 'linear:project:updated'
-  | 'linear:issue:detected';
+  | 'linear:issue:detected'
+  // GitHub monitoring events
+  | 'github:pr:detected';
 
 export type EventCallback = (type: EventType, payload: unknown) => void;
