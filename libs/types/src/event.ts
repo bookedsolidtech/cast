@@ -132,6 +132,13 @@ export type EventType =
   | 'feature-assignment:failed'
   | 'feature-assignment:cancelled'
   | 'feature-assignment:em-agent-spawn'
-  | 'feature-assignment:error';
+  | 'feature-assignment:error'
+  // Authority system events
+  | 'authority:proposal-submitted'
+  | 'authority:approved'
+  | 'authority:rejected'
+  | 'authority:awaiting-approval'
+  | 'authority:agent-registered'
+  | 'authority:trust-updated';
 
 export type EventCallback = (type: EventType, payload: unknown) => void;

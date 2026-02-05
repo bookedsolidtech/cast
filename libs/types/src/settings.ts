@@ -14,6 +14,7 @@ import { getAllOpencodeModelIds, DEFAULT_OPENCODE_MODEL } from './opencode-model
 import type { PromptCustomization } from './prompts.js';
 import type { CodexSandboxMode, CodexApprovalPolicy } from './codex.js';
 import type { ReasoningEffort } from './provider.js';
+import type { PolicyConfig } from './policy.js';
 
 // Re-export ModelAlias for convenience
 export type { ModelAlias };
@@ -1596,6 +1597,20 @@ export interface ProjectSettings {
    * Enables event-driven actions where ProtoMaker events trigger integration tools via MCP.
    */
   integrations?: ProjectIntegrations;
+
+  // Authority System (per-project)
+  /**
+   * Policy and Trust Authority System configuration.
+   * When enabled, agent actions are evaluated against trust-based policies
+   * before execution. High-risk actions may require approval.
+   * @see PolicyConfig in policy.ts
+   */
+  authoritySystem?: {
+    /** Whether the authority system is enabled for this project */
+    enabled: boolean;
+    /** Custom policy configuration (falls back to DEFAULT_POLICY_CONFIG if not set) */
+    policyConfig?: PolicyConfig;
+  };
 
   // Deprecated Claude API Profile Override
   /**

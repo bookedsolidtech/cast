@@ -100,6 +100,8 @@ import { createWebhooksRoutes } from './routes/webhooks/index.js';
 import { createSchedulerRoutes } from './routes/scheduler/index.js';
 import { integrationService } from './services/integration-service.js';
 import { createIntegrationRoutes } from './routes/integrations/index.js';
+import { AuthorityService } from './services/authority-service.js';
+import { createAuthorityRoutes } from './routes/authority/index.js';
 
 const PORT = parseInt(process.env.PORT || '3008', 10);
 const HOST = process.env.HOST || '0.0.0.0';
@@ -285,6 +287,9 @@ eventHookService.initialize(events, settingsService, eventHistoryService, featur
 
 // Initialize Integration Service for Linear, Discord, and other external integrations
 integrationService.initialize(events, settingsService, featureLoader);
+
+// Initialize Authority Service for trust-based policy enforcement
+const authorityService = new AuthorityService(events);
 
 // Initialize Scheduler Service with event emitter and data directory
 const schedulerService = getSchedulerService();
@@ -489,6 +494,7 @@ app.use('/api/context', createContextRoutes(settingsService));
 app.use('/api/backlog-plan', createBacklogPlanRoutes(events, settingsService));
 app.use('/api/mcp', createMCPRoutes(mcpTestService));
 app.use('/api/integrations', authMiddleware, createIntegrationRoutes(settingsService));
+app.use('/api/authority', authMiddleware, createAuthorityRoutes(authorityService, events));
 app.use('/api/pipeline', createPipelineRoutes(pipelineService));
 app.use('/api/ideation', createIdeationRoutes(events, ideationService, featureLoader));
 app.use('/api/notifications', createNotificationsRoutes(notificationService));
