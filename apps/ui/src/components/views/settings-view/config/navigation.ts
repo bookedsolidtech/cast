@@ -55,7 +55,6 @@ export const GLOBAL_NAV_GROUPS: NavigationGroup[] = [
         ],
       },
       { id: 'mcp-servers', label: 'MCP Servers', icon: Plug },
-      { id: 'discord', label: 'Discord', icon: MessageCircle },
     ],
   },
   {
@@ -66,6 +65,7 @@ export const GLOBAL_NAV_GROUPS: NavigationGroup[] = [
       { id: 'keyboard', label: 'Keyboard Shortcuts', icon: Settings2 },
       { id: 'audio', label: 'Audio', icon: Volume2 },
       { id: 'event-hooks', label: 'Event Hooks', icon: Webhook },
+      { id: 'discord', label: 'Discord', icon: MessageCircle },
     ],
   },
   {
