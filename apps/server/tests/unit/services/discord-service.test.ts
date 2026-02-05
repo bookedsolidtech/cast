@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { DiscordService, getDiscordService } from '../../../src/services/discord-service.js';
+import { DiscordService, getDiscordService, _resetDiscordServiceForTesting } from '../../../src/services/discord-service.js';
 import type { ClaudeProvider } from '../../../src/providers/claude-provider.js';
 
 // Mock ClaudeProvider
@@ -24,25 +24,26 @@ describe('DiscordService', () => {
   let discordService: DiscordService;
 
   beforeEach(() => {
+    _resetDiscordServiceForTesting();
     discordService = new DiscordService(mockProvider);
     vi.clearAllMocks();
   });
 
-  describe('Error Handling', () => {
-    it('should handle connection errors', async () => {
+  describe('Not Yet Implemented Behavior', () => {
+    it('should return error for getServerInfo (not yet implemented)', async () => {
       const result = await discordService.getServerInfo();
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
-      expect(result.errorType).toBe('unknown'); // Since we throw a generic error
+      expect(result.errorType).toBe('unknown'); // Generic error since MCP not yet wired
     });
 
-    it('should handle permission errors', async () => {
+    it('should return error for listChannels (not yet implemented)', async () => {
       const result = await discordService.listChannels();
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
     });
 
-    it('should handle not found errors', async () => {
+    it('should return error for findChannel (not yet implemented)', async () => {
       const result = await discordService.findChannel('nonexistent');
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();

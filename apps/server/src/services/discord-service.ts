@@ -54,7 +54,7 @@ function parseDiscordError(error: unknown): {
   }
 
   // Not found errors
-  if (lowerMessage.includes('not found') || lowerMessage.includes('404') || lowerMessage.includes('unknown')) {
+  if (lowerMessage.includes('not found') || lowerMessage.includes('404') || /unknown\s+(channel|user|guild|member|role|message)/.test(lowerMessage)) {
     return { type: 'not_found', message: 'Discord channel, user, or resource not found' };
   }
 
@@ -559,4 +559,11 @@ export function getDiscordService(provider: ClaudeProvider): DiscordService {
     discordServiceInstance = new DiscordService(provider);
   }
   return discordServiceInstance;
+}
+
+/**
+ * Reset the singleton instance (for testing only)
+ */
+export function _resetDiscordServiceForTesting(): void {
+  discordServiceInstance = null;
 }
