@@ -89,6 +89,19 @@ header: "Feature Details"
 question: "What should this feature do? Be specific about files, components, and expected behavior."
 ```
 
+#### Model Selection via Complexity
+
+Set the `complexity` field to control which AI model is used:
+
+| Complexity      | Model  | When to Use                                     |
+| --------------- | ------ | ----------------------------------------------- |
+| `small`         | Haiku  | Quick fixes, typos, trivial changes             |
+| `medium`        | Sonnet | Standard features (default)                     |
+| `large`         | Sonnet | Complex multi-file features                     |
+| `architectural` | Opus   | Core infrastructure, key architecture decisions |
+
+Features that fail 2+ times automatically escalate to Opus on retry.
+
 ### Moving Features
 
 When moving to `in-progress`, warn that this will start an agent:

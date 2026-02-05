@@ -167,6 +167,29 @@ Use `resolveModelString()` from `@automaker/model-resolver` to convert model ali
 - `sonnet` → `claude-sonnet-4-20250514`
 - `opus` → `claude-opus-4-5-20251101`
 
+### Model Hierarchy for Auto-Mode
+
+Auto-mode uses a tiered model selection based on feature complexity:
+
+| Model      | Use Case                                                 | Triggered By                                       |
+| ---------- | -------------------------------------------------------- | -------------------------------------------------- |
+| **Opus**   | Orchestration, architectural decisions, challenging work | `complexity: 'architectural'` or after 2+ failures |
+| **Sonnet** | Standard feature implementation (default)                | `complexity: 'medium'` or `'large'`                |
+| **Haiku**  | Trivial/quick tasks                                      | `complexity: 'small'`                              |
+
+**Auto-escalation:** Features that fail 2+ times automatically escalate to opus on retry.
+
+**Setting complexity via MCP:**
+
+```typescript
+mcp__automaker__create_feature({
+  projectPath: '/path/to/project',
+  title: 'Core Infrastructure Setup',
+  description: '...',
+  complexity: 'architectural', // Uses opus
+});
+```
+
 ## Environment Variables
 
 - `ANTHROPIC_API_KEY` - Anthropic API key (or use Claude Code CLI auth)
