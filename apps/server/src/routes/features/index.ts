@@ -5,6 +5,7 @@
 import { Router } from 'express';
 import { FeatureLoader } from '../../services/feature-loader.js';
 import type { SettingsService } from '../../services/settings-service.js';
+import type { AuthorityService } from '../../services/authority-service.js';
 import type { EventEmitter } from '../../lib/events.js';
 import { validatePathParams } from '../../middleware/validate-paths.js';
 import { createListHandler } from './routes/list.js';
@@ -20,7 +21,8 @@ import { createGenerateTitleHandler } from './routes/generate-title.js';
 export function createFeaturesRoutes(
   featureLoader: FeatureLoader,
   settingsService?: SettingsService,
-  events?: EventEmitter
+  events?: EventEmitter,
+  authorityService?: AuthorityService
 ): Router {
   const router = Router();
 
@@ -31,7 +33,11 @@ export function createFeaturesRoutes(
     validatePathParams('projectPath'),
     createCreateHandler(featureLoader, events)
   );
-  router.post('/update', validatePathParams('projectPath'), createUpdateHandler(featureLoader));
+  router.post(
+    '/update',
+    validatePathParams('projectPath'),
+    createUpdateHandler(featureLoader, settingsService, authorityService)
+  );
   router.post(
     '/bulk-update',
     validatePathParams('projectPath'),

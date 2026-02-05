@@ -1,10 +1,18 @@
 /**
  * POST /update endpoint - Update a feature
+ *
+ * When the authority system is enabled for a project, status changes are
+ * evaluated against trust-based policies before proceeding. If the policy
+ * denies or requires approval, the update is blocked with an appropriate
+ * HTTP status code. When the authority system is disabled, behavior is
+ * unchanged from previous versions.
  */
 
 import type { Request, Response } from 'express';
 import { FeatureLoader } from '../../../services/feature-loader.js';
-import type { Feature, FeatureStatus } from '@automaker/types';
+import type { Feature, FeatureStatus, ActionProposal, RiskLevel } from '@automaker/types';
+import type { AuthorityService } from '../../../services/authority-service.js';
+import type { SettingsService } from '../../../services/settings-service.js';
 import { getErrorMessage, logError } from '../common.js';
 import { createLogger } from '@automaker/utils';
 
@@ -13,7 +21,11 @@ const logger = createLogger('features/update');
 // Statuses that should trigger syncing to app_spec.txt
 const SYNC_TRIGGER_STATUSES: FeatureStatus[] = ['verified', 'completed'];
 
-export function createUpdateHandler(featureLoader: FeatureLoader) {
+export function createUpdateHandler(
+  featureLoader: FeatureLoader,
+  settingsService?: SettingsService,
+  authorityService?: AuthorityService
+) {
   return async (req: Request, res: Response): Promise<void> => {
     try {
       const {
@@ -23,6 +35,8 @@ export function createUpdateHandler(featureLoader: FeatureLoader) {
         descriptionHistorySource,
         enhancementMode,
         preEnhancementDescription,
+        callerAgentId,
+        risk,
       } = req.body as {
         projectPath: string;
         featureId: string;
@@ -30,6 +44,8 @@ export function createUpdateHandler(featureLoader: FeatureLoader) {
         descriptionHistorySource?: 'enhance' | 'edit';
         enhancementMode?: 'improve' | 'technical' | 'simplify' | 'acceptance' | 'ux-reviewer';
         preEnhancementDescription?: string;
+        callerAgentId?: string;
+        risk?: RiskLevel;
       };
 
       if (!projectPath || !featureId || !updates) {
@@ -61,6 +77,50 @@ export function createUpdateHandler(featureLoader: FeatureLoader) {
       const currentFeature = await featureLoader.get(projectPath, featureId);
       const previousStatus = currentFeature?.status as FeatureStatus | undefined;
       const newStatus = updates.status as FeatureStatus | undefined;
+
+      // Authority system policy check: gate status changes when enabled
+      if (newStatus && previousStatus !== newStatus && settingsService && authorityService) {
+        try {
+          const projectSettings = await settingsService.getProjectSettings(projectPath);
+          if (projectSettings.authoritySystem?.enabled) {
+            const proposal: ActionProposal = {
+              who: callerAgentId || 'user',
+              what: 'transition_status',
+              target: featureId,
+              justification: `Status change from ${previousStatus} to ${newStatus}`,
+              risk: risk || 'low',
+              statusTransition: { from: previousStatus || 'unknown', to: newStatus },
+            };
+
+            const decision = await authorityService.submitProposal(proposal, projectPath);
+
+            if (decision.verdict === 'deny') {
+              res.status(403).json({
+                success: false,
+                error: decision.reason,
+                verdict: 'deny',
+              });
+              return;
+            }
+
+            if (decision.verdict === 'require_approval') {
+              res.status(202).json({
+                success: false,
+                verdict: 'require_approval',
+                approvalId: decision.approver,
+                reason: decision.reason,
+              });
+              return;
+            }
+
+            // verdict === 'allow' - continue with normal update
+          }
+        } catch (policyError) {
+          // Log but do not block the update if the policy check itself fails.
+          // This prevents the authority system from becoming a single point of failure.
+          logger.error('Authority policy check failed, proceeding with update:', policyError);
+        }
+      }
 
       const updated = await featureLoader.update(
         projectPath,

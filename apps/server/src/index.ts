@@ -291,6 +291,9 @@ integrationService.initialize(events, settingsService, featureLoader);
 // Initialize Authority Service for trust-based policy enforcement
 const authorityService = new AuthorityService(events);
 
+// Wire authority service into auto-mode for policy-gated feature execution
+autoModeService.setAuthorityService(authorityService);
+
 // Initialize Scheduler Service with event emitter and data directory
 const schedulerService = getSchedulerService();
 schedulerService.initialize(events, DATA_DIR);
@@ -473,7 +476,10 @@ app.get('/api/health/detailed', createDetailedHandler());
 app.use('/api/fs', createFsRoutes(events));
 app.use('/api/agent', createAgentRoutes(agentService, events));
 app.use('/api/sessions', createSessionsRoutes(agentService));
-app.use('/api/features', createFeaturesRoutes(featureLoader, settingsService, events));
+app.use(
+  '/api/features',
+  createFeaturesRoutes(featureLoader, settingsService, events, authorityService)
+);
 app.use('/api/projects', createProjectsRoutes(featureLoader));
 app.use('/api/auto-mode', createAutoModeRoutes(autoModeService));
 app.use('/api/enhance-prompt', createEnhancePromptRoutes(settingsService));

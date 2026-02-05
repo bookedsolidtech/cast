@@ -22,6 +22,7 @@ import type {
   PlanningMode,
   ExecutionContext,
   FailureAnalysis,
+  ActionProposal,
 } from '@automaker/types';
 import {
   DEFAULT_PHASE_MODELS,
@@ -65,6 +66,7 @@ import {
 } from '../lib/sdk-options.js';
 import { FeatureLoader } from './feature-loader.js';
 import type { SettingsService } from './settings-service.js';
+import type { AuthorityService } from './authority-service.js';
 import { pipelineService, PipelineService } from './pipeline-service.js';
 import {
   getAutoLoadClaudeMdSetting,
@@ -386,11 +388,21 @@ export class AutoModeService {
   private hasEmittedIdleEvent = false;
   // Recovery service for automatic failure recovery
   private recoveryService: RecoveryService;
+  // Authority service for policy-gated feature mutations (optional)
+  private authorityService: AuthorityService | null = null;
 
   constructor(events: EventEmitter, settingsService?: SettingsService) {
     this.events = events;
     this.settingsService = settingsService ?? null;
     this.recoveryService = getRecoveryService(events);
+  }
+
+  /**
+   * Wire up the authority service for policy-gated feature execution.
+   * When set, auto-mode will check policies before starting features.
+   */
+  setAuthorityService(service: AuthorityService): void {
+    this.authorityService = service;
   }
 
   /**
@@ -1321,6 +1333,40 @@ export class AutoModeService {
       // Update running feature with actual worktree info
       tempRunningFeature.worktreePath = worktreePath;
       tempRunningFeature.branchName = branchName ?? null;
+
+      // Authority system policy check: verify permission before starting this feature
+      if (this.authorityService && this.settingsService) {
+        try {
+          const projectSettings = await this.settingsService.getProjectSettings(projectPath);
+          if (projectSettings.authoritySystem?.enabled) {
+            const proposal: ActionProposal = {
+              who: 'auto-mode',
+              what: 'transition_status',
+              target: featureId,
+              justification: `Auto-mode starting feature: ${feature.title || featureId}`,
+              risk: 'low',
+              statusTransition: { from: feature.status || 'backlog', to: 'in_progress' },
+            };
+
+            const decision = await this.authorityService.submitProposal(proposal, projectPath);
+            if (decision.verdict !== 'allow') {
+              logger.info(`Authority denied feature start: ${decision.reason}`);
+              this.runningFeatures.delete(featureId);
+              this.emitAutoModeEvent('auto_mode_feature_skipped', {
+                featureId,
+                projectPath,
+                reason: decision.reason,
+                verdict: decision.verdict,
+              });
+              return;
+            }
+          }
+        } catch (policyError) {
+          // Log but proceed with execution if the policy check itself fails.
+          // This prevents the authority system from becoming a single point of failure.
+          logger.error('Authority policy check failed, proceeding with execution:', policyError);
+        }
+      }
 
       // Update feature status to in_progress BEFORE emitting event
       // This ensures the frontend sees the updated status when it reloads features
