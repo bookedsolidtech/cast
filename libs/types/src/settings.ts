@@ -1571,9 +1571,24 @@ export interface ProjectSettings {
   /**
    * Webhook configuration for receiving GitHub events.
    * Allows external services to trigger actions in this project.
-   * @see WebhookSettings in webhook.ts
+   * @see WebhookSettings in webhook.js
    */
   webhookSettings?: import('./webhook.js').WebhookSettings;
+
+  // Agentic System Configuration (per-project)
+  /**
+   * Headsdown autonomous agent configuration for this project.
+   * Enables AI agents to monitor Discord/Linear/GitHub and autonomously
+   * execute work following the headsdown pattern.
+   *
+   * Each project can customize:
+   * - Which agent roles are enabled
+   * - Model selection per role
+   * - Turn limits and timeouts
+   * - Monitoring sources (Discord channels, Linear projects)
+   * - GOAP planning parameters
+   */
+  agenticSystem?: import('./headsdown.js').HeadsdownConfig[];
 
   // Integration Settings (per-project)
   /**

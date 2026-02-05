@@ -90,6 +90,7 @@ import { createEventHistoryRoutes } from './routes/event-history/index.js';
 import { getEventHistoryService } from './services/event-history-service.js';
 import { createRalphRoutes } from './routes/ralph/index.js';
 import { RalphLoopService } from './services/ralph-loop-service.js';
+import { HeadsdownService } from './services/headsdown-service.js';
 import { createSkillsRoutes } from './routes/skills/index.js';
 import { getSchedulerService } from './services/scheduler-service.js';
 import { GraphiteSyncScheduler } from './services/graphite-sync-scheduler.js';
@@ -260,6 +261,13 @@ const codexUsageService = new CodexUsageService(codexAppServerService);
 const mcpTestService = new MCPTestService(settingsService);
 const ideationService = new IdeationService(events, settingsService, featureLoader);
 const ralphLoopService = new RalphLoopService(events, autoModeService, settingsService);
+
+// Initialize HeadsdownService for autonomous agent management
+const headsdownService = HeadsdownService.getInstance(
+	events,
+	settingsService,
+	featureLoader,
+);
 
 // Initialize DevServerService with event emitter for real-time log streaming
 const devServerService = getDevServerService();

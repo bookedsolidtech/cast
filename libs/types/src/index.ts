@@ -189,6 +189,7 @@ export type {
   EventHookHttpMethod,
   EventHookShellAction,
   EventHookHttpAction,
+  EventHookDiscordAction,
   EventHookAction,
   EventHook,
   // Git workflow types
@@ -199,6 +200,11 @@ export type {
   GraphiteSettings,
   // Discord integration types
   DiscordSettings,
+  // Project integration types
+  LinearIntegrationConfig,
+  DiscordIntegrationConfig,
+  ProjectIntegrations,
+  IntegrationEventMapping,
   // Claude-compatible provider types (new)
   ApiKeySource,
   ClaudeCompatibleProviderType,
@@ -454,3 +460,48 @@ export type {
   SendWebhookMessageOptions,
   DiscordOperationResult,
 } from './discord.js';
+
+// Agent role types (headsdown agents)
+export type {
+  AgentRole,
+  AgentTaskType,
+  AgentTask,
+  DiscordMonitorConfig,
+  LinearMonitorConfig,
+  GitHubMonitorConfig,
+  AgentMonitoring,
+  AgentStats,
+  AgentInstance,
+  IdleTaskType,
+  IdleTaskConfig,
+  WorkItem,
+  RoleCapabilities,
+} from './agent-roles.js';
+export { ROLE_CAPABILITIES } from './agent-roles.js';
+
+// Headsdown configuration types
+export type {
+  HeadsdownLoopConfig,
+  HeadsdownConfig,
+  HeadsdownState,
+} from './headsdown.js';
+export { DEFAULT_HEADSDOWN_CONFIGS } from './headsdown.js';
+
+// GOAP (Goal-Oriented Action Planning) types
+export type {
+  GOAPState,
+  GOAPCondition,
+  GOAPAction,
+  GOAPGoal,
+  GOAPPlan,
+  GOAPPlanResult,
+  GOAPPlannerConfig,
+} from './goap.js';
+export {
+  DEFAULT_GOAP_PLANNER_CONFIG,
+  EXAMPLE_GOAP_GOALS,
+  EXAMPLE_GOAP_ACTIONS,
+  isConditionSatisfied,
+  areConditionsSatisfied,
+  applyEffects,
+} from './goap.js';

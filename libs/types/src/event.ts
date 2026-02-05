@@ -87,6 +87,14 @@ export type EventType =
   | 'ralph:max_iterations'
   | 'ralph:error'
   | 'ralph:progress'
+  // Headsdown agent events (autonomous agents)
+  | 'headsdown:agent:started'
+  | 'headsdown:agent:stopped'
+  | 'headsdown:agent:working'
+  | 'headsdown:agent:idle'
+  | 'headsdown:agent:error'
+  | 'headsdown:agent:paused'
+  | 'headsdown:agent:resumed'
   // CodeRabbit review events
   | 'coderabbit:review-received'
   | 'coderabbit:feedback-processed'
@@ -97,6 +105,9 @@ export type EventType =
   | 'webhook:github:push'
   // Integration events
   | 'integration:linear'
-  | 'integration:discord';
+  | 'integration:discord'
+  // Project orchestration events
+  | 'project:scaffolded'
+  | 'project:deleted';
 
 export type EventCallback = (type: EventType, payload: unknown) => void;

@@ -5,6 +5,7 @@
 import type { PlanningMode, ThinkingLevel, GitWorkflowSettings } from './settings.js';
 import type { ReasoningEffort } from './provider.js';
 import type { FeatureRalphConfig } from './ralph.js';
+import type { AgentRole } from './agent-roles.js';
 
 /**
  * A single entry in the description history
@@ -90,6 +91,26 @@ export interface Feature {
    * Used for model escalation - after multiple failures, escalate to opus.
    */
   failureCount?: number;
+  /**
+   * Assigned agent role (for headsdown agents)
+   * Determines which specialized agent should work on this feature.
+   */
+  assignedRole?: AgentRole;
+  /**
+   * Agent instance ID that claimed this feature
+   * Used to track which headsdown agent is working on this.
+   */
+  assignedAgentId?: string;
+  /**
+   * Linear issue ID (if synced to Linear)
+   * Links feature to external project management system.
+   */
+  linearIssueId?: string;
+  /**
+   * Linear issue URL (if synced to Linear)
+   * Direct link to the Linear issue for this feature.
+   */
+  linearIssueUrl?: string;
   [key: string]: unknown; // Keep catch-all for extensibility
 }
 
