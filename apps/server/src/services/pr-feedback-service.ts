@@ -270,6 +270,12 @@ export class PRFeedbackService {
             blockerType: 'pr_feedback_loop',
             featureTitle: `PR #${pr.prNumber}`,
           });
+
+          // Mark feature as blocked so it doesn't get stuck in limbo
+          await this.featureLoader.update(pr.projectPath, featureId, {
+            workItemState: 'blocked',
+            error: `PR exceeded ${MAX_PR_ITERATIONS} review iterations. Escalated to CTO.`,
+          });
         } else {
           // Normal feedback - emit for EM to handle reassignment
           this.events.emit('pr:changes-requested', {

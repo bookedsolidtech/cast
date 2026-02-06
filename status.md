@@ -1,7 +1,7 @@
 # Policy & Trust Authority System - Status Report
 
 **Last Updated:** 2026-02-05
-**Branch:** `main` (aa30bec4)
+**Branch:** `main` (3d8cd435)
 **Server Status:** Running (v0.13.0)
 **Linear Project:** Policy & Trust Authority System (PRO-35 through PRO-51)
 
@@ -143,9 +143,9 @@ CTO (The human user, trust=infinity)
 
 ## Previously Completed (24 features, prior to authority system)
 
-### Critical Fixes Epic (5/5)
+### Critical Fixes Epic (4/4)
 
-- Add HTTP Connection Pooling, Enforce MaxConcurrency, Fix AbortController, Circuit Breaker
+- Enforce MaxConcurrency, Fix AbortController, Circuit Breaker, Worktree Key Mismatch Fix
 
 ### Workflow Health & Status Sync (6/6)
 
@@ -187,10 +187,33 @@ npm run test:server          # Server unit tests
 
 ---
 
+## Recent Changes (2026-02-05)
+
+### Pipeline Rework (3d8cd435)
+
+- Reworked idea-to-execution with AI review and milestone gating
+
+### Discord Bot (caf4b9d3)
+
+- Added Discord bot with `/idea` slash command for CTO idea injection
+
+### EM Dev Lifecycle (f0e822fd)
+
+- PR feedback service, reassignment flow, worktree cleanup
+
+### Bug Fixes (uncommitted)
+
+- Removed dead HTTP connection pooling code from claude-provider
+- Fixed worktree key mismatch in auto-mode cooldown/resume
+- Features now transition to `review` status after PR creation
+- EM reassignment sets `in_progress` workItemState (not `ready`)
+- PR escalation marks features as `blocked` instead of leaving them stuck
+
+---
+
 ## Cleanup Notes (2026-02-05)
 
-- **281 stale worktrees** consuming 35GB disk - all from completed features
-- **166 merged branches** that can be deleted
-- **393 total branches** (local + remote)
-- **9 TODO comments** in services (mostly placeholder implementations in monitor services)
+- Worktrees clean (0 stale)
+- 3 total branches (main + 2 remote tracking)
+- **3 pre-existing test failures** in `model-resolver.test.ts` (console spy mismatch, not related to recent changes)
 - **13 npm audit vulnerabilities** (all in electron-builder/node-gyp toolchain, not runtime)

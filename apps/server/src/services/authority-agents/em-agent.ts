@@ -156,8 +156,9 @@ export class EMAuthorityAgent {
       // Update feature: reset to backlog for re-execution, add feedback
       await this.featureLoader.update(projectPath, featureId, {
         status: 'backlog',
-        workItemState: 'ready',
+        workItemState: 'in_progress',
         description: fixInstructions,
+        summary: undefined, // Clear old completion summary
         prIterationCount: iterationCount,
         lastReviewFeedback: (feedback || '').slice(0, 2000),
         error: undefined, // Clear previous errors

@@ -5,49 +5,7 @@
  * with the provider architecture.
  */
 
-import http from 'node:http';
-import https from 'node:https';
 import { query, type Options } from '@anthropic-ai/claude-agent-sdk';
-import { BaseProvider } from './base-provider.js';
-import { classifyError, getUserFriendlyErrorMessage, createLogger } from '@automaker/utils';
-
-const logger = createLogger('ClaudeProvider');
-
-// HTTP Agent configuration for connection pooling
-// Prevents connection exhaustion when multiple agents run concurrently
-const HTTP_AGENT_CONFIG = {
-  keepAlive: true,
-  maxSockets: 5, // Max connections per host
-  maxFreeSockets: 2,
-  timeout: 60000, // Connection timeout
-  keepAliveMsecs: 1000,
-} as const;
-
-// Singleton HTTP agents for connection reuse across all requests
-let httpAgent: http.Agent | null = null;
-let httpsAgent: https.Agent | null = null;
-
-/**
- * Get or create singleton HTTP agent
- */
-function getHttpAgent(): http.Agent {
-  if (!httpAgent) {
-    httpAgent = new http.Agent(HTTP_AGENT_CONFIG);
-    logger.debug('[HTTP Agent] Created HTTP agent with connection pooling', HTTP_AGENT_CONFIG);
-  }
-  return httpAgent;
-}
-
-/**
- * Get or create singleton HTTPS agent
- */
-function getHttpsAgent(): https.Agent {
-  if (!httpsAgent) {
-    httpsAgent = new https.Agent(HTTP_AGENT_CONFIG);
-    logger.debug('[HTTPS Agent] Created HTTPS agent with connection pooling', HTTP_AGENT_CONFIG);
-  }
-  return httpsAgent;
-}
 import {
   getThinkingTokenBudget,
   validateBareModelId,
@@ -55,6 +13,10 @@ import {
   type ClaudeCompatibleProvider,
   type Credentials,
 } from '@automaker/types';
+import { BaseProvider } from './base-provider.js';
+import { classifyError, getUserFriendlyErrorMessage, createLogger } from '@automaker/utils';
+
+const logger = createLogger('ClaudeProvider');
 
 /**
  * ProviderConfig - Union type for provider configuration
@@ -261,7 +223,7 @@ export class ClaudeProvider extends BaseProvider {
     const maxThinkingTokens = getThinkingTokenBudget(thinkingLevel);
 
     // Build Claude SDK options
-    const sdkOptions: Options & { httpAgent?: http.Agent; httpsAgent?: https.Agent } = {
+    const sdkOptions: Options = {
       model,
       systemPrompt,
       maxTurns,
@@ -290,11 +252,6 @@ export class ClaudeProvider extends BaseProvider {
       ...(options.agents && { agents: options.agents }),
       // Pass through outputFormat for structured JSON outputs
       ...(options.outputFormat && { outputFormat: options.outputFormat }),
-      // HTTP connection pooling configuration
-      // Use singleton agents to prevent connection exhaustion with concurrent agents
-      // The Claude Agent SDK passes these through to the underlying Anthropic SDK client
-      httpAgent: getHttpAgent(),
-      httpsAgent: getHttpsAgent(),
     };
 
     // Build prompt payload

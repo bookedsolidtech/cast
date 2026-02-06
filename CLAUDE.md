@@ -57,6 +57,8 @@ automaker/
     ├── platform/     # Path management, security, process spawning
     ├── model-resolver/    # Claude model alias resolution
     ├── dependency-resolver/  # Feature dependency ordering
+    ├── policy-engine/     # Trust-based policy checking for authority system
+    ├── spec-parser/       # XML/markdown spec parsing for project plans
     └── git-utils/    # Git operations & worktree management
 ```
 
@@ -67,7 +69,7 @@ Packages can only depend on packages above them:
 ```
 @automaker/types (no dependencies)
     ↓
-@automaker/utils, @automaker/prompts, @automaker/platform, @automaker/model-resolver, @automaker/dependency-resolver
+@automaker/utils, @automaker/prompts, @automaker/platform, @automaker/model-resolver, @automaker/dependency-resolver, @automaker/policy-engine, @automaker/spec-parser
     ↓
 @automaker/git-utils
     ↓
@@ -85,7 +87,8 @@ Packages can only depend on packages above them:
 The server (`apps/server/src/`) follows a modular pattern:
 
 - `routes/` - Express route handlers organized by feature (agent, features, auto-mode, worktree, etc.)
-- `services/` - Business logic (AgentService, AutoModeService, FeatureLoader, TerminalService)
+- `services/` - Business logic (AgentService, AutoModeService, FeatureLoader, TerminalService, AuthorityService, PRFeedbackService)
+- `services/authority-agents/` - AI authority agents (PM, ProjM, EM, Status, Discord approval routing)
 - `providers/` - AI provider abstraction (currently Claude via Claude Agent SDK)
 - `lib/` - Utilities (events, auth, worktree metadata)
 

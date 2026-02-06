@@ -413,9 +413,11 @@ export class AutoModeService {
    */
   private trackFailureAndCheckPauseForProject(
     projectPath: string,
+    branchName: string | null,
     errorInfo: { type: string; message: string }
   ): boolean {
-    const projectState = this.autoLoopsByProject.get(projectPath);
+    const worktreeKey = getWorktreeAutoLoopKey(projectPath, branchName);
+    const projectState = this.autoLoopsByProject.get(worktreeKey);
     if (!projectState) {
       // Fall back to legacy global tracking
       return this.trackFailureAndCheckPause(errorInfo);
@@ -487,9 +489,11 @@ export class AutoModeService {
    */
   private signalShouldPauseForProject(
     projectPath: string,
+    branchName: string | null,
     errorInfo: { type: string; message: string }
   ): void {
-    const projectState = this.autoLoopsByProject.get(projectPath);
+    const worktreeKey = getWorktreeAutoLoopKey(projectPath, branchName);
+    const projectState = this.autoLoopsByProject.get(worktreeKey);
     if (!projectState) {
       // Fall back to legacy global pause
       this.signalShouldPause(errorInfo);
@@ -521,11 +525,11 @@ export class AutoModeService {
     });
 
     // Stop the auto loop for this project
-    this.stopAutoLoopForProject(projectPath);
+    this.stopAutoLoopForProject(projectPath, branchName);
 
     // Schedule auto-resume after cooldown period
     projectState.cooldownTimer = setTimeout(() => {
-      this.autoResumeAfterCooldown(projectPath);
+      this.autoResumeAfterCooldown(projectPath, branchName);
     }, COOLDOWN_PERIOD_MS);
   }
 
@@ -533,8 +537,12 @@ export class AutoModeService {
    * Auto-resume auto-mode after cooldown period
    * @param projectPath - The project to resume
    */
-  private async autoResumeAfterCooldown(projectPath: string): Promise<void> {
-    const projectState = this.autoLoopsByProject.get(projectPath);
+  private async autoResumeAfterCooldown(
+    projectPath: string,
+    branchName: string | null = null
+  ): Promise<void> {
+    const worktreeKey = getWorktreeAutoLoopKey(projectPath, branchName);
+    const projectState = this.autoLoopsByProject.get(worktreeKey);
     if (!projectState || !projectState.pausedDueToFailures) {
       return; // No longer paused or doesn't exist
     }
@@ -1623,6 +1631,15 @@ export class AutoModeService {
               prAlreadyExisted: gitWorkflowResult.prAlreadyExisted,
               projectPath,
             });
+
+            // Transition feature to 'review' so the merge webhook can move it to 'done'
+            if (gitWorkflowResult.prUrl) {
+              await this.featureLoader.update(projectPath, featureId, {
+                status: 'review',
+                prUrl: gitWorkflowResult.prUrl,
+                prNumber: gitWorkflowResult.prNumber,
+              });
+            }
           }
         } catch (gitError) {
           logger.warn(`Git workflow failed for ${featureId}:`, gitError);
@@ -2602,6 +2619,15 @@ Address the follow-up instructions above. Review the previous work and make the 
               prAlreadyExisted: gitWorkflowResult.prAlreadyExisted,
               projectPath,
             });
+
+            // Transition feature to 'review' so the merge webhook can move it to 'done'
+            if (gitWorkflowResult.prUrl) {
+              await this.featureLoader.update(projectPath, featureId, {
+                status: 'review',
+                prUrl: gitWorkflowResult.prUrl,
+                prNumber: gitWorkflowResult.prNumber,
+              });
+            }
           }
         } catch (gitError) {
           logger.warn(`Git workflow failed for ${featureId}:`, gitError);
