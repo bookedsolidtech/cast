@@ -143,6 +143,12 @@ export type EventType =
   | 'authority:idea-injected'
   | 'authority:pm-research-started'
   | 'authority:pm-research-completed'
-  | 'authority:pm-epic-created';
+  | 'authority:pm-epic-created'
+  // PR feedback loop events (EM dev lifecycle)
+  | 'pr:feedback-received'
+  | 'pr:changes-requested'
+  | 'pr:approved'
+  | 'feature:reassigned-for-fixes'
+  | 'feature:worktree-cleaned';
 
 export type EventCallback = (type: EventType, payload: unknown) => void;

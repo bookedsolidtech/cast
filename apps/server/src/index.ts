@@ -108,6 +108,8 @@ import { EMAuthorityAgent } from './services/authority-agents/em-agent.js';
 import { StatusMonitorAgent } from './services/authority-agents/status-agent.js';
 import { DiscordApprovalRouter } from './services/authority-agents/discord-approval-router.js';
 import { AuditService } from './services/audit-service.js';
+import { PRFeedbackService } from './services/pr-feedback-service.js';
+import { WorktreeLifecycleService } from './services/worktree-lifecycle-service.js';
 
 const PORT = parseInt(process.env.PORT || '3008', 10);
 const HOST = process.env.HOST || '0.0.0.0';
@@ -313,6 +315,14 @@ discordApprovalRouter.initialize();
 // Initialize Audit Trail (logs all authority events, tracks trust evolution)
 const auditService = new AuditService(events);
 auditService.initialize(authorityService);
+
+// Initialize PR Feedback Service (monitors open PRs for review comments)
+const prFeedbackService = new PRFeedbackService(events, featureLoader);
+prFeedbackService.initialize();
+
+// Initialize Worktree Lifecycle Service (auto-cleanup after merge)
+const worktreeLifecycleService = new WorktreeLifecycleService(events, featureLoader);
+worktreeLifecycleService.initialize();
 
 // Initialize Scheduler Service with event emitter and data directory
 const schedulerService = getSchedulerService();

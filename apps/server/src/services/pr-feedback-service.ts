@@ -1,0 +1,345 @@
+/**
+ * PR Feedback Service - Monitors open PRs for review feedback
+ *
+ * Polls GitHub for review comments on features that have open PRs.
+ * When changes are requested, emits events for the EM agent to handle
+ * reassignment back to a dev agent for fixes.
+ *
+ * Flow:
+ * 1. Listens for 'auto_mode_git_workflow' events to track created PRs
+ * 2. Periodically polls GitHub for review status on tracked PRs
+ * 3. Detects: changes requested, comments, CodeRabbit feedback, approvals
+ * 4. Emits 'pr:feedback-received' / 'pr:changes-requested' / 'pr:approved'
+ * 5. EM agent picks up and handles reassignment or merge
+ */
+
+import { createLogger } from '@automaker/utils';
+import { execSync } from 'child_process';
+import type { EventEmitter } from '../lib/events.js';
+import type { FeatureLoader } from './feature-loader.js';
+
+const logger = createLogger('PRFeedbackService');
+
+/** How often to poll for PR reviews */
+const POLL_INTERVAL_MS = 60_000; // 1 minute
+
+/** Max iterations before escalating to CTO */
+const MAX_PR_ITERATIONS = 3;
+
+interface TrackedPR {
+  featureId: string;
+  projectPath: string;
+  prNumber: number;
+  prUrl: string;
+  branchName: string;
+  lastCheckedAt: number;
+  reviewState: 'pending' | 'changes_requested' | 'approved' | 'commented';
+  iterationCount: number;
+}
+
+interface PRReviewInfo {
+  state: 'APPROVED' | 'CHANGES_REQUESTED' | 'COMMENTED' | 'PENDING';
+  reviews: Array<{
+    author: string;
+    state: string;
+    body: string;
+    submittedAt: string;
+  }>;
+  comments: Array<{
+    author: string;
+    body: string;
+    createdAt: string;
+  }>;
+}
+
+export class PRFeedbackService {
+  private readonly events: EventEmitter;
+  private readonly featureLoader: FeatureLoader;
+
+  /** PRs we're actively monitoring, keyed by featureId */
+  private trackedPRs = new Map<string, TrackedPR>();
+  private pollTimer: ReturnType<typeof setInterval> | null = null;
+  private initialized = false;
+
+  constructor(events: EventEmitter, featureLoader: FeatureLoader) {
+    this.events = events;
+    this.featureLoader = featureLoader;
+  }
+
+  initialize(): void {
+    if (this.initialized) return;
+    this.initialized = true;
+
+    // Listen for new PRs being created
+    this.events.subscribe((type, payload) => {
+      if (type === 'auto-mode:event') {
+        const data = payload as Record<string, unknown>;
+        if (data.type === 'auto_mode_git_workflow' && data.prUrl && data.prNumber) {
+          this.trackPR(data);
+        }
+      }
+
+      // Listen for PR merges to stop tracking
+      if (type === 'feature:pr-merged') {
+        const data = payload as Record<string, unknown>;
+        const featureId = data.featureId as string;
+        if (featureId && this.trackedPRs.has(featureId)) {
+          logger.info(`PR merged for feature ${featureId}, stopping tracking`);
+          this.trackedPRs.delete(featureId);
+        }
+      }
+    });
+
+    // Start polling
+    this.pollTimer = setInterval(() => {
+      void this.pollAllPRs();
+    }, POLL_INTERVAL_MS);
+
+    logger.info('PR Feedback Service initialized');
+  }
+
+  stop(): void {
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+    this.initialized = false;
+  }
+
+  /**
+   * Start tracking a newly created PR.
+   */
+  private trackPR(data: Record<string, unknown>): void {
+    const featureId = data.featureId as string;
+    const projectPath = data.projectPath as string;
+    const prNumber = data.prNumber as number;
+    const prUrl = data.prUrl as string;
+
+    if (!featureId || !prNumber) return;
+
+    // Check if we're already tracking this feature's PR
+    const existing = this.trackedPRs.get(featureId);
+
+    this.trackedPRs.set(featureId, {
+      featureId,
+      projectPath,
+      prNumber,
+      prUrl,
+      branchName: (data.branchName as string) || '',
+      lastCheckedAt: 0,
+      reviewState: 'pending',
+      iterationCount: existing?.iterationCount || 0,
+    });
+
+    // Save PR info to feature
+    void this.featureLoader.update(projectPath, featureId, {
+      prUrl,
+      prNumber,
+    });
+
+    logger.info(`Tracking PR #${prNumber} for feature ${featureId}`);
+  }
+
+  /**
+   * Poll all tracked PRs for review status.
+   */
+  private async pollAllPRs(): Promise<void> {
+    for (const [featureId, pr] of this.trackedPRs) {
+      // Don't poll too frequently per PR
+      if (Date.now() - pr.lastCheckedAt < POLL_INTERVAL_MS * 0.8) continue;
+
+      try {
+        const reviewInfo = this.fetchPRReviewStatus(pr);
+        pr.lastCheckedAt = Date.now();
+
+        if (!reviewInfo) continue;
+
+        await this.processReviewStatus(featureId, pr, reviewInfo);
+      } catch (error) {
+        logger.error(`Failed to check PR #${pr.prNumber} for feature ${featureId}:`, error);
+      }
+    }
+  }
+
+  /**
+   * Fetch PR review status from GitHub using gh CLI.
+   */
+  private fetchPRReviewStatus(pr: TrackedPR): PRReviewInfo | null {
+    try {
+      // Get PR review decision
+      const reviewJson = execSync(
+        `gh pr view ${pr.prNumber} --json reviewDecision,reviews,comments`,
+        {
+          cwd: pr.projectPath,
+          timeout: 15_000,
+          encoding: 'utf-8',
+        }
+      );
+
+      const data = JSON.parse(reviewJson) as {
+        reviewDecision: string;
+        reviews: Array<{
+          author: { login: string };
+          state: string;
+          body: string;
+          submittedAt: string;
+        }>;
+        comments: Array<{
+          author: { login: string };
+          body: string;
+          createdAt: string;
+        }>;
+      };
+
+      return {
+        state: (data.reviewDecision || 'PENDING') as PRReviewInfo['state'],
+        reviews: (data.reviews || []).map((r) => ({
+          author: r.author?.login || 'unknown',
+          state: r.state,
+          body: r.body || '',
+          submittedAt: r.submittedAt,
+        })),
+        comments: (data.comments || []).map((c) => ({
+          author: c.author?.login || 'unknown',
+          body: c.body || '',
+          createdAt: c.createdAt,
+        })),
+      };
+    } catch (error) {
+      logger.debug(`gh pr view failed for PR #${pr.prNumber}: ${error}`);
+      return null;
+    }
+  }
+
+  /**
+   * Process review status and emit appropriate events.
+   */
+  private async processReviewStatus(
+    featureId: string,
+    pr: TrackedPR,
+    reviewInfo: PRReviewInfo
+  ): Promise<void> {
+    const previousState = pr.reviewState;
+
+    // Map GitHub review decision to our state
+    switch (reviewInfo.state) {
+      case 'CHANGES_REQUESTED': {
+        if (previousState === 'changes_requested') return; // Already handled
+
+        pr.reviewState = 'changes_requested';
+        pr.iterationCount++;
+
+        // Extract feedback summary from reviews
+        const feedbackSummary = reviewInfo.reviews
+          .filter((r) => r.state === 'CHANGES_REQUESTED')
+          .map((r) => `${r.author}: ${r.body}`)
+          .join('\n');
+
+        // Also include CodeRabbit comments
+        const coderabbitComments = reviewInfo.comments
+          .filter((c) => c.author === 'coderabbitai' || c.author.includes('coderabbit'))
+          .map((c) => c.body)
+          .join('\n');
+
+        const fullFeedback = [feedbackSummary, coderabbitComments].filter(Boolean).join('\n---\n');
+
+        // Update feature with feedback info
+        await this.featureLoader.update(pr.projectPath, featureId, {
+          lastReviewFeedback: fullFeedback.slice(0, 2000), // Truncate for storage
+          prIterationCount: pr.iterationCount,
+        });
+
+        if (pr.iterationCount > MAX_PR_ITERATIONS) {
+          // Too many iterations - escalate to CTO
+          logger.warn(
+            `PR #${pr.prNumber} for ${featureId} has ${pr.iterationCount} iterations, escalating`
+          );
+          this.events.emit('authority:awaiting-approval', {
+            projectPath: pr.projectPath,
+            proposal: {
+              who: 'em-agent',
+              what: 'escalate',
+              target: featureId,
+              justification: `PR #${pr.prNumber} has had ${pr.iterationCount} review iterations without approval. Latest feedback: ${fullFeedback.slice(0, 500)}`,
+              risk: 'medium',
+            },
+            decision: {
+              verdict: 'require_approval',
+              reason: `PR exceeded ${MAX_PR_ITERATIONS} review iterations`,
+            },
+            blockerType: 'pr_feedback_loop',
+            featureTitle: `PR #${pr.prNumber}`,
+          });
+        } else {
+          // Normal feedback - emit for EM to handle reassignment
+          this.events.emit('pr:changes-requested', {
+            projectPath: pr.projectPath,
+            featureId,
+            prNumber: pr.prNumber,
+            prUrl: pr.prUrl,
+            branchName: pr.branchName,
+            iterationCount: pr.iterationCount,
+            feedback: fullFeedback,
+            reviewers: reviewInfo.reviews
+              .filter((r) => r.state === 'CHANGES_REQUESTED')
+              .map((r) => r.author),
+          });
+        }
+
+        this.events.emit('pr:feedback-received', {
+          projectPath: pr.projectPath,
+          featureId,
+          prNumber: pr.prNumber,
+          type: 'changes_requested',
+          iterationCount: pr.iterationCount,
+        });
+
+        logger.info(`PR #${pr.prNumber}: Changes requested (iteration ${pr.iterationCount})`);
+        break;
+      }
+
+      case 'APPROVED': {
+        if (previousState === 'approved') return; // Already handled
+
+        pr.reviewState = 'approved';
+
+        this.events.emit('pr:approved', {
+          projectPath: pr.projectPath,
+          featureId,
+          prNumber: pr.prNumber,
+          prUrl: pr.prUrl,
+          branchName: pr.branchName,
+          approvers: reviewInfo.reviews.filter((r) => r.state === 'APPROVED').map((r) => r.author),
+        });
+
+        logger.info(`PR #${pr.prNumber}: Approved!`);
+
+        // Stop tracking - merge will be handled by auto-merge or webhook
+        this.trackedPRs.delete(featureId);
+        break;
+      }
+
+      case 'COMMENTED': {
+        // Track comments but don't reassign - might be discussion, not blocking
+        if (previousState !== 'commented') {
+          pr.reviewState = 'commented';
+          this.events.emit('pr:feedback-received', {
+            projectPath: pr.projectPath,
+            featureId,
+            prNumber: pr.prNumber,
+            type: 'commented',
+            iterationCount: pr.iterationCount,
+          });
+        }
+        break;
+      }
+    }
+  }
+
+  /**
+   * Get all currently tracked PRs (for debugging/dashboard).
+   */
+  getTrackedPRs(): TrackedPR[] {
+    return Array.from(this.trackedPRs.values());
+  }
+}

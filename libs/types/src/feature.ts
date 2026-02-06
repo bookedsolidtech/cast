@@ -118,6 +118,21 @@ export interface Feature {
    * Only used when authority system is enabled.
    */
   workItemState?: WorkItemState;
+  /**
+   * PR tracking for the EM feedback loop.
+   * Populated by auto-mode after git workflow creates a PR.
+   */
+  prUrl?: string;
+  prNumber?: number;
+  /**
+   * Number of PR review iterations (feedback → fix cycles).
+   * Incremented each time the EM reassigns the feature for PR fixes.
+   */
+  prIterationCount?: number;
+  /**
+   * Summary of the most recent PR review feedback.
+   */
+  lastReviewFeedback?: string;
   [key: string]: unknown; // Keep catch-all for extensibility
 }
 

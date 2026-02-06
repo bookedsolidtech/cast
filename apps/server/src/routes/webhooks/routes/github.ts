@@ -122,15 +122,47 @@ export function createGitHubWebhookHandler(events: EventEmitter, settingsService
 
       // Check event type
       const eventType = req.headers['x-github-event'] as string | undefined;
-      if (eventType !== 'pull_request') {
-        logger.debug(`Ignoring non-pull_request event: ${eventType}`);
+      if (eventType !== 'pull_request' && eventType !== 'pull_request_review') {
+        logger.debug(`Ignoring event: ${eventType}`);
         res.json({ success: true, message: 'Event type not handled' });
         return;
       }
 
       const payload = req.body as GitHubPullRequestPayload;
 
-      // Only handle merged PRs
+      // Handle pull_request_review events (changes requested / approved)
+      if (eventType === 'pull_request_review') {
+        const reviewPayload = req.body as {
+          action: string;
+          review: { state: string; body: string; user: { login: string } };
+          pull_request: { number: number; head: { ref: string } };
+        };
+
+        if (reviewPayload.action === 'submitted') {
+          const branchName = reviewPayload.pull_request.head.ref;
+          const prNumber = reviewPayload.pull_request.number;
+          const reviewState = reviewPayload.review.state;
+
+          logger.info(
+            `PR #${prNumber} review: ${reviewState} by ${reviewPayload.review.user?.login}`
+          );
+
+          // Emit webhook event for PR feedback service to pick up
+          events.emit('webhook:github:pull_request', {
+            action: 'review_submitted',
+            prNumber,
+            branchName,
+            reviewState,
+            reviewBody: reviewPayload.review.body,
+            reviewer: reviewPayload.review.user?.login,
+          });
+        }
+
+        res.json({ success: true, message: 'Review event processed' });
+        return;
+      }
+
+      // Only handle merged PRs for pull_request events
       if (payload.action !== 'closed' || !payload.pull_request.merged) {
         logger.debug(
           `Ignoring PR action: ${payload.action}, merged: ${payload.pull_request.merged}`
