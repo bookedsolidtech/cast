@@ -91,6 +91,8 @@ import { createEventHistoryRoutes } from './routes/event-history/index.js';
 import { getEventHistoryService } from './services/event-history-service.js';
 import { createRalphRoutes } from './routes/ralph/index.js';
 import { RalphLoopService } from './services/ralph-loop-service.js';
+import { createGOAPRoutes } from './routes/goap/index.js';
+import { GOAPLoopService } from './services/goap-loop-service.js';
 import { HeadsdownService } from './services/headsdown-service.js';
 import { PRDService } from './services/prd-service.js';
 import { createSkillsRoutes } from './routes/skills/index.js';
@@ -288,6 +290,7 @@ const codexUsageService = new CodexUsageService(codexAppServerService);
 const mcpTestService = new MCPTestService(settingsService);
 const ideationService = new IdeationService(events, settingsService, featureLoader);
 const ralphLoopService = new RalphLoopService(events, autoModeService, settingsService);
+const goapLoopService = GOAPLoopService.getInstance(events, featureLoader, autoModeService);
 
 // Initialize HeadsdownService for autonomous agent management
 const headsdownService = HeadsdownService.getInstance(events, settingsService, featureLoader);
@@ -578,6 +581,7 @@ app.use('/api/pipeline', createPipelineRoutes(pipelineService));
 app.use('/api/ideation', createIdeationRoutes(events, ideationService, featureLoader));
 app.use('/api/notifications', createNotificationsRoutes(notificationService));
 app.use('/api/ralph', createRalphRoutes(ralphLoopService));
+app.use('/api/goap', createGOAPRoutes(goapLoopService));
 app.use('/api/skills', createSkillsRoutes());
 app.use('/api/event-history', createEventHistoryRoutes(eventHistoryService, settingsService));
 app.use('/api/projects', createProjectsRoutes(featureLoader));
@@ -1002,6 +1006,7 @@ process.on('uncaughtException', (error: Error) => {
 // Graceful shutdown
 process.on('SIGTERM', () => {
   logger.info('SIGTERM received, shutting down...');
+  void goapLoopService.stopAllLoops();
   terminalService.cleanup();
   server.close(() => {
     logger.info('Server closed');
@@ -1011,6 +1016,7 @@ process.on('SIGTERM', () => {
 
 process.on('SIGINT', () => {
   logger.info('SIGINT received, shutting down...');
+  void goapLoopService.stopAllLoops();
   terminalService.cleanup();
   server.close(() => {
     logger.info('Server closed');
