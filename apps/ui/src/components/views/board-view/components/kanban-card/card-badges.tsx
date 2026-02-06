@@ -57,10 +57,16 @@ export const CardBadges = memo(function CardBadges({ feature }: CardBadgesProps)
           )}
         >
           <Calendar className="w-3 h-3" />
-          {new Date(feature.dueDate!).toLocaleDateString(undefined, {
-            month: 'short',
-            day: 'numeric',
-          })}
+          {(() => {
+            const [y, m, d] = feature.dueDate!.split('-').map(Number);
+            if (Number.isNaN(y) || Number.isNaN(m) || Number.isNaN(d)) {
+              return feature.dueDate;
+            }
+            return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+              month: 'short',
+              day: 'numeric',
+            });
+          })()}
         </div>
       )}
 
