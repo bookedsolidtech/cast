@@ -272,6 +272,52 @@ export async function apiListBranches(
 }
 
 // ============================================================================
+// Settings Utilities
+// ============================================================================
+
+/**
+ * Sync a test project to the server's global settings.
+ *
+ * This ensures the server knows about the test project and has it set as
+ * the current project. Without this, the settings migration hook may use
+ * stale server settings from a previous test (especially when
+ * `localStorageMigrated: true` is already set).
+ *
+ * MUST be called AFTER authenticateForTests() since the API requires auth.
+ *
+ * @param page - Playwright page (used for API requests with auth cookies)
+ * @param projectPath - Absolute path to the test project directory
+ * @param projectName - Display name for the test project
+ */
+export async function syncTestProjectToServer(
+  page: Page,
+  projectPath: string,
+  projectName: string
+): Promise<void> {
+  const projectId = `project-${projectName}`;
+  const testProject = {
+    id: projectId,
+    name: projectName,
+    path: projectPath,
+    lastOpened: new Date().toISOString(),
+  };
+
+  const response = await page.request.put(`${API_BASE_URL}/api/settings/global`, {
+    data: {
+      currentProjectId: projectId,
+      projects: [testProject],
+      localStorageMigrated: false,
+    },
+    headers: { 'Content-Type': 'application/json' },
+    timeout: 10000,
+  });
+
+  if (!response.ok()) {
+    console.warn(`[syncTestProjectToServer] Failed to sync project settings: ${response.status()}`);
+  }
+}
+
+// ============================================================================
 // Authentication Utilities
 // ============================================================================
 

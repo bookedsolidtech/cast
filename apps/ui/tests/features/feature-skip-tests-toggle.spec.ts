@@ -22,6 +22,7 @@ import {
   isSkipTestsBadgeVisible,
   authenticateForTests,
   handleLoginScreenIfPresent,
+  syncTestProjectToServer,
 } from '../utils';
 
 const TEST_TEMP_DIR = createTempDirPath('skip-tests-toggle-test');
@@ -69,6 +70,11 @@ test.describe('Feature Skip Tests Badge', () => {
     await setupRealProject(page, projectPath, projectName, { setAsCurrent: true });
 
     await authenticateForTests(page);
+
+    // Sync the test project to the server to prevent stale settings
+    // from a previous test overriding this test's localStorage project
+    await syncTestProjectToServer(page, projectPath, projectName);
+
     await page.goto('/board');
     await page.waitForLoadState('load');
     await handleLoginScreenIfPresent(page);

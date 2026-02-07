@@ -23,6 +23,7 @@ import {
   authenticateForTests,
   handleLoginScreenIfPresent,
   sanitizeForTestId,
+  syncTestProjectToServer,
 } from '../utils';
 
 const TEST_TEMP_DIR = createTempDirPath('manual-review-test');
@@ -101,6 +102,10 @@ test.describe('Feature Manual Review Flow', () => {
     });
 
     await authenticateForTests(page);
+
+    // Sync the test project to the server to prevent stale settings
+    // from a previous test overriding this test's localStorage project
+    await syncTestProjectToServer(page, projectPath, projectName);
 
     // Navigate to board
     await page.goto('/board');
