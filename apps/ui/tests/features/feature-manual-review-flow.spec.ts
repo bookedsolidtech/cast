@@ -22,7 +22,6 @@ import {
   getKanbanColumn,
   authenticateForTests,
   handleLoginScreenIfPresent,
-  syncTestProjectToServer,
 } from '../utils';
 
 const TEST_TEMP_DIR = createTempDirPath('manual-review-test');
@@ -60,36 +59,14 @@ test.describe('Feature Manual Review Flow', () => {
       `# ${projectName}\n\nA test project for e2e testing.`
     );
 
-    // Note: Feature directory is NOT pre-created here. The HTTP API
-    // creates it when the feature is created. Pre-creating an empty
-    // directory causes FeatureLoader to cache the feature as null
-    // (feature.json doesn't exist), leading to flaky test failures.
-  });
+    // Pre-create the feature on disk so it's available when the board loads.
+    // This avoids the need for API creation + page reload, which causes
+    // flaky failures on CI due to settings sync race conditions during reload
+    // (addInitScript generates a new project ID on each reload, conflicting
+    // with the server-synced project ID).
+    const featureDir = path.join(automakerDir, 'features', featureId);
+    fs.mkdirSync(featureDir, { recursive: true });
 
-  test.afterAll(async () => {
-    cleanupTempDir(TEST_TEMP_DIR);
-  });
-
-  test('should manually verify a feature in waiting_approval column', async ({ page }) => {
-    // Set up the project in localStorage
-    await setupRealProject(page, projectPath, projectName, { setAsCurrent: true });
-
-    await authenticateForTests(page);
-
-    // Sync the test project to the server to prevent stale settings
-    // from a previous test overriding this test's localStorage project.
-    // This replaces the old route interceptor approach which caused
-    // settings sync loops by modifying every PUT response.
-    await syncTestProjectToServer(page, projectPath, projectName);
-
-    // Navigate to board
-    await page.goto('/board');
-    await page.waitForLoadState('load');
-    await handleLoginScreenIfPresent(page);
-    await waitForNetworkIdle(page);
-    await expect(page.locator('[data-testid="board-view"]')).toBeVisible({ timeout: 10000 });
-
-    // Create the feature via HTTP API (writes to disk)
     const feature = {
       id: featureId,
       description: 'Test feature for manual review flow',
@@ -103,25 +80,27 @@ test.describe('Feature Manual Review Flow', () => {
       priority: 2,
     };
 
-    const API_BASE_URL = process.env.VITE_SERVER_URL || 'http://localhost:3008';
-    const createResponse = await page.request.post(`${API_BASE_URL}/api/features/create`, {
-      data: { projectPath, feature },
-      headers: { 'Content-Type': 'application/json' },
-    });
+    fs.writeFileSync(path.join(featureDir, 'feature.json'), JSON.stringify(feature, null, 2));
+  });
 
-    if (!createResponse.ok()) {
-      const error = await createResponse.text();
-      throw new Error(`Failed to create feature: ${error}`);
-    }
+  test.afterAll(async () => {
+    cleanupTempDir(TEST_TEMP_DIR);
+  });
 
-    // Reload to pick up the new feature
-    await page.reload();
+  test('should manually verify a feature in waiting_approval column', async ({ page }) => {
+    // Set up the project in localStorage
+    await setupRealProject(page, projectPath, projectName, { setAsCurrent: true });
+
+    await authenticateForTests(page);
+
+    // Navigate to board - feature is already on disk from beforeAll
+    await page.goto('/board');
     await page.waitForLoadState('load');
     await handleLoginScreenIfPresent(page);
     await waitForNetworkIdle(page);
+    await expect(page.locator('[data-testid="board-view"]')).toBeVisible({ timeout: 10000 });
 
     // Wait for board to load and features to be fetched
-    // This prevents race conditions where features haven't loaded yet
     await waitForBoardFeaturesLoaded(page);
 
     // Wait for the feature card to appear
