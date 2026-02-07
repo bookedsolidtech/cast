@@ -225,6 +225,16 @@ export class DiscordBotService {
           .addStringOption((option) =>
             option.setName('reason').setDescription('Reason for rejection').setRequired(false)
           ),
+
+        new SlashCommandBuilder()
+          .setName('setuplab')
+          .setDescription('Initialize Automaker for a new repository')
+          .addStringOption((option) =>
+            option
+              .setName('path')
+              .setDescription('Project path (absolute or relative)')
+              .setRequired(true)
+          ),
       ];
 
       const rest = new REST({ version: '10' }).setToken(token);
@@ -261,6 +271,9 @@ export class DiscordBotService {
         break;
       case 'reject':
         await this.handleRejectCommand(interaction);
+        break;
+      case 'setuplab':
+        await this.handleSetuplabCommand(interaction);
         break;
     }
   }
@@ -493,6 +506,108 @@ export class DiscordBotService {
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
       await interaction.reply({ content: `Failed to reject: ${msg}`, ephemeral: true });
+    }
+  }
+
+  /**
+   * Handle /setuplab slash command.
+   */
+  private async handleSetuplabCommand(interaction: any): Promise<void> {
+    await interaction.deferReply();
+
+    const projectPath = interaction.options.getString('path');
+    if (!projectPath) {
+      await interaction.editReply('Project path is required.');
+      return;
+    }
+
+    try {
+      // Resolve path (handle ~ and relative paths)
+      let resolvedPath = projectPath;
+      if (resolvedPath.startsWith('~')) {
+        resolvedPath = path.join(process.env.HOME || '/tmp', resolvedPath.slice(1));
+      } else if (!path.isAbsolute(resolvedPath)) {
+        resolvedPath = path.resolve(resolvedPath);
+      }
+
+      logger.info('Setting up lab for project', { projectPath: resolvedPath });
+
+      // Call the setup endpoint with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
+      let response;
+      try {
+        response = await fetch('http://localhost:3008/api/setup/project', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ projectPath: resolvedPath }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        if ((fetchError as Error).name === 'AbortError') {
+          await interaction.editReply(
+            '❌ Setup timed out after 15 seconds. The server may be overloaded.'
+          );
+        } else {
+          await interaction.editReply(
+            `❌ Setup failed: ${fetchError instanceof Error ? fetchError.message : 'Network error'}`
+          );
+        }
+        return;
+      }
+
+      if (!response.ok) {
+        const error = (await response.json()) as { error?: string };
+        await interaction.editReply(
+          `❌ Setup failed: ${error.error ?? 'Unknown error'}\n\nPath: \`${resolvedPath}\``
+        );
+        return;
+      }
+
+      const result = (await response.json()) as {
+        success: boolean;
+        filesCreated: string[];
+        projectAdded: boolean;
+        error?: string;
+      };
+
+      // Build success message
+      const lines = [
+        '## Lab Setup Complete ✓',
+        '',
+        `**Project:** \`${resolvedPath}\``,
+        '',
+        '### Initialized:',
+      ];
+
+      if (result.filesCreated && result.filesCreated.length > 0) {
+        for (const file of result.filesCreated) {
+          lines.push(`- ✓ ${file}`);
+        }
+      }
+
+      if (result.projectAdded) {
+        lines.push('- ✓ Added to Automaker settings');
+      }
+
+      lines.push('');
+      lines.push('### Next Steps:');
+      lines.push('1. View your project: Use `/board` in Automaker');
+      lines.push('2. Create features: Use the board UI or MCP');
+      lines.push('3. Add context files: Define coding standards and rules');
+      lines.push('4. Start auto-mode: Autonomous feature processing');
+
+      await interaction.editReply(lines.join('\n'));
+    } catch (error) {
+      logger.error('Error handling /setuplab command:', error);
+      await interaction.editReply(
+        `❌ Setup failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
