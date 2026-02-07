@@ -640,6 +640,44 @@ When reporting staging issues, include:
 4. Feature complexity distribution
 5. Uptime since last restart
 
+## Automated Deploys
+
+Staging auto-deploys from `main` via a GitHub Actions self-hosted runner.
+
+### How It Works
+
+1. Code merges to `main`
+2. `.github/workflows/deploy-staging.yml` triggers on the self-hosted runner
+3. Runner pulls latest code, rebuilds images, restarts containers
+4. Health check verifies deployment
+5. Discord notification posted to `#deployments`
+
+### Setup
+
+```bash
+# Install the self-hosted runner on the staging machine
+./scripts/setup-runner.sh
+
+# Check runner status
+./scripts/setup-runner.sh --status
+
+# Remove runner
+./scripts/setup-runner.sh --uninstall
+```
+
+### Manual Deploy
+
+```bash
+# Pull latest and rebuild
+git pull origin main
+./scripts/setup-staging.sh --build
+./scripts/setup-staging.sh --start
+```
+
+### Discord Notifications
+
+Set the `DISCORD_DEPLOY_WEBHOOK` secret in GitHub repo settings to receive deploy notifications in `#deployments`.
+
 ## Next Steps
 
 After staging deployment is stable:

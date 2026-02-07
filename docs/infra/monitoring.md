@@ -236,9 +236,18 @@ For production deployments, consider:
 | Grafana      | Visualization          |
 | PagerDuty    | Alerting               |
 
-## Prometheus Integration (Optional)
+## Prometheus + Grafana (Production)
 
-Create `prometheus.yml`:
+The production compose (`docker-compose.prod.yml`) includes Prometheus and Grafana:
+
+| Service    | Port | Purpose               |
+| ---------- | ---- | --------------------- |
+| Prometheus | 9091 | Metrics collection    |
+| Grafana    | 3000 | Metrics visualization |
+
+### Configuration
+
+Prometheus config at `prometheus.yml`:
 
 ```yaml
 global:
@@ -247,11 +256,30 @@ global:
 scrape_configs:
   - job_name: 'automaker'
     static_configs:
-      - targets: ['localhost:3008']
+      - targets: ['server:3008']
     metrics_path: '/api/metrics'
 ```
 
-**Note:** The `/api/metrics` endpoint is not currently implemented. This is a placeholder for future observability enhancements.
+The server exposes metrics when `ENABLE_METRICS=true` and `METRICS_PORT=9090` are set (configured in `docker-compose.prod.yml`).
+
+### Deploying
+
+```bash
+# Deploy with monitoring
+docker stack deploy -c docker-compose.prod.yml automaker
+
+# Or with docker-compose
+docker compose -f docker-compose.prod.yml up -d
+```
+
+### Grafana Setup
+
+1. Access Grafana at `http://localhost:3000`
+2. Default admin password is in the `grafana_admin_password` Docker secret - **change immediately**
+3. Add Prometheus data source: `http://prometheus:9090`
+4. Import dashboards from `grafana-dashboards/` (if configured)
+
+**Note:** The `/api/metrics` endpoint is a work in progress. Currently the health endpoint provides basic observability. Full Prometheus metrics will be added in a future release.
 
 ## Debugging
 

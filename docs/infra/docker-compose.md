@@ -4,11 +4,13 @@ Automaker provides multiple Docker Compose configurations for different use case
 
 ## Compose Files
 
-| File                          | Purpose              | Isolation Level                     |
-| ----------------------------- | -------------------- | ----------------------------------- |
-| `docker-compose.yml`          | Production (default) | Full isolation - named volumes only |
-| `docker-compose.dev.yml`      | Development          | Source mounted, live reload         |
-| `docker-compose.override.yml` | Local customization  | User-defined (gitignored)           |
+| File                          | Purpose                    | Isolation Level                     |
+| ----------------------------- | -------------------------- | ----------------------------------- |
+| `docker-compose.yml`          | Production (default)       | Full isolation - named volumes only |
+| `docker-compose.dev.yml`      | Development                | Source mounted, live reload         |
+| `docker-compose.prod.yml`     | Production (hardened)      | Docker secrets, Prometheus, Grafana |
+| `docker-compose.staging.yml`  | Staging (high-concurrency) | Host paths mounted for MCP compat   |
+| `docker-compose.override.yml` | Local customization        | User-defined (gitignored)           |
 
 ## Production Configuration
 
