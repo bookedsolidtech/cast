@@ -4,15 +4,15 @@ Automaker uses GitHub Actions for continuous integration and delivery.
 
 ## Workflows Overview
 
-| Workflow             | Trigger           | Purpose                |
-| -------------------- | ----------------- | ---------------------- |
-| `test.yml`           | PR, push to main  | Unit tests             |
-| `e2e-tests.yml`      | PR, push to main  | End-to-end tests       |
-| `pr-check.yml`       | PR, push to main  | Build verification     |
-| `format-check.yml`   | PR, push to main  | Code formatting        |
-| `security-audit.yml` | PR, push, weekly  | npm audit              |
-| `release.yml`        | Release published | Multi-platform builds  |
-| `claude.yml`         | Manual            | Claude Code automation |
+| Workflow             | Trigger           | Purpose               |
+| -------------------- | ----------------- | --------------------- |
+| `test.yml`           | PR, push to main  | Unit tests            |
+| `e2e-tests.yml`      | PR, push to main  | End-to-end tests      |
+| `pr-check.yml`       | PR, push to main  | Build verification    |
+| `format-check.yml`   | PR, push to main  | Code formatting       |
+| `security-audit.yml` | PR, push, weekly  | npm audit             |
+| `release.yml`        | Release published | Multi-platform builds |
+| `deploy-staging.yml` | Push to main      | Auto-deploy staging   |
 
 ## Test Suite (`test.yml`)
 
@@ -294,6 +294,48 @@ jobs:
 
 3. The workflow builds and uploads artifacts
 
+## Deploy Staging (`deploy-staging.yml`)
+
+Auto-deploys to the staging server when code merges to `main`.
+
+```yaml
+name: Deploy Staging
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - run: git pull origin main
+      - run: ./scripts/setup-staging.sh --build
+      - run: ./scripts/setup-staging.sh --start
+      - run: curl -sf http://localhost:3008/api/health
+```
+
+### Self-Hosted Runner
+
+Requires a GitHub Actions runner on the staging machine:
+
+```bash
+# Install runner
+./scripts/setup-runner.sh
+
+# Check status
+./scripts/setup-runner.sh --status
+```
+
+See [staging-deployment.md](./staging-deployment.md#automated-deploys) for full setup.
+
+### Secrets
+
+| Secret                   | Purpose                              |
+| ------------------------ | ------------------------------------ |
+| `DISCORD_DEPLOY_WEBHOOK` | Post deploy notifications to Discord |
+
 ## Composite Actions
 
 ### `setup-project`
@@ -344,10 +386,11 @@ Recommended branch protection rules for `main`:
 
 ## Secrets
 
-| Secret          | Purpose                          |
-| --------------- | -------------------------------- |
-| `GITHUB_TOKEN`  | Auto-provided, used for releases |
-| `CODECOV_TOKEN` | (Optional) Coverage reporting    |
+| Secret                   | Purpose                          |
+| ------------------------ | -------------------------------- |
+| `GITHUB_TOKEN`           | Auto-provided, used for releases |
+| `CODECOV_TOKEN`          | (Optional) Coverage reporting    |
+| `DISCORD_DEPLOY_WEBHOOK` | Staging deploy notifications     |
 
 ## Local CI Simulation
 

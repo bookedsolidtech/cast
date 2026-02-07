@@ -31,7 +31,25 @@ Each project has a `.automaker/` directory containing:
 
 ## Backup Procedures
 
-### Quick Backup (All Data Volumes)
+### Automated Backup (Recommended)
+
+Use the backup script for automated backups with metadata and retention:
+
+```bash
+# Backup all volumes (default: 30-day retention)
+./scripts/backup-volumes.sh
+
+# Restore from a backup
+./scripts/restore-volumes.sh ./backups/automaker-backup-20260205_020000
+```
+
+The backup script:
+
+- Backs up all Docker volumes with metadata (hostname, timestamp)
+- Cleans up backups older than the retention period
+- Creates individual `.tar.gz` per volume for selective restore
+
+### Quick Backup (Manual)
 
 ```bash
 # Create backup directory
