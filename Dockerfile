@@ -39,10 +39,15 @@ COPY scripts ./scripts
 # =============================================================================
 FROM base AS server-builder
 
-# Copy server-specific package.json
+# Copy all workspace package.json files so npm ci can validate the full lockfile.
+# Without apps/ui/package.json, npm ci fails because the lockfile references the
+# ui workspace and npm ci validates all workspace entries.
 COPY apps/server/package*.json ./apps/server/
+COPY apps/ui/package.json ./apps/ui/
 
 # Install dependencies (--ignore-scripts to skip husky/prepare, then rebuild native modules)
+# Note: apps/ui/package.json must exist above for npm ci to validate the lockfile,
+# but electron/desktop deps are skipped since we only build the server.
 RUN npm ci --ignore-scripts && npm rebuild node-pty
 
 # Copy all source files
@@ -188,8 +193,9 @@ CMD ["node", "apps/server/dist/index.js"]
 # =============================================================================
 FROM base AS ui-builder
 
-# Copy UI-specific package.json
+# Copy all workspace package.json files so npm ci can validate the full lockfile
 COPY apps/ui/package*.json ./apps/ui/
+COPY apps/server/package.json ./apps/server/
 
 # Install dependencies (--ignore-scripts to skip husky and build:packages in prepare script)
 RUN npm ci --ignore-scripts
