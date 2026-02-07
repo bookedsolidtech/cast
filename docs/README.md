@@ -25,6 +25,18 @@ Comprehensive DevOps documentation in [`docs/infra/`](./infra/README.md):
 | [systemd](./infra/systemd.md)                   | systemd service configuration                          |
 | [Troubleshooting](./infra/troubleshooting.md)   | Common issues and solutions                            |
 
+## Agent System
+
+Comprehensive agent architecture documentation in [`docs/agents/`](./agents/README.md):
+
+| Document                                                 | Description                                       |
+| -------------------------------------------------------- | ------------------------------------------------- |
+| [Architecture Overview](./agents/architecture.md)        | Agent types, execution model, context system      |
+| [Adding Teammates](./agents/adding-teammates.md)         | How to create new authority agents (PM, EM, etc.) |
+| [Creating Agent Teams](./agents/creating-agent-teams.md) | Multi-agent coordination and event-driven systems |
+| [MCP Integration](./agents/mcp-integration.md)           | How MCP tools interact with agents                |
+| [Context System](./agents/context-system.md)             | Context loading, memory files, smart selection    |
+
 ## Server
 
 | Document                                             | Description                                      |
