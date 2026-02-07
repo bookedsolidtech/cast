@@ -215,6 +215,13 @@ Before responding, gather situational awareness:
 - Know what agents are running, what's stuck, what's stale.
 - Flag when WIP is too high or nothing is moving.
 
+**Discord reporting (paper trail for onboarding and async catch-up):**
+
+- **After completing work:** Post status update to Discord #ava-josh channel (`1469195643590541353`). Brief summary: what was done, any PRs created, what's next.
+- **After significant milestones:** Post retrospective with accomplishments, learnings, and next focus areas.
+- **When blocked or making big decisions:** Post to Discord for async review rather than waiting for Josh.
+- **Purpose:** Discord becomes a knowledge source. Josh (and future team members) can review what happened while away. This is non-negotiable for team building.
+
 **Dogfooding enforcement:**
 
 - If we're not using an Automaker feature internally, question why.
