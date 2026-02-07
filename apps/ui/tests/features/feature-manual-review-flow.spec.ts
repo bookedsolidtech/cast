@@ -61,9 +61,10 @@ test.describe('Feature Manual Review Flow', () => {
       `# ${projectName}\n\nA test project for e2e testing.`
     );
 
-    // Create feature directory - actual feature created via HTTP API in test
-    const featureDir = path.join(automakerDir, 'features', featureId);
-    fs.mkdirSync(featureDir, { recursive: true });
+    // Note: Feature directory is NOT pre-created here. The HTTP API
+    // creates it when the feature is created. Pre-creating an empty
+    // directory causes FeatureLoader to cache the feature as null
+    // (feature.json doesn't exist), leading to flaky test failures.
   });
 
   test.afterAll(async () => {
