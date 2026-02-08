@@ -120,6 +120,9 @@ import { AuditService } from './services/audit-service.js';
 import { PRFeedbackService } from './services/pr-feedback-service.js';
 import { WorktreeLifecycleService } from './services/worktree-lifecycle-service.js';
 import { DiscordBotService } from './services/discord-bot-service.js';
+import { WorldStateMonitor } from './services/world-state-monitor.js';
+import { ReconciliationService } from './services/reconciliation-service.js';
+import { GitHubStateChecker } from './services/github-state-checker.js';
 import { ProjectService } from './services/project-service.js';
 import { registerMaintenanceTasks } from './services/maintenance-tasks.js';
 import { FeatureHealthService } from './services/feature-health-service.js';
@@ -362,6 +365,31 @@ prFeedbackService.initialize();
 // Initialize Worktree Lifecycle Service (auto-cleanup after merge)
 const worktreeLifecycleService = new WorktreeLifecycleService(events, featureLoader);
 worktreeLifecycleService.initialize();
+
+// Initialize World State Monitor (GOAP-inspired reactive system)
+// Periodically checks world state and triggers corrective actions for drift
+const githubStateChecker = new GitHubStateChecker(featureLoader);
+const reconciliationService = new ReconciliationService(events, featureLoader, autoModeService);
+const worldStateMonitor = new WorldStateMonitor(
+  events,
+  featureLoader,
+  reconciliationService,
+  githubStateChecker,
+  {
+    enabled: true,
+    tickIntervalMs: 30000, // 30 seconds
+    checks: {
+      automaker: true,
+      github: true,
+      git: true,
+    },
+  }
+);
+
+// Register the main project for GitHub state checking
+// Additional projects can be registered dynamically via API
+const mainProjectPath = process.cwd();
+githubStateChecker.registerProject(mainProjectPath);
 
 // Initialize Discord Bot Service for CTO /idea command
 // Only connects if DISCORD_BOT_TOKEN is set in environment
@@ -1090,6 +1118,10 @@ const startServer = (port: number, host: string) => {
 ║                                                                     ║
 ╚═════════════════════════════════════════════════════════════════════╝
 `);
+
+    // Start World State Monitor after server is ready
+    worldStateMonitor.start();
+    logger.info('World State Monitor started (30s tick interval)');
   });
 
   server.on('error', (error: NodeJS.ErrnoException) => {
@@ -1159,29 +1191,43 @@ process.on('uncaughtException', (error: Error) => {
   process.exit(1);
 });
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  logger.info('SIGTERM received, shutting down...');
-  void autoModeService.shutdown();
-  void goapLoopService.stopAllLoops();
+// Graceful shutdown with WorldStateMonitor tick timeout
+async function gracefulShutdown() {
+  logger.info('Shutting down gracefully...');
+
+  // Stop monitor first (clears interval, prevents new ticks)
+  worldStateMonitor.stop();
+
+  // Wait for in-flight tick with 5s timeout
+  const currentTick = worldStateMonitor.getCurrentTick();
+  if (currentTick) {
+    const timeout = new Promise<void>((resolve) => setTimeout(resolve, 5000));
+    await Promise.race([currentTick, timeout]);
+  }
+
+  await autoModeService.shutdown();
+  await goapLoopService.stopAllLoops();
   healthMonitorService.stopMonitoring();
   schedulerService.stop();
   terminalService.cleanup();
+
   server.close(() => {
     logger.info('Server closed');
     process.exit(0);
   });
+}
+
+// Signal handlers stay sync, call async gracefulShutdown
+process.on('SIGTERM', () => {
+  gracefulShutdown().catch((err) => {
+    logger.error('Shutdown failed:', err);
+    process.exit(1);
+  });
 });
 
 process.on('SIGINT', () => {
-  logger.info('SIGINT received, shutting down...');
-  void autoModeService.shutdown();
-  void goapLoopService.stopAllLoops();
-  healthMonitorService.stopMonitoring();
-  schedulerService.stop();
-  terminalService.cleanup();
-  server.close(() => {
-    logger.info('Server closed');
-    process.exit(0);
+  gracefulShutdown().catch((err) => {
+    logger.error('Shutdown failed:', err);
+    process.exit(1);
   });
 });
