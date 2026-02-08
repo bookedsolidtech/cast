@@ -11,16 +11,8 @@
       "command": "node",
       "args": ["${AUTOMAKER_ROOT}/packages/mcp-server/dist/index.js"],
       "env": {
-        "AUTOMAKER_API_URL": "http://localhost:3008",
-        "AUTOMAKER_API_KEY": "${AUTOMAKER_API_KEY}"
-      }
-    },
-    "automaker-staging": {
-      "command": "node",
-      "args": ["${AUTOMAKER_ROOT}/packages/mcp-server/dist/index.js"],
-      "env": {
         "AUTOMAKER_API_URL": "http://100.101.189.45:3008",
-        "AUTOMAKER_API_KEY": "${AUTOMAKER_STAGING_API_KEY}"
+        "AUTOMAKER_API_KEY": "${AUTOMAKER_API_KEY}"
       }
     },
     "discord": {
