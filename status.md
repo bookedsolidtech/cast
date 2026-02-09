@@ -1,7 +1,7 @@
 # Automaker - Status Report
 
-**Last Updated:** 2026-02-07
-**Branch:** `main` (4fe19b44)
+**Last Updated:** 2026-02-09
+**Branch:** `main` (e1bddb05)
 **Server Status:** Running (v0.13.0) - Staging healthy
 **Linear Project:** ProtoLabsAI (PRO-\*)
 
@@ -20,10 +20,16 @@
 
 ### Open PRs
 
-| PR   | Title                                    | CI Status   |
-| ---- | ---------------------------------------- | ----------- |
-| #128 | Add security tests for command injection | All failing |
-| #129 | Add input validation utilities for git   | All failing |
+**None** - All PRs merged and clean slate
+
+### Recently Merged (2026-02-09)
+
+| PR   | Title                                | Status |
+| ---- | ------------------------------------ | ------ |
+| #139 | WorldStateMonitor drift detection    | Merged |
+| #136 | Auto-mode maxConcurrency enforcement | Merged |
+| #137 | Graphite retry/circuit breaker       | Merged |
+| #138 | Auto-mode debug logging              | Merged |
 
 ### Open Tickets
 
@@ -61,7 +67,14 @@ Built trust-gated authority hierarchy where 4 first-class agents (CTO, PM, ProjM
 
 ### Critical Fixes Epic (4/4) - DONE
 
-- Enforce MaxConcurrency, Fix AbortController, Circuit Breaker, Worktree Key Mismatch
+- Enforce MaxConcurrency (#136), Fix AbortController, Circuit Breaker (#137), Worktree Key Mismatch (#139)
+
+### Auto-Mode & Graphite Improvements (2026-02-09) - DONE
+
+- **#136**: Auto-mode maxConcurrency enforcement with startingFeatures tracking
+- **#137**: Graphite retry logic with exponential backoff and circuit breaker
+- **#138**: Comprehensive debug logging for auto-mode feature selection
+- **#139**: WorldStateMonitor drift detection and REPO_ROOT parameter fix
 
 ### Workflow Health & Status Sync (6/6) - DONE
 
@@ -98,11 +111,12 @@ npm run test:server          # Server unit tests
 
 ---
 
-## Cleanup Notes (2026-02-07)
+## Cleanup Notes (2026-02-09)
 
 - Working tree: clean
-- Worktrees: 0 stale
-- Merged remote branches: pruned (chore/beads-init, fix/docker-build-and-update-guide)
-- Console.logs: ~97 in UI (graph-view, stores, electron), ~22 in libs (logger, security) - acceptable
-- npm audit: 13 vulnerabilities tracked in PRO-56
-- TODOs: ~10 real (headsdown-service, monitors, terminal-themes) - tracked
+- Worktrees: **All 27 orphaned worktrees removed** (~270MB freed)
+- Merged branches: All cleaned up
+- Console.logs: ~148 instances (consider migrating to logger)
+- npm audit: **0 vulnerabilities** ✅
+- TODOs: ~268 comments (review for ticket creation)
+- Outdated packages: 45 (review deferred)
