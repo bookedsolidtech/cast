@@ -195,6 +195,10 @@ export type EventType =
   | 'world-state:reconciliation'
   // Chief of Staff (CoS) events
   | 'cos:prd-submitted'
+  // Decision tracking events (via AuditService)
+  | 'decision:logged'
+  | 'decision:superseded'
+  | 'decision:reverted'
   // Beads task management events
   | 'beads:task-created'
   | 'beads:task-updated'
