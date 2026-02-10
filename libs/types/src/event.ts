@@ -4,6 +4,7 @@
 
 export type EventType =
   | 'agent:stream'
+  | 'agent:timeout'
   | 'auto-mode:event'
   | 'auto-mode:started'
   | 'auto-mode:stopped'
@@ -25,6 +26,7 @@ export type EventType =
   | 'feature:retry'
   | 'feature:recovery'
   | 'feature:pr-merged'
+  | 'agent:timeout'
   | 'project:analysis-started'
   | 'project:analysis-progress'
   | 'project:analysis-completed'
