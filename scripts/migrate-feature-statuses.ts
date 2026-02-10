@@ -16,11 +16,12 @@
  *   --backup   Create backup before migrating (default: true)
  */
 
-import { readdir, readFile, writeFile, mkdir, copyFile } from 'fs/promises';
+import { readdir, readFile, writeFile, mkdir, copyFile, rename } from 'fs/promises';
 import { join, dirname } from 'path';
 import { existsSync } from 'fs';
 import type { Feature } from '@automaker/types';
 import { normalizeFeatureStatus } from '@automaker/types';
+import { atomicWriteJson } from '@automaker/utils';
 
 interface MigrationStats {
   total: number;
@@ -72,10 +73,8 @@ async function migrateFeature(
       // Update feature
       const updatedFeature = { ...feature, status: newStatus };
 
-      // Write atomically (write to temp, then rename)
-      const tempPath = `${featurePath}.tmp`;
-      await writeFile(tempPath, JSON.stringify(updatedFeature, null, 2), 'utf-8');
-      await writeFile(featurePath, JSON.stringify(updatedFeature, null, 2), 'utf-8');
+      // Write atomically using helper
+      await atomicWriteJson(featurePath, updatedFeature);
     }
 
     return {

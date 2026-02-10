@@ -373,6 +373,36 @@ describe('auto-mode-service.ts (integration)', () => {
       ).length;
 
       expect(processedCount).toBeGreaterThan(0);
+
+      // Verify full delegation flow completed successfully
+      // Only check agent-output.md for features with terminal status 'done'
+      // to avoid flakes from in_progress features that haven't completed yet
+      const completedFeatures = [feature1, feature2].filter((f) => f?.status === 'done');
+
+      for (const feature of completedFeatures) {
+        // Verify output artifact exists
+        const outputPath = path.join(
+          testRepo.path,
+          '.automaker/features',
+          feature!.id,
+          'agent-output.md'
+        );
+
+        try {
+          const output = await fs.readFile(outputPath, 'utf-8');
+
+          // Verify iteration count is reasonable (< 15)
+          const turnMatches = output.match(/Turn \d+/g);
+          const iterationCount = turnMatches ? turnMatches.length : 0;
+          expect(
+            iterationCount,
+            `Iteration count for ${feature!.id} should be < 15 (got ${iterationCount})`
+          ).toBeLessThan(15);
+        } catch (error) {
+          // Output file doesn't exist or can't be read
+          throw new Error(`Output file should exist and be readable for ${feature!.id}: ${error}`);
+        }
+      }
     }, 15000);
 
     it('should respect max concurrency', async () => {
