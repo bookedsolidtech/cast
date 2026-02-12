@@ -39,11 +39,7 @@ export default defineConfig({
   srcExclude: ['archived/**'],
 
   // Allow dead links to: files outside docs/, archived pages (srcExcluded)
-  ignoreDeadLinks: [
-    /^\.\.\//,
-    /\/archived\//,
-    /^\.\/archived\//,
-  ],
+  ignoreDeadLinks: [/^\.\.\//, /\/archived\//, /^\.\/archived\//],
 
   themeConfig: {
     logo: '/logo.svg',
