@@ -62,7 +62,7 @@
     "plugin:reload": "claude plugin uninstall automaker && claude plugin install automaker"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx,json,css,md,html,yml,yaml}": [
+    "*.{js,jsx,ts,tsx,mts,cts,json,css,md,html,yml,yaml}": [
       "prettier --write"
     ]
   },
