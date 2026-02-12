@@ -1,4 +1,4 @@
-# Automaker Documentation
+# Proto Labs Documentation
 
 ## Quick Links
 
