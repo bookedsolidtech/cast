@@ -90,35 +90,74 @@ Open discussion about AI/ML topics (not project-specific).
 
 ### FEEDS
 
-Automated content feeds from external sources. These channels are bot-driven and provide a curated stream of industry knowledge.
+Automated content feeds from external sources. These channels are bot-driven, read-only for users, and provide a curated stream of industry knowledge. Users discuss articles by creating threads on individual messages.
 
-| Channel           | Source                                              | Bot/Integration     |
-| ----------------- | --------------------------------------------------- | ------------------- |
-| #feed-ai-research | ArXiv (cs.AI, cs.LG, cs.CL), HuggingFace papers     | MonitoRSS           |
-| #feed-hackernews  | HackerNews front page and best stories              | MonitoRSS           |
-| #feed-reddit      | r/MachineLearning, r/LocalLLaMA, r/programming, etc | MonitoRSS           |
-| #feed-twitter     | AI researchers and companies on X/Twitter           | Readybot/TweetShift |
-| #feed-github      | Repo releases, trending repos                       | GitHub Webhooks     |
-| #feed-youtube     | AI/ML content creators                              | NotifyMe Bot        |
+| Channel           | Source                        | Bot       | Status |
+| ----------------- | ----------------------------- | --------- | ------ |
+| #feed-ai-research | ArXiv cs.AI papers            | MonitoRSS | Active |
+| #feed-hackernews  | HackerNews best stories       | MonitoRSS | Active |
+| #feed-reddit      | r/LocalLLaMA hot posts        | MonitoRSS | Active |
+| #feed-twitter     | AI researchers on X/Twitter   | TBD       | Setup  |
+| #feed-github      | Repo releases, trending repos | TBD       | Setup  |
+| #feed-youtube     | AI/ML content creators        | TBD       | Setup  |
 
-**RSS Feeds configured:**
+#### Feed Channel Permissions
 
-- ArXiv AI: `https://arxiv.org/rss/cs.AI`
-- ArXiv ML: `https://arxiv.org/rss/cs.LG`
-- ArXiv NLP: `https://arxiv.org/rss/cs.CL`
-- HuggingFace Daily Papers: `https://papers.takara.ai/api/feed`
-- HackerNews: `https://news.ycombinator.com/rss`
-- HackerNews Best: `https://hnrss.org/best`
-- Reddit (per sub): `https://www.reddit.com/r/{subreddit}/hot/.rss`
+Each feed channel should have these permission overrides:
 
-**Bots used:**
+| Permission               | @everyone | Bot Role |
+| ------------------------ | --------- | -------- |
+| View Channel             | Allow     | Allow    |
+| Send Messages            | **Deny**  | Allow    |
+| Create Public Threads    | Allow     | -        |
+| Send Messages in Threads | Allow     | -        |
 
-| Bot        | Purpose               | Dashboard              | Cost        |
-| ---------- | --------------------- | ---------------------- | ----------- |
-| MonitoRSS  | RSS feed aggregation  | https://monitorss.xyz  | Free / $5mo |
-| Readybot   | Twitter, YouTube      | https://readybot.io    | Free        |
-| TweetShift | Twitter (alternative) | https://tweetshift.com | Free        |
-| NotifyMe   | YouTube notifications | https://notifyme.bot   | Free        |
+This ensures only bots post to the main channel. Users discuss articles by creating threads on specific messages. Discord auto-archives inactive threads after 24 hours.
+
+#### MonitoRSS Setup (3 channels)
+
+[MonitoRSS](https://monitorss.xyz) powers RSS-based feed channels. Dashboard: https://monitorss.xyz/me
+
+**Current feeds (free tier: 3 feeds, 50 articles/day each):**
+
+| Feed Title      | RSS URL                                        | Output Channel    |
+| --------------- | ---------------------------------------------- | ----------------- |
+| ArXiv AI Papers | `https://arxiv.org/rss/cs.AI`                  | #feed-ai-research |
+| HN Best Stories | `https://hnrss.org/best`                       | #feed-hackernews  |
+| r/LocalLLaMA    | `https://www.reddit.com/r/LocalLLaMA/hot/.rss` | #feed-reddit      |
+
+**MonitoRSS settings per feed:**
+
+- Threads: Don't use (users create threads manually for discussion)
+- Check interval: Default (free tier ~10 min)
+
+**Upgrade feeds ($5/mo removes limits):** Additional RSS feeds to add when on the paid plan:
+
+| Feed Title         | RSS URL                                             | Output Channel    |
+| ------------------ | --------------------------------------------------- | ----------------- |
+| ArXiv ML           | `https://arxiv.org/rss/cs.LG`                       | #feed-ai-research |
+| ArXiv NLP          | `https://arxiv.org/rss/cs.CL`                       | #feed-ai-research |
+| HuggingFace Papers | `https://papers.takara.ai/api/feed`                 | #feed-ai-research |
+| HN Front Page      | `https://news.ycombinator.com/rss`                  | #feed-hackernews  |
+| r/MachineLearning  | `https://www.reddit.com/r/MachineLearning/hot/.rss` | #feed-reddit      |
+| r/programming      | `https://www.reddit.com/r/programming/hot/.rss`     | #feed-reddit      |
+
+#### Remaining Feed Channels (Setup Needed)
+
+| Channel       | Recommended Bot                                                                                           | Setup Steps                                                                                                                  |
+| ------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| #feed-twitter | [Readybot](https://readybot.io) or [TweetShift](https://tweetshift.com)                                   | Invite bot → Configure accounts to follow (Anthropic, OpenAI, key researchers) → Set output channel                          |
+| #feed-github  | MonitoRSS (paid) or [GitHub Discord integration](https://support.discord.com/hc/en-us/articles/228383668) | Option A: MonitoRSS with GitHub trending RSS. Option B: Server Settings → Integrations → Follow a Channel → add GitHub repos |
+| #feed-youtube | [NotifyMe](https://notifyme.bot)                                                                          | Invite bot → Subscribe to YouTube channels → Set output channel                                                              |
+
+#### Bot Summary
+
+| Bot        | Feeds It Powers                 | Dashboard              | Cost                         |
+| ---------- | ------------------------------- | ---------------------- | ---------------------------- |
+| MonitoRSS  | ai-research, hackernews, reddit | https://monitorss.xyz  | Free (3) / $5/mo (unlimited) |
+| Readybot   | twitter                         | https://readybot.io    | Free                         |
+| TweetShift | twitter (alternative)           | https://tweetshift.com | Free                         |
+| NotifyMe   | youtube                         | https://notifyme.bot   | Free                         |
 
 ### ARCHIVE
 
