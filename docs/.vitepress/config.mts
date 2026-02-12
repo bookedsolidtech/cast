@@ -30,7 +30,7 @@ function generateSidebar(dir: string, basePath: string): { text: string; link: s
 }
 
 export default defineConfig({
-  title: 'Proto Labs',
+  title: 'protoLabs',
   description: 'AI-Native Development Agency',
 
   head: [['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }]],
@@ -118,7 +118,7 @@ export default defineConfig({
     footer: {
       message:
         'Powered by <a href="https://github.com/proto-labs-ai/automaker">Automaker</a> — Built with VitePress',
-      copyright: 'Proto Labs AI',
+      copyright: 'protoLabs AI',
     },
   },
 });

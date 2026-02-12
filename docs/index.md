@@ -2,7 +2,7 @@
 layout: home
 
 hero:
-  name: Proto Labs
+  name: protoLabs
   text: AI-Native Development Agency
   tagline: Autonomous agents that plan, build, review, and ship — so you can focus on what matters.
   actions:
@@ -48,4 +48,4 @@ features:
 
 ---
 
-<small>Built with <a href="https://github.com/proto-labs-ai/automaker">Automaker</a> — the open-source autonomous AI development studio that powers Proto Labs.</small>
+<small>Built with <a href="https://github.com/proto-labs-ai/automaker">Automaker</a> — the open-source autonomous AI development studio that powers protoLabs.</small>

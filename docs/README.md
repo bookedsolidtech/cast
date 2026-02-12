@@ -1,4 +1,4 @@
-# Proto Labs Documentation
+# protoLabs Documentation
 
 ## Quick Links
 
