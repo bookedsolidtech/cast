@@ -15,20 +15,29 @@ jobs:
       group: staging-deploy
       cancel-in-progress: true
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          clean: true
+    # Use a persistent deploy directory that survives the runner's workspace
+    # cleanup cron. The default _work/ directory gets wiped every 5min.
+    env:
+      DEPLOY_DIR: /home/josh/staging-deploy/automaker
+      ENV_SOURCE: /home/josh/dev/ava/.env
 
-      - name: Copy production env file
+    steps:
+      - name: Setup persistent deploy directory
         run: |
-          # Copy .env with API keys from the persistent staging config
-          # The checkout doesn't include .env (gitignored), so we copy from
-          # the original install location which has the real credentials
-          ENV_SOURCE="/home/josh/dev/ava/.env"
+          # Create deploy dir if first run
+          if [ ! -d "$DEPLOY_DIR/.git" ]; then
+            mkdir -p "$(dirname "$DEPLOY_DIR")"
+            git clone https://github.com/${{ github.repository }}.git "$DEPLOY_DIR"
+          fi
+
+          # Pull latest code
+          cd "$DEPLOY_DIR"
+          git fetch origin main
+          git reset --hard origin/main
+
+          # Copy .env from persistent config
           if [ -f "$ENV_SOURCE" ]; then
-            cp "$ENV_SOURCE" .env
+            cp "$ENV_SOURCE" "$DEPLOY_DIR/.env"
             echo "Copied .env from $ENV_SOURCE"
           else
             echo "ERROR: No .env found at $ENV_SOURCE"
@@ -36,15 +45,13 @@ jobs:
           fi
 
       - name: Rebuild and restart staging
-        env:
-          ENV_SOURCE: /home/josh/dev/ava/.env
+        working-directory: /home/josh/staging-deploy/automaker
         run: |
-          # Re-copy .env if workspace cleanup removed it between steps
-          [ -f .env ] || cp "$ENV_SOURCE" .env
           ./scripts/setup-staging.sh --build
           ./scripts/setup-staging.sh --start
 
       - name: Verify deployment
+        working-directory: /home/josh/staging-deploy/automaker
         run: |
           # Check server health
           retries=0
@@ -80,6 +87,7 @@ jobs:
           fi
 
       - name: Smoke tests
+        working-directory: /home/josh/staging-deploy/automaker
         run: |
           # Source API key from .env (same machine as staging server)
           export AUTOMAKER_API_KEY=$(grep -oP 'AUTOMAKER_API_KEY=\K.*' .env || echo "")
@@ -93,6 +101,7 @@ jobs:
 
       - name: Notify Discord
         if: always()
+        working-directory: /home/josh/staging-deploy/automaker
         run: |
           VERSION=$(curl -sf http://localhost:3008/api/health | python3 -c "import sys,json; print(json.load(sys.stdin).get('version','unknown'))" 2>/dev/null || echo "unknown")
           COMMIT=$(git rev-parse --short HEAD)
