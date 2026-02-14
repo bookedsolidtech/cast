@@ -180,3 +180,38 @@ export {
   extractRequiredEnum,
   extractOptionalEnum,
 } from './content/xml-parser.js';
+
+// Project management flows
+export {
+  createStatusReportFlow,
+  executeStatusReport,
+  type StatusReportFlowConfig,
+  ProjectStatusStateAnnotation,
+  ProjectStatusStateSchema,
+  type ProjectStatusState,
+  type ProjectStatusStateType,
+  type BoardMetrics,
+  type PRMetrics,
+  type DependencyMetrics,
+  type AgentMetrics,
+  type HealthStatus,
+  type ProgressAnalysis,
+  type RiskFactor,
+  type MilestoneSummary,
+  type StatusReport,
+  type MetricsCollector,
+} from './project-management/index.js';
+
+// Risk assessment flow (project management)
+export {
+  createRiskAssessmentGraph,
+  riskAssessmentGraph,
+  RiskAssessmentStateAnnotation,
+  type RiskAssessmentState,
+  type FeatureSummary,
+  type BlockerFinding,
+  type VelocityMetrics,
+  type RiskCategory,
+  type Recommendation,
+  type AntagonisticReview,
+} from './project-management/risk-assessment-flow.js';
