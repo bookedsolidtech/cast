@@ -7,6 +7,7 @@
 import { Annotation } from '@langchain/langgraph';
 import type { Outline, ContentConfig, ResearchSummary } from '@automaker/types';
 import type { TracingConfig } from '@automaker/observability';
+import { CopilotKitStateAnnotation } from './state.js';
 
 /**
  * Provider interface for LLM invocation
@@ -24,6 +25,16 @@ export interface LLMProvider {
  * State shape for the content generation flow
  */
 export interface ContentState {
+  /** CopilotKit session ID */
+  sessionId?: string;
+  /** CopilotKit user ID */
+  userId?: string;
+  /** CopilotKit thread metadata */
+  threadMetadata?: Record<string, unknown>;
+  /** Current activity description streamed to CopilotKit sidebar */
+  currentActivity?: string;
+  /** Progress indicator (0-1) streamed to CopilotKit sidebar */
+  progress?: number;
   /** Research summary input */
   researchSummary?: ResearchSummary;
   /** Content configuration (type, audience, tone, length) */
@@ -44,8 +55,6 @@ export interface ContentState {
   provider?: LLMProvider;
   /** Model to use for generation */
   model?: string;
-  /** Session ID for tracing */
-  sessionId?: string;
   /** Tracing configuration */
   tracingConfig?: TracingConfig;
   /** Whether flow is completed */
@@ -54,8 +63,13 @@ export interface ContentState {
 
 /**
  * LangGraph state annotation for content flow
+ *
+ * Includes CopilotKit state fields for integration with CopilotKit runtime.
  */
 export const ContentStateAnnotation = Annotation.Root({
+  // CopilotKit integration fields
+  ...CopilotKitStateAnnotation,
+
   researchSummary: Annotation<ResearchSummary>,
   contentConfig: Annotation<ContentConfig>,
   outline: Annotation<Outline>,
@@ -66,7 +80,6 @@ export const ContentStateAnnotation = Annotation.Root({
   outlineGeneratedAt: Annotation<string>,
   provider: Annotation<LLMProvider>,
   model: Annotation<string>,
-  sessionId: Annotation<string>,
   tracingConfig: Annotation<TracingConfig>,
   completed: Annotation<boolean>,
 });
