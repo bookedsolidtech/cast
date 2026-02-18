@@ -7,13 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { Cpu } from 'lucide-react';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@protolabs/ui/atoms';
 import { cn } from '@/lib/utils';
 
 const MODELS = [

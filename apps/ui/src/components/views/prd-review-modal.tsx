@@ -13,11 +13,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+} from '@protolabs/ui/atoms';
+import { Button } from '@protolabs/ui/atoms';
 import { Markdown } from '@protolabs/ui/molecules';
-import { Spinner } from '@/components/ui/spinner';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Spinner } from '@protolabs/ui/atoms';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@protolabs/ui/atoms';
 import { ChevronDown, CheckCircle, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Feature } from '@automaker/types';

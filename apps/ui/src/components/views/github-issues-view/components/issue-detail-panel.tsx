@@ -13,10 +13,10 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
-import { Spinner } from '@/components/ui/spinner';
+import { Spinner } from '@protolabs/ui/atoms';
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@protolabs/ui/atoms';
+import { Checkbox } from '@protolabs/ui/atoms';
 import { Markdown } from '@protolabs/ui/molecules';
 import { cn } from '@/lib/utils';
 import type { IssueDetailPanelProps } from '../types';
