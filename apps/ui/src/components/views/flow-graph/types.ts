@@ -49,6 +49,10 @@ export interface EngineServiceNodeData {
   throughput: number;
   /** Short status line shown below the label */
   statusLine?: string;
+  /** Associated LangGraph flow ID (if applicable) */
+  graphId?: string;
+  /** Click handler for opening flow detail view */
+  onNodeClick?: (serviceId: EngineServiceId, graphId: string) => void;
   [key: string]: unknown;
 }
 
@@ -105,6 +109,32 @@ export interface PipelineStageNodeData {
   [key: string]: unknown;
 }
 
+export interface FlowNodeData {
+  label: string;
+  description?: string;
+  isActive?: boolean;
+  isCompleted?: boolean;
+  type: 'processor' | 'decision' | 'hitl' | 'fanout' | 'aggregate';
+  [key: string]: unknown;
+}
+
+export interface FlowProcessNodeData extends FlowNodeData {
+  [key: string]: unknown;
+}
+
+export interface FlowDecisionNodeData extends FlowNodeData {
+  [key: string]: unknown;
+}
+
+export interface FlowHitlNodeData extends FlowNodeData {
+  [key: string]: unknown;
+}
+
+export interface FlowStartEndNodeData extends FlowNodeData {
+  nodeType: 'start' | 'end';
+  [key: string]: unknown;
+}
+
 // ============================================
 // Typed Node/Edge Aliases
 // ============================================
@@ -116,6 +146,10 @@ export type IntegrationNode = Node<IntegrationNodeData, 'integration'>;
 export type FeatureNode = Node<FeatureNodeData, 'feature'>;
 export type AgentNode = Node<AgentNodeData, 'agent'>;
 export type PipelineStageNode = Node<PipelineStageNodeData, 'pipeline-stage'>;
+export type FlowProcessNode = Node<FlowProcessNodeData, 'flow-process'>;
+export type FlowDecisionNode = Node<FlowDecisionNodeData, 'flow-decision'>;
+export type FlowHitlNode = Node<FlowHitlNodeData, 'flow-hitl'>;
+export type FlowStartEndNode = Node<FlowStartEndNodeData, 'flow-start-end'>;
 
 export type FlowNode =
   | OrchestratorNode
@@ -124,14 +158,27 @@ export type FlowNode =
   | IntegrationNode
   | FeatureNode
   | AgentNode
-  | PipelineStageNode;
+  | PipelineStageNode
+  | FlowProcessNode
+  | FlowDecisionNode
+  | FlowHitlNode
+  | FlowStartEndNode;
 
 export type DelegationEdge = Edge & { type: 'delegation' };
 export type WorkflowEdge = Edge & { type: 'workflow' };
 export type IntegrationEdge = Edge & { type: 'integration' };
 export type PipelineEdge = Edge & { type: 'pipeline' };
+export type FlowEdgeType = Edge & {
+  type: 'flow-edge';
+  data?: { label?: string; isConditional?: boolean };
+};
 
-export type FlowEdge = DelegationEdge | WorkflowEdge | IntegrationEdge | PipelineEdge;
+export type FlowEdge =
+  | DelegationEdge
+  | WorkflowEdge
+  | IntegrationEdge
+  | PipelineEdge
+  | FlowEdgeType;
 
 // ============================================
 // Brand Constants
@@ -165,4 +212,8 @@ export const NODE_DIMENSIONS = {
   feature: { width: 180, height: 80 },
   agent: { width: 160, height: 70 },
   'pipeline-stage': { width: 200, height: 120 },
+  'flow-process': { width: 120, height: 40 },
+  'flow-decision': { width: 80, height: 80 },
+  'flow-hitl': { width: 120, height: 40 },
+  'flow-start-end': { width: 80, height: 40 },
 } as const;
