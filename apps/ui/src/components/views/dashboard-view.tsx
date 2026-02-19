@@ -513,7 +513,7 @@ export function DashboardView() {
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 256 256"
               role="img"
-              aria-label="Automaker Logo"
+              aria-label="protoLabs Logo"
               className="size-8 sm:size-10 group-hover:rotate-12 transition-transform duration-300 ease-out"
             >
               <defs>
@@ -539,22 +539,15 @@ export function DashboardView() {
                 </filter>
               </defs>
               <rect x="16" y="16" width="224" height="224" rx="56" fill="url(#bg-dashboard)" />
-              <g
-                fill="none"
-                stroke="#FFFFFF"
-                strokeWidth="20"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+              <path
+                d="M128 52 L196 128 L128 204 L60 128 Z"
+                fill="#FFFFFF"
                 filter="url(#iconShadow-dashboard)"
-              >
-                <path d="M92 92 L52 128 L92 164" />
-                <path d="M144 72 L116 184" />
-                <path d="M164 92 L204 128 L164 164" />
-              </g>
+              />
             </svg>
             <div className="flex flex-col">
               <span className="font-bold text-foreground text-xl sm:text-2xl tracking-tight leading-none">
-                automaker<span className="text-brand-500">.</span>
+                proto<span className="text-brand-400">Labs</span>
               </span>
               <span className="text-xs text-muted-foreground leading-none font-medium mt-1">
                 v{appVersion} {versionSuffix}
@@ -601,7 +594,7 @@ export function DashboardView() {
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="text-center mb-8 sm:mb-12">
                 <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-3">
-                  Welcome to Automaker
+                  Welcome to protoLabs.studio
                 </h2>
                 <p className="text-base sm:text-lg text-muted-foreground max-w-xl mx-auto px-2">
                   Your autonomous AI development studio. Get started by creating a new project or
@@ -829,7 +822,7 @@ export function DashboardView() {
                                     className="text-destructive focus:text-destructive"
                                   >
                                     <Trash2 className="w-4 h-4 mr-2" />
-                                    Remove from Automaker
+                                    Remove project
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
@@ -920,7 +913,7 @@ export function DashboardView() {
                                     className="text-destructive focus:text-destructive"
                                   >
                                     <Trash2 className="w-4 h-4 mr-2" />
-                                    Remove from Automaker
+                                    Remove project
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
@@ -1009,14 +1002,13 @@ export function DashboardView() {
           <DialogHeader>
             <DialogTitle>Remove Project</DialogTitle>
             <DialogDescription>
-              Are you sure you want to remove <strong>{projectToRemove?.name}</strong> from
-              Automaker?
+              Are you sure you want to remove <strong>{projectToRemove?.name}</strong>?
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <p className="text-sm text-muted-foreground">
-              This will only remove the project from your Automaker projects list. The project files
-              on your computer will not be deleted.
+              This will only remove the project from your projects list. The project files on your
+              computer will not be deleted.
             </p>
           </div>
           <DialogFooter>
