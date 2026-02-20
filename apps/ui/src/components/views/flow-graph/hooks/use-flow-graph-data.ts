@@ -24,7 +24,9 @@ import {
   BRIDGE_EDGES,
   DYNAMIC_ZONE_START_Y,
   DYNAMIC_ZONE_CENTER_X,
+  PIPELINE_PHASE_TO_SERVICE,
 } from '../constants';
+import { usePipelineProgress } from './use-pipeline-progress';
 import type {
   EngineServiceNodeData,
   EngineServiceId,
@@ -69,6 +71,11 @@ interface EngineStatusResponse {
     totalProjects?: number;
     activeProjects?: number;
     activePRDs?: number;
+  };
+  contentPipeline?: {
+    activeFlows: number;
+    pendingDrafts: number;
+    completedToday: number;
   };
 }
 
@@ -171,6 +178,21 @@ function getServiceStatus(
         statusLine: running ? `${sessions} active sessions` : 'Subscribes to all events',
       };
     }
+    case 'content-pipeline': {
+      const contentFlows = engineStatus.contentPipeline;
+      const activeFlows = contentFlows?.activeFlows ?? 0;
+      const pendingDrafts = contentFlows?.pendingDrafts ?? 0;
+      return {
+        status: activeFlows > 0 || pendingDrafts > 0 ? 'active' : 'idle',
+        throughput: activeFlows + pendingDrafts,
+        statusLine:
+          activeFlows > 0
+            ? `${activeFlows} running, ${pendingDrafts} pending review`
+            : pendingDrafts > 0
+              ? `${pendingDrafts} drafts pending review`
+              : 'Jon \u2192 Cindi \u2192 Review \u2192 Notes',
+      };
+    }
     case 'reflection':
       return {
         status: 'idle',
@@ -192,6 +214,7 @@ const SERVICE_TO_GRAPH_MAP: Partial<Record<EngineServiceId, string>> = {
   'pr-feedback': 'antagonistic-review',
   'signal-sources': 'research-flow',
   triage: 'review-flow',
+  'content-pipeline': 'content-creation',
 };
 
 export function useFlowGraphData(
@@ -207,6 +230,15 @@ export function useFlowGraphData(
   const { stageAggregates } = usePipelineTracker({ projectPath });
 
   const engineStatus = engineStatusData as EngineStatusResponse | undefined;
+
+  // Pipeline progress overlay
+  const { currentPhase, branch, awaitingGate, pipelineState } = usePipelineProgress();
+
+  // Determine which service node should be highlighted by the pipeline
+  const highlightedServiceId = useMemo(() => {
+    if (!currentPhase || !branch) return null;
+    return PIPELINE_PHASE_TO_SERVICE[currentPhase]?.[branch] ?? null;
+  }, [currentPhase, branch]);
 
   const allRunningAgents = runningAgentsData?.agents ?? [];
   const runningAgents = useMemo(
@@ -234,6 +266,22 @@ export function useFlowGraphData(
     for (const svc of ENGINE_SERVICES) {
       const { status, throughput, statusLine } = getServiceStatus(svc.serviceId, engineStatus);
       const graphId = SERVICE_TO_GRAPH_MAP[svc.serviceId];
+      const pipelineHighlight =
+        highlightedServiceId === svc.serviceId
+          ? awaitingGate
+            ? ('gate-waiting' as const)
+            : ('processing' as const)
+          : undefined;
+      // Resolve Langfuse trace/span for this service's pipeline phase
+      let pipelineTraceId: string | undefined;
+      let pipelineSpanId: string | undefined;
+      if (pipelineHighlight && pipelineState) {
+        pipelineTraceId = pipelineState.traceId;
+        const phase = currentPhase;
+        if (phase && pipelineState.phaseSpanIds?.[phase]) {
+          pipelineSpanId = pipelineState.phaseSpanIds[phase];
+        }
+      }
       const data: EngineServiceNodeData = {
         label: svc.label,
         serviceId: svc.serviceId,
@@ -242,6 +290,9 @@ export function useFlowGraphData(
         statusLine,
         graphId,
         onNodeClick,
+        pipelineHighlight,
+        pipelineTraceId,
+        pipelineSpanId,
       };
       result.push({
         id: svc.nodeId,
@@ -349,7 +400,16 @@ export function useFlowGraphData(
     });
 
     return result;
-  }, [engineStatus, integrationStatus, stageAggregates, activeFeatures, runningAgents]);
+  }, [
+    engineStatus,
+    integrationStatus,
+    stageAggregates,
+    activeFeatures,
+    runningAgents,
+    highlightedServiceId,
+    awaitingGate,
+    pipelineState,
+  ]);
 
   // Build edges: static service flow + pipeline + bridge + dynamic
   const edges = useMemo(() => {
