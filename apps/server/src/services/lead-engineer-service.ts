@@ -52,6 +52,7 @@ import type {
 } from './trajectory-store-service.js';
 import { simpleQuery } from '../providers/simple-query-service.js';
 import { resolveModelString } from '@protolabs-ai/model-resolver';
+import { FailureClassifierService } from './failure-classifier-service.js';
 
 const execAsync = promisify(exec);
 const logger = createLogger('LeadEngineerService');
@@ -1063,6 +1064,8 @@ ${summary}`,
  * Moves feature to blocked status and emits escalation signal.
  */
 class EscalateProcessor implements StateProcessor {
+  private failureClassifier = new FailureClassifierService();
+
   constructor(private serviceContext: ProcessorServiceContext) {}
 
   async enter(ctx: StateContext): Promise<void> {
@@ -1077,7 +1080,20 @@ class EscalateProcessor implements StateProcessor {
       status: 'blocked',
     });
 
-    // Emit escalation signal
+    // Classify the failure for structured analysis
+    const failureAnalysis = this.failureClassifier.classify(
+      ctx.escalationReason || 'Unknown escalation reason',
+      ctx.retryCount
+    );
+
+    logger.info(`[ESCALATE] Classified failure as ${failureAnalysis.category}`, {
+      featureId: ctx.feature.id,
+      category: failureAnalysis.category,
+      isRetryable: failureAnalysis.isRetryable,
+      confidence: failureAnalysis.confidence,
+    });
+
+    // Emit escalation signal with structured failure data
     this.serviceContext.events.emit('escalation:signal-received' as EventType, {
       source: 'lead_engineer_state_machine',
       severity: 'high',
@@ -1089,6 +1105,15 @@ class EscalateProcessor implements StateProcessor {
         retryCount: ctx.retryCount,
         remediationAttempts: ctx.remediationAttempts,
         projectPath: ctx.projectPath,
+        failureAnalysis: {
+          category: failureAnalysis.category,
+          isRetryable: failureAnalysis.isRetryable,
+          suggestedDelay: failureAnalysis.suggestedDelay,
+          maxRetries: failureAnalysis.maxRetries,
+          recoveryStrategy: failureAnalysis.recoveryStrategy,
+          explanation: failureAnalysis.explanation,
+          confidence: failureAnalysis.confidence,
+        },
       },
       deduplicationKey: `escalate_${ctx.feature.id}`,
       timestamp: new Date().toISOString(),
@@ -1098,6 +1123,7 @@ class EscalateProcessor implements StateProcessor {
       reason: ctx.escalationReason,
       retryCount: ctx.retryCount,
       remediationAttempts: ctx.remediationAttempts,
+      failureCategory: failureAnalysis.category,
     });
 
     // Fire-and-forget trajectory save (non-blocking)
