@@ -4,6 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { createLogger } from '@automaker/utils/logger';
 import { Sidebar } from '@/components/layout/sidebar';
+import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav';
 import { ChatSidebar } from '@/components/views/chat/chat-sidebar';
 import { ChatModal, useChatModalShortcut } from '@/components/layout/chat-modal';
 import {
@@ -175,6 +176,7 @@ function RootLayoutContent() {
     getEffectiveFontMono,
     sidebarOpen: _sidebarOpen,
     toggleSidebar: _toggleSidebar,
+    setMobileSidebarHidden,
   } = useAppStore();
   // Subscribe to theme and font state to trigger re-renders when they change
   const { theme, fontFamilySans, fontFamilyMono } = useThemeStore();
@@ -602,6 +604,37 @@ function RootLayoutContent() {
     setGlobalFileBrowser(openFileBrowser);
   }, [openFileBrowser]);
 
+  // Auto-hide sidebar on mobile (below 640px / Tailwind sm breakpoint)
+  // Uses a custom media query check for 640px specifically
+  const [isBelow640, setIsBelow640] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(max-width: 640px)').matches;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const mediaQuery = window.matchMedia('(max-width: 640px)');
+    const handleChange = (e: MediaQueryListEvent) => {
+      setIsBelow640(e.matches);
+    };
+
+    // Sync initial state
+    setIsBelow640(mediaQuery.matches);
+
+    // Listen for changes
+    mediaQuery.addEventListener('change', handleChange);
+
+    return () => {
+      mediaQuery.removeEventListener('change', handleChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    // Hide sidebar when viewport width is below 640px
+    setMobileSidebarHidden(isBelow640);
+  }, [isBelow640, setMobileSidebarHidden]);
+
   // Test IPC connection on mount
   useEffect(() => {
     const testConnection = async () => {
@@ -849,7 +882,7 @@ function RootLayoutContent() {
           />
         )}
         <Sidebar />
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden pb-[calc(56px+env(safe-area-inset-bottom))] md:pb-0">
           <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
             <Outlet />
           </div>
@@ -857,6 +890,7 @@ function RootLayoutContent() {
         </div>
         <ChatSidebar />
         <ChatModal />
+        <MobileBottomNav />
         <Toaster richColors position="bottom-right" />
       </main>
       <SandboxRiskDialog

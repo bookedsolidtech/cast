@@ -24,6 +24,11 @@
     @apply bg-background text-foreground;
     background-color: var(--background);
     font-family: var(--font-sans);
+    /* Safe area insets for iOS devices (notch, Dynamic Island, home indicator) */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 
   /* Mobile viewport height handling for virtual keyboard */
@@ -171,6 +176,11 @@
 
   .max-h-screen-safe {
     max-height: var(--visual-viewport-height, 100vh);
+  }
+
+  /* Touch-action for draggable cards - prevents browser scroll during drag */
+  .draggable-card {
+    touch-action: none;
   }
 
   /* Brand gradient utilities */
@@ -326,6 +336,16 @@
   word-wrap: break-word;
   overflow-wrap: break-word;
   hyphens: auto;
+}
+
+/* Kanban scroll container: prevent pull-to-refresh on mobile */
+.overflow-x-auto {
+  overscroll-behavior: contain;
+}
+
+/* Vertical scroll areas: allow vertical pan but prevent pull-to-refresh */
+.overflow-y-auto {
+  touch-action: pan-y;
 }
 
 /* Ensure proper column layout in double-width kanban columns */
