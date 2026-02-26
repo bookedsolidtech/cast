@@ -26,13 +26,12 @@ describe('normalizeFeatureStatus', () => {
     it('should return done unchanged', () => {
       expect(normalizeFeatureStatus('done')).toBe('done');
     });
-
-    it('should return verified unchanged', () => {
-      expect(normalizeFeatureStatus('verified')).toBe('verified');
-    });
   });
 
   describe('legacy status migrations', () => {
+    it('should migrate verified to done', () => {
+      expect(normalizeFeatureStatus('verified')).toBe('done');
+    });
     it('should migrate pending to backlog', () => {
       expect(normalizeFeatureStatus('pending')).toBe('backlog');
     });
@@ -51,6 +50,10 @@ describe('normalizeFeatureStatus', () => {
 
     it('should migrate waiting_approval to done', () => {
       expect(normalizeFeatureStatus('waiting_approval')).toBe('done');
+    });
+
+    it('should migrate verified to done', () => {
+      expect(normalizeFeatureStatus('verified')).toBe('done');
     });
 
     it('should migrate failed to blocked', () => {

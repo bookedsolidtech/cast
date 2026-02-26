@@ -23,6 +23,7 @@
 
 import { createLogger } from '@protolabs-ai/utils';
 import type { AgentRole } from '@protolabs-ai/types';
+import { resolveModelString } from '@protolabs-ai/model-resolver';
 import type { EventEmitter } from '../lib/events.js';
 import type { RoleRegistryService } from './role-registry-service.js';
 import type { LinearAgentService } from './linear-agent-service.js';
@@ -88,11 +89,11 @@ const DEFAULT_TEAM_ROLE_MAP: Record<string, AgentRole> = {
  * Urgent/High get Opus for maximum quality.
  */
 const PRIORITY_MODEL_MAP: Record<number, string> = {
-  1: 'claude-opus-4-5-20251101', // Urgent
-  2: 'claude-opus-4-5-20251101', // High
-  3: 'claude-sonnet-4-5-20250929', // Medium (default)
-  4: 'claude-haiku-4-5-20251001', // Low
-  0: 'claude-sonnet-4-5-20250929', // No priority
+  1: resolveModelString('opus'), // Urgent
+  2: resolveModelString('opus'), // High
+  3: resolveModelString('sonnet'), // Medium (default)
+  4: resolveModelString('haiku'), // Low
+  0: resolveModelString('sonnet'), // No priority
 };
 
 export interface RoutingDecision {
@@ -174,6 +175,9 @@ export class LinearAgentRouter {
         void this.handleSessionCreated(payload as LinearSessionEvent);
       } else if (type === 'linear:agent-session:prompted') {
         void this.handleSessionPrompted(payload as LinearSessionEvent);
+      } else if (type === 'linear:agent-session:removed') {
+        const { sessionId } = payload as { sessionId: string };
+        this.handleSessionRemoved(sessionId);
       }
     });
     this.isStarted = true;
@@ -183,6 +187,7 @@ export class LinearAgentRouter {
     if (!this.isStarted) return;
     logger.info('Stopping LinearAgentRouter');
     this.unsubscribe?.();
+    this.sessionMeta.clear();
     this.isStarted = false;
   }
 
@@ -376,6 +381,14 @@ export class LinearAgentRouter {
     }
   }
 
+  /**
+   * Handle session removal — clean up metadata to prevent unbounded map growth.
+   */
+  private handleSessionRemoved(sessionId: string): void {
+    this.sessionMeta.delete(sessionId);
+    logger.debug(`Cleaned up session metadata for ${sessionId}`);
+  }
+
   // ─── Routing ──────────────────────────────────────────────────────
 
   async intelligentRoute(agentType: string, issueContext: IssueContext): Promise<RoutingDecision> {
@@ -452,7 +465,7 @@ export class LinearAgentRouter {
    * Higher priority issues get more powerful models.
    */
   private selectModel(priority: number): string {
-    return PRIORITY_MODEL_MAP[priority] || 'claude-sonnet-4-5-20250929';
+    return PRIORITY_MODEL_MAP[priority] || resolveModelString('sonnet');
   }
 
   // ─── Context Building ─────────────────────────────────────────────

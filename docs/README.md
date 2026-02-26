@@ -39,6 +39,7 @@ DevOps documentation in [`docs/infra/`](./infra/):
 | [Networking](./infra/networking.md)                    | Ports, nginx, CORS, WebSocket, reverse proxy       |
 | [Security](./infra/security.md)                        | Container security, credential management          |
 | [CI/CD](./infra/ci-cd.md)                              | GitHub Actions workflows                           |
+| [Runners](./infra/runners.md)                          | Self-hosted runner setup, memory limits, cleanup   |
 | [Monitoring](./infra/monitoring.md)                    | Health checks, logging, observability              |
 | [Backup & Recovery](./infra/backup-recovery.md)        | Volume backups, restore procedures                 |
 | [systemd](./infra/systemd.md)                          | systemd service configuration                      |

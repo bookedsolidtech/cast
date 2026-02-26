@@ -78,6 +78,14 @@ export type {
   TrustTierRecord,
 } from './quarantine.js';
 
+// Promotion pipeline types (Detection & Candidate Tracking)
+export type {
+  PromotionStatus,
+  PromotionCandidate,
+  PromotionBatch,
+  PromotionConfig,
+} from './promotion.js';
+
 // Feature store interface (pluggable storage abstraction)
 export type { FeatureStore } from './feature-store.js';
 
@@ -480,26 +488,6 @@ export type {
   UpdateSkillOptions,
   SkillExecutionResult,
 } from './skill.js';
-// Ralph mode types (persistent retry loops with external verification)
-// Note: FailureCategory and FailureAnalysis are exported from ./failure.js
-// Ralph has its own RalphFailureCategory and RalphFailureAnalysis with different shapes
-export type {
-  CompletionCriteriaType,
-  CompletionCriterion,
-  CriterionCheckResult,
-  VerificationResult,
-  RalphFailureCategory,
-  RalphFailureAnalysis,
-  RalphIteration,
-  RalphLoopStatus,
-  RalphLoopConfig,
-  RalphLoopState,
-  FeatureRalphConfig,
-  RalphEventType,
-  RalphEventPayload,
-} from './ralph.js';
-export { DEFAULT_COMPLETION_CRITERIA, DEFAULT_RALPH_CONFIG } from './ralph.js';
-
 // CodeRabbit feedback types
 export type {
   CodeRabbitCommentLocation,
@@ -762,6 +750,7 @@ export type {
   EscalationTrigger,
   PersonaAssignment,
   LeadEngineerService,
+  PhaseHandoff,
 } from './lead-engineer.js';
 
 // Twitch integration types (chat suggestions)
@@ -831,6 +820,14 @@ export type {
   KnowledgeSearchOptions,
   RetrievalMode,
 } from './knowledge.js';
+
+// Trajectory types (execution learning flywheel)
+export type {
+  TrajectoryFact,
+  TrajectoryFactCategory,
+  VerifiedTrajectory,
+  TrajectoryDomain,
+} from './trajectory.js';
 
 // PenFile types (vector graphics format v2.8)
 export type {

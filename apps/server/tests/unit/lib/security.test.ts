@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import path from 'path';
 
 /**
@@ -8,6 +8,12 @@ import path from 'path';
 describe('security.ts', () => {
   beforeEach(() => {
     vi.resetModules();
+  });
+
+  afterEach(() => {
+    // Clean up env vars so they don't pollute other test files running in the same worker
+    delete process.env.ALLOWED_ROOT_DIRECTORY;
+    delete process.env.DATA_DIR;
   });
 
   describe('initAllowedPaths', () => {

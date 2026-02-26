@@ -1,7 +1,7 @@
 /**
  * ArchivalService - Automatic cleanup of completed features from the board.
  *
- * Runs on a 10-minute interval. For each done/verified feature older than
+ * Runs on a 10-minute interval. For each done feature older than
  * the retention period (default 2 hours), ensures a ledger record exists,
  * then deletes the feature directory.
  *
@@ -110,9 +110,7 @@ export class ArchivalService {
     now: number
   ): Promise<number> {
     const features = await this.featureLoader.getAll(projectPath);
-    const completedFeatures = features.filter(
-      (f) => f.status === 'done' || f.status === 'verified'
-    );
+    const completedFeatures = features.filter((f) => f.status === 'done');
 
     // Get active feature IDs for epic child check
     const activeStatuses = new Set(['backlog', 'in_progress', 'review', 'blocked']);
@@ -128,10 +126,8 @@ export class ArchivalService {
       // Check retention period — use completedAt, fall back to last status transition timestamp
       let completedAt = feature.completedAt ? new Date(feature.completedAt).getTime() : undefined;
       if (!completedAt) {
-        // Fall back to the timestamp of the last status transition to done/verified
-        const lastDoneTransition = feature.statusHistory
-          ?.filter((t) => t.to === 'done' || t.to === 'verified')
-          .pop();
+        // Fall back to the timestamp of the last status transition to done
+        const lastDoneTransition = feature.statusHistory?.filter((t) => t.to === 'done').pop();
         if (lastDoneTransition?.timestamp) {
           completedAt = new Date(lastDoneTransition.timestamp).getTime();
         }

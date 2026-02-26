@@ -4,7 +4,6 @@
 
 import type { PlanningMode, ThinkingLevel, GitWorkflowSettings } from './settings.js';
 import type { ReasoningEffort } from './provider.js';
-import type { FeatureRalphConfig } from './ralph.js';
 import type { AgentRole } from './agent-roles.js';
 import type { WorkItemState } from './authority.js';
 import type { ReviewThreadFeedback, PendingFeedback } from './coderabbit.js';
@@ -183,8 +182,6 @@ export interface Feature {
   summary?: string;
   startedAt?: string;
   descriptionHistory?: DescriptionHistoryEntry[]; // History of description changes
-  // Ralph mode - persistent retry loops with external verification
-  ralphConfig?: FeatureRalphConfig;
   /** Override global git workflow settings for this specific feature */
   /** Per-feature git workflow settings (overrides global settings) */
   gitWorkflow?: Partial<GitWorkflowSettings>;
@@ -408,7 +405,7 @@ export interface Feature {
    */
   createdAt?: string; // When the feature was first created
   updatedAt?: string | number; // Last modification timestamp (ISO 8601 or epoch ms)
-  completedAt?: string; // When the feature was marked as done or verified
+  completedAt?: string; // When the feature was marked as done
   /** Timestamp when agent just finished (for "just completed" badge, ISO 8601) */
   justFinishedAt?: string;
   /** Reason for the most recent status change (used in status transition history) */
@@ -453,31 +450,61 @@ export interface Feature {
   quarantineId?: string;
   /** Reason for quarantine failure (if quarantineStatus === 'failed') */
   quarantineFailureReason?: string;
+
+  // Promotion tracking fields
+  /**
+   * ID of the PromotionCandidate record for this feature.
+   * Set when this feature is detected as a promotion candidate after merging to dev.
+   */
+  stagingCandidateId?: string;
+  /**
+   * ID of the PromotionBatch this feature has been included in.
+   * Set when this feature is added to a promotion batch targeting staging/main.
+   */
+  promotionBatchId?: string;
+
+  // GTM Content Track fields
+  /**
+   * Type of feature: 'code' for engineering work, 'content' for GTM/marketing content.
+   * Defaults to 'code' for all existing features.
+   */
+  featureType?: 'code' | 'content';
+  /**
+   * Content configuration for GTM content features (only relevant when featureType === 'content').
+   */
+  contentConfig?: {
+    /** Topic or subject of the content piece */
+    topic?: string;
+    /** Format of the content */
+    format?: 'blog' | 'docs' | 'social' | 'announcement';
+    /** Target audience for the content */
+    targetAudience?: string;
+    /** Team member assigned to create this content */
+    assignedRole?: 'jon' | 'cindi';
+  };
 }
 
 /**
- * Canonical feature status values (6 statuses)
+ * Canonical feature status values (5 statuses)
  * Strategic decision: Single source of truth for all feature states
  *
  * Flow: backlog → in_progress → review → done
  *                      ↓           ↓
  *                   blocked ← ← ← ┘
  *
- * (verified = Ralph terminal state, autonomous loops)
- *
  * @deprecated Legacy values (auto-migrated):
  * - pending, ready → backlog
  * - running → in_progress
  * - completed, waiting_approval → done
  * - failed → blocked
+ * - verified → done
  */
 export type FeatureStatus =
   | 'backlog' // Queued, ready to start (consolidates: pending, ready)
   | 'in_progress' // Being worked on (consolidates: running)
   | 'review' // PR created, under review
   | 'blocked' // Temporary halt (dependency/issue/failure - consolidates: failed)
-  | 'done' // PR merged, work complete (consolidates: completed, waiting_approval)
-  | 'verified' // Quality checks passed (Ralph autonomous loops)
+  | 'done' // PR merged, work complete (consolidates: completed, waiting_approval, verified)
   | 'interrupted'; // Server shut down while feature was running
 
 /**
@@ -521,7 +548,6 @@ export function normalizeFeatureStatus(
     'review',
     'blocked',
     'done',
-    'verified',
     'interrupted',
   ];
   if (canonical.includes(status as FeatureStatus)) {
@@ -540,6 +566,7 @@ export function normalizeFeatureStatus(
       break;
     case 'completed':
     case 'waiting_approval':
+    case 'verified': // Ralph terminal state — fold into done
       normalized = 'done';
       break;
     case 'failed':

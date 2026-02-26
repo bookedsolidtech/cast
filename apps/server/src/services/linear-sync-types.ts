@@ -6,10 +6,12 @@
  * this single source of truth.
  */
 
+import type { Feature } from '@protolabs-ai/types';
 import type { EventEmitter } from '../lib/events.js';
 import type { SettingsService } from './settings-service.js';
 import type { FeatureLoader } from './feature-loader.js';
 import type { ProjectService } from './project-service.js';
+import type { HITLFormService } from './hitl-form-service.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -65,6 +67,10 @@ export interface SyncMetadata {
   lastLinearState?: string;
   lastSyncedAt?: number;
   conflictDetected?: boolean;
+  /** Cached Linear state updates held pending manual conflict resolution */
+  pendingLinearState?: Record<string, unknown>;
+  /** HITL form ID for the outstanding manual conflict resolution request */
+  pendingHitlFormId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -82,6 +88,8 @@ export interface FeatureEventPayload {
   mergeCommitSha?: string;
   mergedBy?: string;
   error?: string;
+  /** Full feature object snapshot (required for feature:deleted, pre-deletion) */
+  feature?: Feature;
 }
 
 /** Project scaffolded event payload structure */
@@ -134,6 +142,13 @@ export interface SyncGuards {
     conflictDetected: boolean,
     error?: string
   ): void;
+  addCommentToIssue(projectPath: string, issueId: string, body: string): Promise<void>;
+  /** Suspend future syncs for a feature pending manual conflict resolution */
+  suspendForManualResolution(featureId: string): void;
+  /** Release a feature from manual resolution suspension */
+  releaseManualResolution(featureId: string): void;
+  /** Optional HITL form service for surfacing conflicts to users */
+  hitlFormService?: HITLFormService;
   emitter: EventEmitter | null;
 }
 

@@ -24,12 +24,12 @@ export type EventType =
   | 'feature:tool-use'
   | 'feature:follow-up-started'
   | 'feature:follow-up-completed'
-  | 'feature:verified'
   | 'feature:reflection:complete'
   | 'feature:committed'
   | 'feature:retry'
   | 'feature:recovery'
   | 'feature:pr-merged'
+  | 'feature:blocked'
   | 'feature:unblocked'
   | 'project:analysis-started'
   | 'project:analysis-progress'
@@ -77,19 +77,6 @@ export type EventType =
   | 'recovery_recorded'
   | 'recovery_escalated'
   | 'recovery_lesson_generated'
-  // Ralph mode events (persistent retry loops)
-  | 'ralph:started'
-  | 'ralph:iteration_started'
-  | 'ralph:iteration_completed'
-  | 'ralph:verification_started'
-  | 'ralph:verification_completed'
-  | 'ralph:verified'
-  | 'ralph:paused'
-  | 'ralph:resumed'
-  | 'ralph:stopped'
-  | 'ralph:max_iterations'
-  | 'ralph:error'
-  | 'ralph:progress'
   // Headsdown agent events (autonomous agents)
   | 'headsdown:agent:started'
   | 'headsdown:agent:stopped'
@@ -142,6 +129,7 @@ export type EventType =
   | 'linear:sync:started'
   | 'linear:sync:completed'
   | 'linear:sync:error'
+  | 'linear:sync:conflict'
   | 'linear:issue:updated'
   | 'linear:approval:detected'
   | 'linear:approval:bridged'
@@ -271,6 +259,8 @@ export type EventType =
   | 'settings:workflow-changed'
   // Feature lifecycle events
   | 'feature:status-changed'
+  | 'feature:deleted'
+  | 'feature:updated'
   // Issue management events (failure-to-issue pipeline)
   | 'feature:permanently-blocked'
   | 'issue:created'
@@ -554,6 +544,14 @@ export interface EventPayloadMap {
     newStatus?: string;
     projectPath?: string;
   };
+  'feature:updated': {
+    featureId: string;
+    projectPath: string;
+    previousTitle?: string;
+    newTitle?: string;
+    previousDescription?: string;
+    newDescription?: string;
+  };
 
   // Auto-mode events
   'auto-mode:started': { projectPath?: string };
@@ -595,6 +593,20 @@ export interface EventPayloadMap {
   };
   'lead-engineer:project-completing': { projectPath: string; projectSlug: string };
   'lead-engineer:project-completed': { projectPath: string; projectSlug: string };
+
+  // Linear sync conflict event (manual resolution required)
+  'linear:sync:conflict': {
+    featureId: string;
+    projectPath: string;
+    /** The Linear status that would have been applied */
+    linearState: string;
+    /** The current Automaker status */
+    automakerStatus: string;
+    /** HITL form ID, set when the form was created successfully */
+    hitlFormId?: string;
+    /** ISO-8601 timestamp */
+    timestamp: string;
+  };
 
   // HITL form events
   'hitl:form-requested': {

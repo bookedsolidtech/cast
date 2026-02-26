@@ -17,6 +17,7 @@
 
 import { createLogger } from '@protolabs-ai/utils';
 import type { SettingsService } from './settings-service.js';
+import { refreshLinearToken } from '../routes/linear/oauth.js';
 
 const logger = createLogger('LinearMCPClient');
 
@@ -336,6 +337,9 @@ export class LinearMCPClient {
    * @throws {LinearAPIError} If no token is configured
    */
   private async getAccessToken(): Promise<string> {
+    // Refresh OAuth token if expired or about to expire (60s buffer)
+    await refreshLinearToken(this.settingsService, this.projectPath);
+
     const settings = await this.settingsService.getProjectSettings(this.projectPath);
     const linearConfig = settings.integrations?.linear;
 
@@ -360,6 +364,27 @@ export class LinearMCPClient {
       undefined,
       true
     );
+  }
+
+  /**
+   * Get Linear team ID from project settings with fallback to workflow settings.
+   *
+   * Priority: integrations.linear.teamId > workflow.bugs.linearTeamId > throws
+   *
+   * @throws {Error} If no teamId is configured in either location
+   */
+  async getTeamId(): Promise<string> {
+    const settings = await this.settingsService.getProjectSettings(this.projectPath);
+
+    const teamId = settings.integrations?.linear?.teamId || settings.workflow?.bugs?.linearTeamId;
+
+    if (!teamId) {
+      throw new Error(
+        'No Linear teamId configured. Set integrations.linear.teamId in project settings.'
+      );
+    }
+
+    return teamId;
   }
 
   /**

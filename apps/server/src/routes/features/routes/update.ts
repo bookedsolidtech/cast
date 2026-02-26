@@ -21,7 +21,7 @@ import { createLogger } from '@protolabs-ai/utils';
 const logger = createLogger('features/update');
 
 // Statuses that should trigger syncing to app_spec.txt
-const SYNC_TRIGGER_STATUSES: FeatureStatus[] = ['verified', 'done'];
+const SYNC_TRIGGER_STATUSES: FeatureStatus[] = ['done'];
 
 export function createUpdateHandler(
   featureLoader: FeatureLoader,
@@ -147,7 +147,7 @@ export function createUpdateHandler(
         preEnhancementDescription
       );
 
-      // Trigger sync to app_spec.txt when status changes to verified or completed
+      // Trigger sync to app_spec.txt when status changes to done
       if (newStatus && SYNC_TRIGGER_STATUSES.includes(newStatus) && previousStatus !== newStatus) {
         try {
           const synced = await featureLoader.syncFeatureToAppSpec(projectPath, updated);
@@ -180,12 +180,12 @@ export function createUpdateHandler(
       // Emit feature:status-changed so downstream services can react:
       // - CompletionDetectorService: cascade epic → milestone → project completion checks
       // - LedgerService: record metrics
-      // - AutoModeService: stop zombie agents on done/verified
+      // - AutoModeService: stop zombie agents on done
       // - PRFeedbackService: start tracking PRs on review
       if (
         newStatus &&
         previousStatus !== newStatus &&
-        (newStatus === 'done' || newStatus === 'verified' || newStatus === 'review') &&
+        (newStatus === 'done' || newStatus === 'review') &&
         events
       ) {
         events.emit('feature:status-changed', {
@@ -194,6 +194,24 @@ export function createUpdateHandler(
           previousStatus: previousStatus || 'unknown',
           newStatus,
         });
+      }
+
+      // Emit feature:updated when title or description changed so LinearSyncService
+      // can propagate the changes to the linked Linear issue.
+      if (events) {
+        const titleChanged = updates.title !== undefined && currentFeature?.title !== updated.title;
+        const descriptionChanged =
+          updates.description !== undefined && currentFeature?.description !== updated.description;
+        if (titleChanged || descriptionChanged) {
+          events.emit('feature:updated', {
+            featureId,
+            projectPath,
+            previousTitle: currentFeature?.title,
+            newTitle: updated.title,
+            previousDescription: currentFeature?.description,
+            newDescription: updated.description,
+          });
+        }
       }
 
       res.json({ success: true, feature: updated });

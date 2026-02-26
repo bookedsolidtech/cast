@@ -4,11 +4,23 @@ name: PR Build Check
 on:
   pull_request:
     branches:
-      - '*'
+      - dev
+      - staging
+      - main
+    paths-ignore:
+      - 'docs/**'
+      - 'site/**'
+      - '**.md'
+      - '.automaker/**'
   push:
     branches:
       - main
       - master
+    paths-ignore:
+      - 'docs/**'
+      - 'site/**'
+      - '**.md'
+      - '.automaker/**'
 
 permissions: read-all
 
