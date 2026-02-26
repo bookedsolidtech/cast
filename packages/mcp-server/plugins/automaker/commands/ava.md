@@ -425,15 +425,17 @@ Create Linear issue: mcp__linear__linear_createIssue({
   priority: 1-4  // 1=urgent, 2=high, 3=medium, 4=low
 })
   ↓
-Move to "In Progress" state (triggers intake bridge):
+Move to "Todo" state (triggers intake bridge → creates board feature):
 mcp__linear__linear_updateIssue({
   issueId: "<id>",
-  stateId: "3f4a449a-f1c1-49e4-999c-e0ccf0f828ad"  // "In Progress"
+  stateId: "8e05f945-0bf5-4d42-8d01-fbd63f471ead"  // "Todo"
 })
   ↓
 Intake bridge auto-creates board feature with linearIssueId
   ↓
-Auto-mode picks up → agent executes → PR created → merged
+Auto-mode picks up → agent starts → agent moves issue to "In Progress"
+  ↓
+Agent executes → PR created → merged
   ↓
 LinearSyncService moves issue to "Done" + adds comment
 ```
