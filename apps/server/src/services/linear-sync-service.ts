@@ -409,6 +409,8 @@ export class LinearSyncService {
       updateSyncMetadata: (m) => this.updateSyncMetadata(m),
       recordOperation: (id, dir, status, ms, conflict, err) =>
         this.recordOperation(id, dir, status, ms, conflict, err),
+      addCommentToIssue: (projectPath, issueId, body) =>
+        this.issueSync.addCommentToIssue(projectPath, issueId, body),
       get emitter() {
         return emitter;
       },
