@@ -89,6 +89,7 @@ export interface StateContext {
   planRetryCount: number;
   escalationReason?: string;
   reviewFeedback?: string;
+  /** Learnings from sibling features: structured facts (markdown, grouped by category) from facts.json, or raw reflection.md content as fallback */
   siblingReflections?: string[];
   /** ISO 8601 timestamp when processing started */
   startedAt?: string;
