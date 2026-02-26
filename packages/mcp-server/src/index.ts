@@ -179,6 +179,7 @@ import { quarantineTools } from './tools/quarantine-tools.js';
 import { fileOpsTools } from './tools/file-ops-tools.js';
 import { gitOpsTools } from './tools/git-ops-tools.js';
 import { worktreeGitTools } from './tools/worktree-git-tools.js';
+import { promotionTools } from './tools/promotion-tools.js';
 
 // Aggregate all tools
 const tools: Tool[] = [
@@ -201,6 +202,7 @@ const tools: Tool[] = [
   ...quarantineTools,
   ...fileOpsTools,
   ...worktreeGitTools,
+  ...promotionTools,
 ];
 
 // Tool implementations
@@ -1743,6 +1745,36 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
         relativePath: args.relativePath,
         showHidden: args.showHidden,
       });
+
+    // Promotion Pipeline
+    case 'list_staging_candidates':
+      return apiCall(
+        '/promotions/candidates',
+        { projectPath: args.projectPath, status: args.status },
+        'GET'
+      );
+
+    case 'create_promotion_batch':
+      return apiCall('/promotions/batch', {
+        projectPath: args.projectPath,
+        candidateIds: args.candidateIds,
+        batchId: args.batchId,
+      });
+
+    case 'promote_to_staging':
+      return apiCall('/promotions/promote-to-staging', {
+        projectPath: args.projectPath,
+        batchId: args.batchId,
+      });
+
+    case 'promote_to_main':
+      return apiCall('/promotions/promote-to-main', {
+        projectPath: args.projectPath,
+        batchId: args.batchId,
+      });
+
+    case 'list_promotion_batches':
+      return apiCall('/promotions/batches', {}, 'GET');
 
     default:
       throw new Error(`Unknown tool: ${name}`);
