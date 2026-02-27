@@ -1056,7 +1056,6 @@ export class GitWorkflowService {
       'libs/dependency-resolver/': '@protolabs-ai/dependency-resolver',
       'libs/spec-parser/': '@protolabs-ai/spec-parser',
       'libs/flows/': '@protolabs-ai/flows',
-      'libs/llm-providers/': '@protolabs-ai/llm-providers',
       'libs/observability/': '@protolabs-ai/observability',
       'libs/git-utils/': '@protolabs-ai/git-utils',
       'libs/ui/': '@protolabs-ai/ui',
