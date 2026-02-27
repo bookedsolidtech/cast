@@ -576,7 +576,8 @@ export interface GlobalSettings {
   // Hivemind Configuration
   /**
    * Unique identifier for this Automaker instance in a hivemind mesh.
-   * Defaults to os.hostname() at runtime if not set.
+   * Also used for PR ownership watermarking to prevent multi-instance conflicts.
+   * Auto-generated UUID on first call and persisted for subsequent calls.
    */
   instanceId?: string;
 
