@@ -10,6 +10,11 @@ import { DiscordDMChannel } from '../services/escalation-channels/discord-dm-cha
 import { codeRabbitResolverService } from '../services/coderabbit-resolver-service.js';
 import { eventHookService } from '../services/event-hook-service.js';
 import { registerMaintenanceTasks } from '../services/maintenance-tasks.js';
+import {
+  DiscordChannelHandler,
+  UIChannelHandler,
+} from '../services/channel-handlers/discord-channel-handler.js';
+import { GitHubChannelHandler } from '../services/channel-handlers/github-channel-handler.js';
 
 const logger = createLogger('Server:Wiring');
 
@@ -228,6 +233,55 @@ export async function wireServices(services: ServiceContainer): Promise<void> {
   discordBotService.setRoleRegistry(roleRegistryService);
   void discordBotService.initialize();
 
+  // Signal-aware channel router: wire gate resolver and subscribe to gate-waiting events
+  const discordChannelHandler = new DiscordChannelHandler(discordBotService);
+  const uiChannelHandler = new UIChannelHandler();
+
+  discordBotService.setGateResolver(
+    async (featureId: string, projectPath: string, action: 'advance' | 'reject') => {
+      await pipelineOrchestrator.resolveGate(projectPath, featureId, action, 'user');
+    }
+  );
+
+  events.subscribe(async (type, payload) => {
+    if (type !== 'pipeline:gate-waiting') return;
+    const p = payload as {
+      featureId: string;
+      projectPath: string;
+      phase?: string;
+      gateMode?: string;
+    };
+
+    try {
+      const feature = await featureLoader.get(p.projectPath, p.featureId);
+      // signalMetadata was added to Feature in this branch; cast to access safely
+      const featureRecord = feature as (Record<string, unknown> & typeof feature) | null;
+      const signalMeta = featureRecord?.['signalMetadata'] as Record<string, unknown> | undefined;
+      const channelId =
+        typeof signalMeta?.channelId === 'string' ? signalMeta.channelId : undefined;
+
+      if (channelId) {
+        await discordChannelHandler.requestApproval({
+          featureId: p.featureId,
+          projectPath: p.projectPath,
+          featureTitle: feature?.title,
+          channelId,
+          phase: p.phase,
+        });
+      } else {
+        await uiChannelHandler.requestApproval({
+          featureId: p.featureId,
+          projectPath: p.projectPath,
+          featureTitle: feature?.title,
+          channelId: '',
+          phase: p.phase,
+        });
+      }
+    } catch (error) {
+      logger.error(`Failed to handle pipeline:gate-waiting for feature ${p.featureId}:`, error);
+    }
+  });
+
   // Wire Discord bot service to Ava Gateway
   avaGatewayService.setDiscordBot(discordBotService);
 
@@ -349,6 +403,42 @@ export async function wireServices(services: ServiceContainer): Promise<void> {
 
   // Linear intake bridge start
   intakeBridge.start();
+
+  // GitHub channel handler — routes gate holds to GitHub issues and resolves via /approve|/reject comments
+  const githubChannelHandler = new GitHubChannelHandler(
+    pipelineOrchestrator,
+    events,
+    featureLoader
+  );
+  githubChannelHandler.start();
+
+  // When the pipeline holds at a gate, post a comment on the originating GitHub issue (if any)
+  events.subscribe((type, payload) => {
+    if (type !== 'pipeline:gate-waiting') return;
+    const p = payload as { featureId: string; projectPath: string };
+    githubChannelHandler
+      .resolveHandler(p.projectPath, p.featureId, uiChannelHandler)
+      .then(({ handler, issueNumber }) => {
+        if (issueNumber !== undefined) {
+          return (handler as GitHubChannelHandler).requestApproval({
+            featureId: p.featureId,
+            issueNumber,
+            projectPath: p.projectPath,
+          });
+        }
+        return uiChannelHandler.requestApproval({
+          featureId: p.featureId,
+          issueNumber: 0,
+          projectPath: p.projectPath,
+        });
+      })
+      .catch((err) => {
+        logger.error(
+          `GitHubChannelHandler: failed to handle gate-waiting for ${p.featureId}:`,
+          err
+        );
+      });
+  });
 
   // Spec Generation Monitor start
   specGenerationMonitor.startMonitoring();
