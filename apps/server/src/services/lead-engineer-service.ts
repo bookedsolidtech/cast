@@ -33,7 +33,11 @@ import { ActionExecutor } from './lead-engineer-action-executor.js';
 import { CeremonyOrchestrator } from './lead-engineer-ceremonies.js';
 import { LeadEngineerSessionStore } from './lead-engineer-session-store.js';
 import { GtmExecuteProcessor } from './lead-engineer-gtm-execute-processor.js';
-import type { FeatureProcessingState, StateContext } from './lead-engineer-types.js';
+import type {
+  FeatureProcessingState,
+  StateContext,
+  IPlanReviewService,
+} from './lead-engineer-types.js';
 import type { AgentFactoryService } from './agent-factory-service.js';
 import { GtmReviewProcessor } from './lead-engineer-gtm-review-processor.js';
 
@@ -64,6 +68,7 @@ export class LeadEngineerService {
   private agentFactoryService?: AgentFactoryService;
   private handoffService?: LeadHandoffService;
   private factStoreService?: FactStoreService;
+  private antagonisticReviewService?: IPlanReviewService;
 
   private worldStateBuilder: WorldStateBuilder;
   private sessionStore: LeadEngineerSessionStore;
@@ -113,6 +118,18 @@ export class LeadEngineerService {
   }
   setFactStoreService(s: FactStoreService): void {
     this.factStoreService = s;
+  }
+  setAntagonisticReviewService(s: IPlanReviewService): void {
+    this.antagonisticReviewService = s;
+  }
+
+  /**
+   * Returns true when the Lead Engineer has an active (running) session for the given project.
+   * Used by EM Agent to skip execution when Lead Engineer owns the lifecycle.
+   */
+  isActive(projectPath: string): boolean {
+    const session = this.sessions.get(projectPath);
+    return session?.flowState === 'running';
   }
 
   async initialize(): Promise<void> {
@@ -305,6 +322,7 @@ export class LeadEngineerService {
         settingsService: this.settingsService,
         factStoreService: this.factStoreService,
         leadHandoffService: this.handoffService,
+        antagonisticReviewService: this.antagonisticReviewService,
       };
 
       const workflowSettings = await getWorkflowSettings(
@@ -334,12 +352,33 @@ export class LeadEngineerService {
         );
         logger.info(`[LeadEngineer] Content feature routed to GtmReviewProcessor`, { featureId });
       }
-      const result = await stateMachine.processFeature(
-        feature,
-        projectPath,
-        options,
-        resumeFromCheckpoint
-      );
+      // Emit pipeline:phase-sync after each LE state transition so PipelineOrchestrator
+      // can keep the 9-phase model in sync with the Lead Engineer's actual progress.
+      const phaseSyncStates = new Set(['REVIEW', 'MERGE', 'DEPLOY', 'DONE']);
+      const unsubPipelineSync = this.events.subscribe((type: EventType, payload: unknown) => {
+        if (type !== ('pipeline:state-entered' as EventType)) return;
+        const p = payload as { featureId?: string; state?: string; fromState?: string } | null;
+        if (!p || p.featureId !== featureId || !p.state || !phaseSyncStates.has(p.state)) return;
+        this.events.emit('pipeline:phase-sync' as EventType, {
+          featureId,
+          projectPath,
+          fromState: p.fromState,
+          toState: p.state,
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      let result: Awaited<ReturnType<typeof stateMachine.processFeature>>;
+      try {
+        result = await stateMachine.processFeature(
+          feature,
+          projectPath,
+          options,
+          resumeFromCheckpoint
+        );
+      } finally {
+        unsubPipelineSync();
+      }
 
       logger.info(`[LeadEngineer] Feature processing completed`, {
         featureId,

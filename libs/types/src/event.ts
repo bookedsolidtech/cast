@@ -29,6 +29,7 @@ export type EventType =
   | 'feature:retry'
   | 'feature:recovery'
   | 'feature:pr-merged'
+  | 'feature:verify-pending'
   | 'feature:blocked'
   | 'feature:unblocked'
   | 'project:analysis-started'
@@ -95,6 +96,7 @@ export type EventType =
   | 'webhook:github:issue'
   | 'webhook:github:pull_request'
   | 'webhook:github:push'
+  | 'webhook:github:issue_comment'
   // PR review events
   | 'pr:review-submitted'
   // Integration events
@@ -537,6 +539,10 @@ export interface EventPayloadMap {
     featureTitle?: string;
     prNumber?: number;
     projectPath?: string;
+  };
+  'feature:verify-pending': {
+    featureId: string;
+    projectPath: string;
   };
   'feature:status-changed': {
     featureId: string;

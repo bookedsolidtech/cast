@@ -2,6 +2,15 @@
   "name": "protolabs-studio",
   "version": "0.2.0",
   "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/proto-labs-ai/protoMaker.git"
+  },
+  "homepage": "https://protolabs.studio",
+  "bugs": {
+    "url": "https://github.com/proto-labs-ai/protoMaker/issues"
+  },
   "packageManager": "npm@10.9.3",
   "engines": {
     "node": ">=22.0.0 <23.0.0"
@@ -32,8 +41,8 @@
     "dev:docker:rebuild": "docker compose build --no-cache && docker compose up",
     "dev:full": "npm run build:packages && concurrently \"npm run _dev:server\" \"npm run _dev:web\"",
     "build": "npm run build:packages && npm run build --workspace=apps/ui",
-    "build:libs": "turbo run build --filter='./libs/*'",
-    "build:packages": "turbo run build --filter='./libs/*' --filter='./packages/mcp-server'",
+    "build:libs": "turbo run build --filter=\"./libs/*\"",
+    "build:packages": "turbo run build --filter=\"./libs/*\" --filter=\"./packages/mcp-server\"",
     "build:server": "npm run build:packages && npm run build --workspace=apps/server",
     "build:electron": "npm run build:packages && npm run build:electron --workspace=apps/ui",
     "build:electron:dir": "npm run build:packages && npm run build:electron:dir --workspace=apps/ui",
@@ -108,6 +117,7 @@
     "dmg-license": "^1.0.11"
   },
   "overrides": {
+    "minimatch": "^10.0.1",
     "undici": "6.23.0",
     "lodash-es": "4.17.23",
     "prismjs": "1.30.0",

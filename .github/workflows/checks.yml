@@ -3,13 +3,17 @@ name: Checks
 
 on:
   pull_request:
-    branches:
-      - '*'
   push:
     branches:
       - main
       - staging
       - dev
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch or SHA to run checks against'
+        required: false
+        default: ''
   schedule:
     # Run weekly on Mondays at 9 AM UTC (security audit)
     - cron: '0 9 * * 1'

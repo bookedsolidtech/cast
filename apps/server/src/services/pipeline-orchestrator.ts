@@ -23,6 +23,7 @@ import {
 } from '@protolabs-ai/types';
 import { createLogger } from '@protolabs-ai/utils';
 import type { PhaseProcessor } from './authority-agents/agent-utils.js';
+import type { ChannelRouter } from './channel-router.js';
 import type { FeatureLoader } from './feature-loader.js';
 import type { SettingsService } from './settings-service.js';
 import { getLangfuseInstance } from '../lib/langfuse-singleton.js';
@@ -98,6 +99,8 @@ export class PipelineOrchestrator {
   private phaseStartTimes = new Map<string, number>();
   /** Registered phase processors by role */
   private processors = new Map<string, PhaseProcessor>();
+  /** Optional channel router for routing gate-hold notifications */
+  private channelRouter: ChannelRouter | null = null;
   /** Completed pipelines today (for analytics) */
   private completedToday: Array<{ featureId: string; completedAt: number; durationMs: number }> =
     [];
@@ -129,6 +132,16 @@ export class PipelineOrchestrator {
     if (processors.gtm) this.processors.set('gtm', processors.gtm);
     if (processors.projm) this.processors.set('projm', processors.projm);
     logger.info(`Phase processors registered: ${Array.from(this.processors.keys()).join(', ')}`);
+  }
+
+  /**
+   * Wire in the channel router for gate-hold approval routing.
+   * When set, gate holds will call channelRouter.getHandler(feature).requestApproval()
+   * in addition to emitting the pipeline:gate-waiting event.
+   */
+  setChannelRouter(channelRouter: ChannelRouter): void {
+    this.channelRouter = channelRouter;
+    logger.info('ChannelRouter wired into PipelineOrchestrator');
   }
 
   /**
@@ -323,6 +336,25 @@ export class PipelineOrchestrator {
         pipelineState,
       });
 
+      // Emit feature:verify-pending when VERIFY gate holds so consumers can act on it
+      if (nextPhase === 'VERIFY') {
+        this.events.emit('feature:verify-pending', { featureId, projectPath });
+      }
+
+      // Route approval request through the originating channel
+      if (this.channelRouter) {
+        const gateContext = `phase=${nextPhase}, gateMode=${gateMode}`;
+        this.channelRouter
+          .getHandler(feature)
+          .requestApproval(feature, gateContext)
+          .catch((err: unknown) => {
+            logger.error(
+              `Failed to route approval request for feature ${featureId} at gate ${nextPhase}:`,
+              err
+            );
+          });
+      }
+
       logger.info(
         `Pipeline held at gate before ${nextPhase} for feature ${featureId} (mode: ${gateMode})`
       );
@@ -515,9 +547,41 @@ export class PipelineOrchestrator {
           logger.error('Error handling gtm-signal for pipeline:', err);
         });
       }
+
+      if (type === ('pipeline:phase-sync' as EventType)) {
+        this.handlePhaseSync(payload as Record<string, unknown>).catch((err) => {
+          logger.error('Error handling pipeline:phase-sync:', err);
+        });
+      }
     }) as EventCallback);
 
     this.unsubscribe = subscription.unsubscribe;
+  }
+
+  /**
+   * Handle a phase-sync event from the Lead Engineer state machine.
+   * Called when the LE transitions to REVIEW, MERGE, DEPLOY, or DONE.
+   * Advances the 9-phase pipeline model to stay in sync with actual progress.
+   */
+  private async handlePhaseSync(payload: Record<string, unknown>): Promise<void> {
+    const featureId = payload.featureId as string | undefined;
+    const projectPath = payload.projectPath as string | undefined;
+
+    if (!featureId || !projectPath) {
+      logger.warn('pipeline:phase-sync: missing featureId or projectPath, ignoring');
+      return;
+    }
+
+    const feature = await this.featureLoader.get(projectPath, featureId);
+    if (!feature?.pipelineState) {
+      logger.debug(`pipeline:phase-sync: feature ${featureId} has no pipeline state, skipping`);
+      return;
+    }
+
+    logger.info(
+      `pipeline:phase-sync: advancing pipeline for feature ${featureId} (LE→${payload.toState})`
+    );
+    await this.advancePhase(projectPath, featureId);
   }
 
   private async handleIdeaInjected(payload: Record<string, unknown>): Promise<void> {
@@ -535,11 +599,9 @@ export class PipelineOrchestrator {
   }
 
   private async handleGtmSignal(payload: Record<string, unknown>): Promise<void> {
-    const featureId = payload.featureId as string | undefined;
-    const projectPath = payload.projectPath as string | undefined;
+    const featureId = payload.featureId as string;
+    const projectPath = payload.projectPath as string;
     const title = payload.title as string | undefined;
-
-    if (!featureId || !projectPath) return;
 
     const feature = await this.featureLoader.get(projectPath, featureId);
     if (feature && !feature.pipelineState) {
@@ -758,8 +820,9 @@ export class PipelineOrchestrator {
     // For SPEC_REVIEW, always hold (requires human review of PRD/draft)
     if (phase === 'SPEC_REVIEW') return 'hold';
 
-    // For VERIFY, check if there are known issues
-    // (Future: inspect CI results, CodeRabbit feedback, etc.)
+    // For VERIFY, always hold in review mode — requires human approval before advancing
+    if (phase === 'VERIFY') return 'hold';
+
     // Default to proceed for review gates on other phases
     return 'proceed';
   }
