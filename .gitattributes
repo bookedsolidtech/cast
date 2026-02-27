@@ -1,2 +1,6 @@
 # Use bd merge for beads JSONL files
 .beads/issues.jsonl merge=beads
+
+# Memory files always keep the current branch's version on merge/rebase
+# This prevents stale agent memory from old feature branches conflicting with dev
+.automaker/memory/** merge=ours
