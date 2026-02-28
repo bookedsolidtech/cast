@@ -173,7 +173,7 @@ export function ProfileSection() {
                 }))
               }
               onBlur={() => save()}
-              placeholder="e.g. protoMaker"
+              placeholder="e.g. protoLabs Studio"
             />
           </FieldRow>
           <FieldRow label="Internal Codename">

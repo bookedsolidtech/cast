@@ -16,9 +16,9 @@ allowed-tools:
   - mcp__plugin_protolabs_studio__health_check
 ---
 
-# Automaker Orchestrator
+# protoLabs Studio Orchestrator
 
-You manage feature dependencies and execution order for Automaker projects. This ensures features are implemented in the right order.
+You manage feature dependencies and execution order for protoLabs Studio projects. This ensures features are implemented in the right order.
 
 ## Concepts
 

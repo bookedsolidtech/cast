@@ -51,6 +51,8 @@ DevOps documentation in [`docs/infra/`](./infra/):
 | ------------------------------------------------------------ | -------------------------------------------------------------- |
 | [Browser Extension](./integrations/browser-extension.md)     | Chrome extension for side panel chat, context menu, and GitHub |
 | [Claude Plugin](./integrations/claude-plugin.md)             | Plugin installation, configuration, Docker deployment          |
+| [Plugin Quickstart](./integrations/plugin-quickstart.md)     | 5-minute happy-path setup guide                                |
+| [Plugin Deep Dive](./integrations/plugin-deep-dive.md)       | Architecture, hooks, tools, and extension points               |
 | [Plugin Commands](./integrations/plugin-commands.md)         | Commands reference, subagents, step-by-step examples           |
 | [MCP Tools Reference](./integrations/mcp-tools-reference.md) | Full MCP tool catalog (120+ tools)                             |
 | [Discord](./integrations/discord.md)                         | Discord channels, bot integration, event routing               |

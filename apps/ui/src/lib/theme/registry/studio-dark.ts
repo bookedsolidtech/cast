@@ -1,5 +1,5 @@
 /**
- * Studio Dark — the default protoMaker dark theme.
+ * Studio Dark — the default protoLabs Studio dark theme.
  *
  * Linear-inspired: neutral grays with subtle cool undertone,
  * refined violet accent, solid surfaces, clean borders.

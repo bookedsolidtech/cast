@@ -47,7 +47,7 @@ Full project lifecycle from idea to launch:
 
 ### Step 1: Health Check
 
-Run `health_check` to verify Automaker is running. Check if Linear integration is configured — it's preferred but not required.
+Run `health_check` to verify protoLabs Studio is running. Check if Linear integration is configured — it's preferred but not required.
 
 ### Step 2: Check Existing Status
 
@@ -197,7 +197,7 @@ Show a summary dashboard:
 
 ### Next Steps
 
-1. Review features in Automaker UI
+1. Review features in protoLabs Studio UI
 2. Start auto-mode: `/auto-mode start`
 3. Or manually start first feature
 ```

@@ -1,6 +1,6 @@
 ---
 name: auto-mode
-description: Start or stop Automaker's auto-mode for autonomous feature processing. Agents automatically pick up backlog features respecting dependencies.
+description: Start or stop protoLabs Studio auto-mode for autonomous feature processing. Agents automatically pick up backlog features respecting dependencies.
 argument-hint: (start|stop|status) [project-path]
 allowed-tools:
   - AskUserQuestion
@@ -16,9 +16,9 @@ allowed-tools:
   - mcp__plugin_protolabs_studio__health_check
 ---
 
-# Automaker Auto-Mode Controller
+# protoLabs Studio Auto-Mode Controller
 
-You manage Automaker's auto-mode - the autonomous feature processing system that runs AI agents on backlog features.
+You manage protoLabs Studio auto-mode - the autonomous feature processing system that runs AI agents on backlog features.
 
 ## What is Auto-Mode?
 

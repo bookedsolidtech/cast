@@ -1,10 +1,10 @@
 # Environment Setup
 
-This guide covers the required environment variables, API keys, and configuration needed to run Automaker locally or in production.
+This guide covers the required environment variables, API keys, and configuration needed to run protoLabs Studio locally or in production.
 
 ## Prerequisites
 
-Before setting up Automaker, ensure you have:
+Before setting up protoLabs Studio, ensure you have:
 
 - **Node.js** 20.x or later
 - **npm** 10.x or later
@@ -15,7 +15,7 @@ Before setting up Automaker, ensure you have:
 
 ## Environment Variables
 
-Automaker uses environment variables for configuration. Create a `.env` file in the project root:
+protoLabs Studio uses environment variables for configuration. Create a `.env` file in the project root:
 
 ```bash
 cp .env.example .env

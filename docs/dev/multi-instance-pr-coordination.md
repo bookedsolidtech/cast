@@ -1,14 +1,14 @@
 # Multi-Instance PR Coordination
 
-When multiple Automaker instances (e.g., `ava-staging`, a developer's local instance, and a CI bot) all monitor the same repository, they can all see the same open PRs. Without coordination, two instances could simultaneously nudge or attempt to fix the same PR, producing noisy comments, redundant commits, or conflicting rebase attempts.
+When multiple protoLabs Studio instances (e.g., `ava-staging`, a developer's local instance, and a CI bot) all monitor the same repository, they can all see the same open PRs. Without coordination, two instances could simultaneously nudge or attempt to fix the same PR, producing noisy comments, redundant commits, or conflicting rebase attempts.
 
-This page documents how Automaker solves this with **instance-stamped ownership** and **stale decay**.
+This page documents how protoLabs Studio solves this with **instance-stamped ownership** and **stale decay**.
 
 ---
 
 ## Overview
 
-1. When Automaker creates a PR, it embeds a hidden ownership watermark in the PR body.
+1. When protoLabs Studio creates a PR, it embeds a hidden ownership watermark in the PR body.
 2. When any instance checks a PR's status, it parses the watermark to determine who owns the PR.
 3. An instance only acts on a PR that it owns **or** whose ownership has gone stale.
 
@@ -16,7 +16,7 @@ This page documents how Automaker solves this with **instance-stamped ownership*
 
 ## Instance Identity
 
-Each Automaker instance has a unique `instanceId`. This is configured in the global settings:
+Each protoLabs Studio instance has a unique `instanceId`. This is configured in the global settings:
 
 | Field                      | Type                              | Description                                                                                                      |
 | -------------------------- | --------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
@@ -32,13 +32,13 @@ If `instanceId` is not set in `settings.json`, `SettingsService.getInstanceId()`
 
 ## PR Ownership Watermark
 
-When creating a PR, Automaker appends a hidden HTML comment to the PR body:
+When creating a PR, protoLabs Studio appends a hidden HTML comment to the PR body:
 
 ```html
 <!-- automaker:owner instance=ava-staging team=proto-labs-ai created=2026-02-25T19:00:00.000Z -->
 ```
 
-This comment is **invisible in rendered GitHub markdown** but is present in the raw PR body text, making it parseable by any Automaker instance that calls `gh pr view --json body`.
+This comment is **invisible in rendered GitHub markdown** but is present in the raw PR body text, making it parseable by any protoLabs Studio instance that calls `gh pr view --json body`.
 
 ### Format
 
@@ -46,9 +46,9 @@ This comment is **invisible in rendered GitHub markdown** but is present in the 
 <!-- automaker:owner instance=<instanceId> team=<teamId> created=<ISO8601> -->
 ```
 
-- `instance` — The `instanceId` of the Automaker that created the PR.
+- `instance` — The `instanceId` of the protoLabs Studio instance that created the PR.
 - `team` — The `teamId` of the creating instance (empty string if not configured).
-- `created` — ISO 8601 UTC timestamp of when the PR was opened by Automaker.
+- `created` — ISO 8601 UTC timestamp of when the PR was opened by protoLabs Studio.
 
 ### Utility Functions
 
@@ -114,7 +114,7 @@ Callers of `check-pr-status` should use the `ownership` field to decide whether 
 | `isOwnedByThisInstance: true`                    | Act freely (rebase, fix, comment).                                     |
 | `isOwnedByThisInstance: false`, `isStale: false` | Skip — another live instance owns this PR.                             |
 | `isOwnedByThisInstance: false`, `isStale: true`  | May act — original owner appears inactive; rebase on stale to reclaim. |
-| `instanceId: null`                               | PR not created by Automaker; decide based on project policy.           |
+| `instanceId: null`                               | PR not created by protoLabs Studio; decide based on project policy.    |
 
 ---
 

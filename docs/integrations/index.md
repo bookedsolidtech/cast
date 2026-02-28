@@ -45,7 +45,7 @@ Keep your team in the loop with real-time notifications and agent interaction.
 
 ## Browser
 
-Access Automaker from the browser toolbar with real-time agent monitoring.
+Access protoLabs Studio from the browser toolbar with real-time agent monitoring.
 
 | Integration                              | Description                                                                                                                        | Status   |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------- |

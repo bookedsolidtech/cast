@@ -1,6 +1,6 @@
 # Monorepo Architecture
 
-Automaker is built as an npm workspace monorepo, providing a modular and maintainable codebase structure. This guide explains how the repository is organized and how packages interact.
+protoLabs Studio is built as an npm workspace monorepo, providing a modular and maintainable codebase structure. This guide explains how the repository is organized and how packages interact.
 
 ## Repository Structure
 

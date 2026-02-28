@@ -1,6 +1,6 @@
 # Model Resolver
 
-The Model Resolver (`@protolabs-ai/model-resolver`) converts human-friendly model aliases to full model identifiers used by AI providers. This system enables consistent model selection across Automaker while simplifying configuration.
+The Model Resolver (`@protolabs-ai/model-resolver`) converts human-friendly model aliases to full model identifiers used by AI providers. This system enables consistent model selection across protoLabs Studio while simplifying configuration.
 
 ## Overview
 
@@ -13,7 +13,7 @@ Instead of using full model strings like `claude-sonnet-4-6-20250929`, users can
 
 ## Model Hierarchy
 
-Automaker uses a three-tier model system:
+protoLabs Studio uses a three-tier model system:
 
 | Alias    | Model ID                    | Provider | Use Case                              | Cost (per 1M tokens)        |
 | -------- | --------------------------- | -------- | ------------------------------------- | --------------------------- |
@@ -207,7 +207,7 @@ mcp__protolabs__create_feature({
 
 ## Complexity-Based Model Selection
 
-Automaker automatically selects models based on feature complexity:
+protoLabs Studio automatically selects models based on feature complexity:
 
 ```typescript
 interface ComplexityMapping {
@@ -242,7 +242,7 @@ const model = getModelForComplexity('architectural'); // → 'claude-opus-4-6'
 
 ## Auto-Escalation
 
-When a feature fails multiple times, Automaker auto-escalates to a more capable model:
+When a feature fails multiple times, protoLabs Studio auto-escalates to a more capable model:
 
 ```typescript
 async function executeWithEscalation(feature: Feature) {

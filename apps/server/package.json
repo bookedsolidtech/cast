@@ -1,8 +1,8 @@
 {
   "name": "@protolabs-ai/server",
   "version": "0.15.3",
-  "description": "Backend server for Automaker - provides API for both web and Electron modes",
-  "author": "AutoMaker Team",
+  "description": "Backend server for protoLabs Studio - provides API for both web and Electron modes",
+  "author": "protoLabs Studio",
   "license": "SEE LICENSE IN LICENSE",
   "private": true,
   "engines": {

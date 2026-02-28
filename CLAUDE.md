@@ -81,15 +81,15 @@ Do not just recover and move on. The flywheel only improves if failures are capt
 
 ## Project Overview
 
-protoMaker is an autonomous AI development studio built as an npm workspace monorepo. It provides a Kanban-based workflow where AI agents (powered by Claude Agent SDK) implement features in isolated git worktrees. This repo is a fork of Automaker by protoLabs.studio — internal package names (`@protolabs-ai/*`), directory paths (`.automaker/`), and the internal codename "Automaker" are preserved in code and config.
+protoLabs Studio is an autonomous AI development studio built as an npm workspace monorepo. It provides a Kanban-based workflow where AI agents (powered by Claude Agent SDK) implement features in isolated git worktrees. The repo name `protoMaker` on GitHub preserves lineage to the original Automaker project. Internal package names (`@protolabs-ai/*`), directory paths (`.automaker/`), and the codename "Automaker" are preserved in code and config.
 
 ## Brand Identity
 
 The product is publicly branded as **protoLabs Studio** (domain: **protoLabs.studio**). The codebase uses "Automaker" internally (`@protolabs-ai/*` packages, `.automaker/` directory) — this is intentional and should NOT be renamed in code.
 
-- **protoLabs** = the AI-native development agency (always camelCase)
-- **protoMaker** = the AI development studio product
-- **Automaker** = internal codename only, never in external-facing content
+- **protoLabs** / **protoLabs Studio** = the AI-native development agency and product (always camelCase)
+- **protoMaker** = GitHub repo name only, preserves lineage — not a product name
+- **Automaker** = internal codename for board engine and auto-mode — never in docs, UI, or external content
 
 See `docs/protolabs/brand.md` for the full brand bible including voice, team, naming conventions, and content strategy.
 
