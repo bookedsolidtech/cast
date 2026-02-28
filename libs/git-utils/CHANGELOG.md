@@ -1,5 +1,21 @@
 # @protolabs-ai/git-utils
 
+## 0.15.2
+
+### Patch Changes
+
+- ### Bug Fixes
+  - stop marking releases as pre-release
+  - tighten CI npm audit to high severity for production deps (#1475)
+
+  ### Refactors
+  - [linear] cant adjust concurrent agents (#1473)
+  - [linear] ux(ava-anywhere): polish the overlay as the primary Ava chat su (#1472)
+
+- Updated dependencies
+  - @protolabs-ai/types@0.15.2
+  - @protolabs-ai/utils@0.15.2
+
 ## 0.15.1
 
 ### Patch Changes
