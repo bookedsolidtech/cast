@@ -1,5 +1,16 @@
 # @protolabs-ai/types
 
+## 0.15.1
+
+### Patch Changes
+
+- ### Bug Fixes
+  - prevent concurrency lease race on EXECUTE retry
+
+  ### Refactors
+  - Migrate Discord profile fields → Integrations tab (#1469)
+  - discord config dialog — signal sources section (#1465)
+
 ## 0.15.0
 
 ### Minor Changes
