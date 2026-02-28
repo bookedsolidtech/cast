@@ -1,5 +1,48 @@
 # @protolabs-ai/dependency-resolver
 
+## 0.7.0
+
+### Minor Changes
+
+- ### Features
+  - File Tree + /api/git/details Route + FileEditorView Scaffold (#1371)
+  - CodeMirror tabbed editor + auto-save (#1368)
+  - Ava Tools — Board and Agent Groups (#1365)
+  - GroqProvider implementation and factory registration (#1352)
+  - EscalateProcessor creates structured HITL form on escalation (M3.1) (#1354)
+  - add guardrails reminder to phaseToFeatureDescription (#1355)
+  - HITL response triggers pipeline resume (M3.2) (#1356)
+  - AvaConfig and Sitrep Modules (#1349)
+  - add HITL form + actionable item MCP tools (M2.3) (#1347)
+  - HITL reconnect sync — mount fetch + WS subscriber dedup (#1346)
+  - HITL form re-trigger on reconnect + TTL/2 reminder (#1344)
+  - SignalIntent type + intent classification layer (#1340)
+  - ava-only chat — remove dead chat session system and multi-persona (#1339)
+  - post release notes to Discord #dev + mark releases as alpha pre-release
+  - post release notes to Discord #dev on auto-release
+
+  ### Bug Fixes
+  - prevent settings-service test dir collision in parallel CI (#1375)
+  - use env context for DISCORD_DEV_WEBHOOK in auto-release if condition (#1372)
+  - sync CI test expectations with current service behavior (#1370)
+  - update provider-factory test count for Groq (4 → 5) (#1369)
+  - increment failureCount on git workflow failure to prevent retry storm (#1366)
+  - stage all files before commit in git workflow service (#1362)
+  - restore SignalIntent + classifySignalIntent() — dropped in M2 merge fix (#1358)
+  - split git add pathspec to fix agent commit failures (#1345)
+  - route Linear comments to active agents, skip escalation dead-end (#1342)
+  - mark auto-releases as alpha pre-release
+  - feature flags default to off (#1336)
+
+  ### Refactors
+  - Enriched Chat Route and Personas Update (#1374)
+  - Package Deletion and Reference Cleanup (#1350)
+
+### Patch Changes
+
+- Updated dependencies
+  - @protolabs-ai/types@0.7.0
+
 ## 0.5.0
 
 ### Minor Changes
