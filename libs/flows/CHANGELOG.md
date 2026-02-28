@@ -1,5 +1,17 @@
 # @protolabs-ai/flows
 
+## 0.10.2
+
+### Patch Changes
+
+- ### Bug Fixes
+  - surface AUTOMAKER_ROOT missing error on new installs (PRO-335) (#1411)
+- Updated dependencies
+  - @protolabs-ai/types@0.10.2
+  - @protolabs-ai/utils@0.10.2
+  - @protolabs-ai/prompts@0.10.2
+  - @protolabs-ai/observability@0.10.2
+
 ## 0.10.1
 
 ### Patch Changes

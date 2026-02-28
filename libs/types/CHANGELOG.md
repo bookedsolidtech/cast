@@ -1,5 +1,12 @@
 # @protolabs-ai/types
 
+## 0.10.2
+
+### Patch Changes
+
+- ### Bug Fixes
+  - surface AUTOMAKER_ROOT missing error on new installs (PRO-335) (#1411)
+
 ## 0.10.1
 
 ### Patch Changes
