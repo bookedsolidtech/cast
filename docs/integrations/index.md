@@ -43,6 +43,14 @@ Keep your team in the loop with real-time notifications and agent interaction.
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
 | [Discord](./discord) | Bot integration for event routing, status updates, and agent notifications. Agents can send updates, receive commands, and participate in channels. | Optional |
 
+## Browser
+
+Access Automaker from the browser toolbar with real-time agent monitoring.
+
+| Integration                              | Description                                                                                                                        | Status   |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| [Browser Extension](./browser-extension) | Chrome/Firefox extension with side panel chat, context menu integration, GitHub page extraction, and real-time agent status badge. | Optional |
+
 ## Code Review and Git
 
 Automate code review and manage the git workflow from branch to merge.
