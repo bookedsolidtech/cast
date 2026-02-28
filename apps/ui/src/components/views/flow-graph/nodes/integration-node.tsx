@@ -50,8 +50,15 @@ function IntegrationNodeComponent({ data }: NodeProps & { data: IntegrationNodeD
       </div>
 
       <Handle
-        type="target"
+        type="source"
         position={Position.Bottom}
+        id="source"
+        className="!bg-border !w-1.5 !h-1.5 !border-0"
+      />
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="target"
         className="!bg-border !w-1.5 !h-1.5 !border-0"
       />
     </div>

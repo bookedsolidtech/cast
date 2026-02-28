@@ -56,11 +56,11 @@ export function createCreateHandler(
         return;
       }
 
-      // Validate that feature has title and description for quarantine processing
-      if (!feature.title || !feature.description) {
+      // Validate that feature has a description (title is optional — UI auto-generates it)
+      if (!feature.description) {
         res.status(400).json({
           success: false,
-          error: 'feature.title and feature.description are required',
+          error: 'feature.description is required',
         });
         return;
       }
@@ -84,10 +84,11 @@ export function createCreateHandler(
       // Get trust tier from TrustTierService
       const trustTier = trustTierService.classifyTrust(source);
 
-      // Process through quarantine pipeline
+      // Process through quarantine pipeline (use description truncation as fallback title)
+      const quarantineTitle = feature.title?.trim() || feature.description.slice(0, 100);
       const quarantineService = new QuarantineService(trustTierService, projectPath);
       const outcome = await quarantineService.process({
-        title: feature.title,
+        title: quarantineTitle,
         description: feature.description,
         source,
         trustTier,
@@ -105,9 +106,10 @@ export function createCreateHandler(
       }
 
       // Use sanitized title and description from quarantine outcome
+      // Preserve original empty title so the UI can auto-generate it client-side
       const sanitizedFeature: Partial<Feature> = {
         ...feature,
-        title: outcome.sanitizedTitle,
+        title: feature.title?.trim() ? outcome.sanitizedTitle : (feature.title ?? ''),
         description: outcome.sanitizedDescription,
         source,
         trustTier,
