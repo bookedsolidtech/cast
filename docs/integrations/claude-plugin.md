@@ -73,6 +73,7 @@ That's it! You now have access to ~170 MCP tools and slash commands for managing
 
 | Command               | Description                                       |
 | --------------------- | ------------------------------------------------- |
+| `/welcome`            | User onboarding and status refresh                |
 | `/board`              | View and manage your Kanban board                 |
 | `/auto-mode`          | Start/stop autonomous feature processing          |
 | `/orchestrate`        | Manage feature dependencies                       |

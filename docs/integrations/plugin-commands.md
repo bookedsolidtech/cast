@@ -6,6 +6,22 @@ For installation and configuration, see [Claude Plugin Setup](./claude-plugin.md
 
 ## Commands Reference
 
+### /welcome
+
+User onboarding and status refresh. Detects your setup state, collects identity, orients you to the board, helps create a first feature, and prints a command reference card. Safe to re-run — skips phases you've already completed.
+
+```bash
+/welcome                  # Run onboarding (or refresh your status)
+```
+
+**5-Phase Flow:**
+
+1. **Preflight** -- Health check, fetch settings, detect CWD project
+2. **Identity** -- Name and role (skipped if profile exists)
+3. **Orientation** -- Board status, context files, project spec (or offer to initialize)
+4. **First Action** -- Create a real feature from your description (skipped if board has 3+ features)
+5. **Reference Card** -- Command cheat sheet and key concepts
+
 ### /board
 
 View and manage the protoLabs Kanban board.
@@ -479,6 +495,7 @@ Backup and restore Docker volumes.
 
 | Command               | Model  | Rationale                    |
 | --------------------- | ------ | ---------------------------- |
+| `/welcome`            | Sonnet | Adaptive conversational flow |
 | `/deep-research`      | Haiku  | Fast exploration             |
 | `/board`              | --     | No model (direct tool calls) |
 | `/auto-mode`          | --     | No model (direct tool calls) |
