@@ -35,9 +35,9 @@ This command accepts a version bump type as input:
      - Displays the version below the logo in the sidebar
 
 4. **Commit the version bump**
-   - Stage the updated package.json files:
+   - Stage the updated version files:
      ```bash
-     git add apps/ui/package.json apps/server/package.json
+     git add apps/ui/package.json apps/server/package.json packages/mcp-server/plugins/automaker/.claude-plugin/plugin.json
      ```
    - Commit with a release message:
      ```bash
@@ -62,7 +62,7 @@ This command accepts a version bump type as input:
 
 ## Version Centralization
 
-The version is centralized and synchronized in both `apps/ui/package.json` and `apps/server/package.json`:
+The version is centralized and synchronized across `apps/ui/package.json`, `apps/server/package.json`, and `packages/mcp-server/plugins/automaker/.claude-plugin/plugin.json`:
 
 - **Electron builds**: Automatically read from `apps/ui/package.json` via electron-builder's `${version}` variable in `artifactName`
 - **App display**: Injected at build time via Vite's `define` config as `__APP_VERSION__` constant (defined in `apps/ui/vite.config.mts`)
@@ -74,4 +74,5 @@ This ensures consistency across:
 - Build artifact names (e.g., `Automaker-1.2.3-x64.zip`)
 - App UI display (shown as `v1.2.3` below the logo in `apps/ui/src/components/layout/sidebar/components/automaker-logo.tsx`)
 - Server health endpoints (`/` and `/detailed`)
-- Package metadata (both UI and server packages stay in sync)
+- Claude Code plugin metadata (`plugin.json` version reported to Claude)
+- Package metadata (UI, server, and plugin stay in sync)

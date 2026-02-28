@@ -196,6 +196,24 @@ export class HITLFormService {
   }
 
   /**
+   * Find a pending form for a specific feature.
+   * Used by EscalateProcessor to avoid creating duplicate forms.
+   */
+  getByFeatureId(featureId: string, projectPath?: string): HITLFormRequest | undefined {
+    const now = new Date();
+    for (const form of this.forms.values()) {
+      if (form.featureId !== featureId) continue;
+      if (projectPath && form.projectPath !== projectPath) continue;
+      // Auto-expire on read (same pattern as get())
+      if (form.status === 'pending' && new Date(form.expiresAt) < now) {
+        form.status = 'expired';
+      }
+      if (form.status === 'pending') return form;
+    }
+    return undefined;
+  }
+
+  /**
    * Submit a response to a form
    */
   async submit(formId: string, response: Record<string, unknown>[]): Promise<HITLFormRequest> {

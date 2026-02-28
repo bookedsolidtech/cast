@@ -5,7 +5,7 @@ relevantTo: [architecture]
 importance: 0.7
 relatedFiles: []
 usageStats:
-  loaded: 67
+  loaded: 68
   referenced: 26
   successfulFeatures: 26
 ---

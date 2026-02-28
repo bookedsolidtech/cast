@@ -16,34 +16,26 @@ npm run build
 
 ### Claude Code
 
-Add to `~/.claude/claude_desktop_config.json`:
+Install via the plugin system (recommended):
 
-```json
-{
-  "mcpServers": {
-    "automaker": {
-      "command": "node",
-      "args": ["/path/to/automaker/packages/mcp-server/dist/index.js"],
-      "env": {
-        "AUTOMAKER_API_URL": "http://localhost:3008",
-        "AUTOMAKER_API_KEY": "your-api-key"
-      }
-    }
-  }
-}
+```bash
+claude plugin marketplace add /path/to/automaker/packages/mcp-server/plugins
+claude plugin install protolabs
 ```
 
-Or with npx (after publishing):
+Or add manually to `~/.claude/claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "automaker": {
-      "command": "npx",
-      "args": ["@protolabs-ai/mcp-server"],
+      "command": "bash",
+      "args": ["/path/to/automaker/packages/mcp-server/plugins/automaker/hooks/start-mcp.sh"],
       "env": {
         "AUTOMAKER_API_URL": "http://localhost:3008",
-        "AUTOMAKER_API_KEY": "your-api-key"
+        "AUTOMAKER_API_KEY": "your-api-key",
+        "GH_TOKEN": "${GH_TOKEN}",
+        "ENABLE_TOOL_SEARCH": "auto:10"
       }
     }
   }
@@ -52,25 +44,28 @@ Or with npx (after publishing):
 
 ### Environment Variables
 
-| Variable            | Description                | Default                 |
-| ------------------- | -------------------------- | ----------------------- |
-| `AUTOMAKER_API_URL` | Automaker API base URL     | `http://localhost:3008` |
-| `AUTOMAKER_API_KEY` | API key for authentication | (required)              |
+| Variable             | Description                | Default                 |
+| -------------------- | -------------------------- | ----------------------- |
+| `AUTOMAKER_API_URL`  | Automaker API base URL     | `http://localhost:3008` |
+| `AUTOMAKER_API_KEY`  | API key for authentication | (required)              |
+| `GH_TOKEN`           | GitHub token for PR ops    | (optional)              |
+| `ENABLE_TOOL_SEARCH` | Tool search mode           | `auto:10`               |
 
-## Available Tools
+## Available Tools (~159)
 
-### Feature Management
+### Feature Management (7)
 
-| Tool             | Description                                                   |
-| ---------------- | ------------------------------------------------------------- |
-| `list_features`  | List all features in a project, optionally filtered by status |
-| `get_feature`    | Get detailed info about a specific feature                    |
-| `create_feature` | Create a new feature on the board                             |
-| `update_feature` | Update feature properties (title, description, status)        |
-| `delete_feature` | Delete a feature                                              |
-| `move_feature`   | Move feature to a different column                            |
+| Tool                          | Description                                      |
+| ----------------------------- | ------------------------------------------------ |
+| `list_features`               | List all features, optionally filtered by status |
+| `get_feature`                 | Get detailed info about a specific feature       |
+| `create_feature`              | Create a new feature on the board                |
+| `update_feature`              | Update feature properties                        |
+| `delete_feature`              | Delete a feature                                 |
+| `move_feature`                | Move feature to a different column               |
+| `update_feature_git_settings` | Update git branch/worktree settings              |
 
-### Agent Control
+### Agent Control (5)
 
 | Tool                    | Description                          |
 | ----------------------- | ------------------------------------ |
@@ -80,7 +75,7 @@ Or with npx (after publishing):
 | `get_agent_output`      | Get the log/output from an agent run |
 | `send_message_to_agent` | Send a message to a running agent    |
 
-### Queue Management
+### Queue Management (3)
 
 | Tool            | Description                           |
 | --------------- | ------------------------------------- |
@@ -88,7 +83,7 @@ Or with npx (after publishing):
 | `list_queue`    | List queued features                  |
 | `clear_queue`   | Clear the queue                       |
 
-### Context Files
+### Context & Skills (8)
 
 | Tool                  | Description                       |
 | --------------------- | --------------------------------- |
@@ -96,42 +91,51 @@ Or with npx (after publishing):
 | `get_context_file`    | Read a context file               |
 | `create_context_file` | Create a new context file         |
 | `delete_context_file` | Delete a context file             |
+| `list_skills`         | List skills in .automaker/skills/ |
+| `get_skill`           | Read a skill file                 |
+| `create_skill`        | Create a new skill file           |
+| `delete_skill`        | Delete a skill file               |
 
-### Project Spec
-
-| Tool                  | Description                    |
-| --------------------- | ------------------------------ |
-| `get_project_spec`    | Get .automaker/spec.md content |
-| `update_project_spec` | Update the project spec        |
-
-### Orchestration
+### Orchestration (6)
 
 | Tool                       | Description                                        |
 | -------------------------- | -------------------------------------------------- |
 | `set_feature_dependencies` | Set dependencies for a feature                     |
-| `get_dependency_graph`     | Get the full dependency graph for all features     |
+| `get_dependency_graph`     | Get the full dependency graph                      |
 | `start_auto_mode`          | Start auto-mode with configurable concurrency      |
-| `stop_auto_mode`           | Stop auto-mode for a project                       |
+| `stop_auto_mode`           | Stop auto-mode                                     |
 | `get_auto_mode_status`     | Check if auto-mode is running                      |
 | `get_execution_order`      | Get resolved execution order based on dependencies |
 
-### Project Orchestration
+### Project Orchestration (7)
 
 | Tool                      | Description                                                       |
 | ------------------------- | ----------------------------------------------------------------- |
-| `list_projects`           | List all project plans in a project                               |
+| `list_projects`           | List all project plans                                            |
 | `get_project`             | Get project details including milestones, phases, and PRD         |
 | `create_project`          | Create a new project with SPARC PRD and milestone/phase structure |
 | `update_project`          | Update project title, goal, or status                             |
 | `delete_project`          | Delete a project plan and all its files                           |
-| `create_project_features` | Convert project phases to Kanban board features with epic support |
+| `archive_project`         | Archive a completed project                                       |
+| `create_project_features` | Convert project phases to board features with epic support        |
 
-### Utilities
+### Additional Categories
 
-| Tool                | Description                          |
-| ------------------- | ------------------------------------ |
-| `health_check`      | Check if Automaker server is running |
-| `get_board_summary` | Get feature counts by status         |
+The server exposes many more tools across these categories:
+
+- **Project Lifecycle** (7) -- initiate, PRD generation, approval, launch
+- **GitHub & Git** (9) -- PRs, reviews, enhanced status, staging
+- **Worktrees** (10) -- worktree management, cherry-pick, stash ops
+- **HITL / Forms** (5) -- user input, form management
+- **Calendar** (4) -- event CRUD
+- **Content Pipeline** (6) -- content flows, review, export
+- **Notes** (8) -- note tabs CRUD and permissions
+- **Promotion** (5) -- staging/main promotion pipeline
+- **Observability** (8) -- Langfuse traces, costs, prompts, datasets
+- **Agent Templates** (7) -- template CRUD and execution
+- **And more** -- Quarantine, Reports, SetupLab, Discord, Metrics, etc.
+
+See [MCP Tools Reference](../../docs/integrations/mcp-tools-reference.md) for the complete catalog.
 
 ## Feature Properties
 
@@ -147,37 +151,6 @@ Features can specify a `complexity` level that determines which AI model is used
 | `architectural` | Opus   | Core infrastructure, key architecture decisions |
 
 **Auto-escalation:** Features that fail 2+ times automatically escalate to Opus on retry.
-
-**Example:**
-
-```typescript
-// Create an architectural feature (uses Opus)
-mcp__automaker__create_feature({
-  projectPath: '/path/to/project',
-  title: 'Core Type System Refactor',
-  description: 'Refactor the type system to support...',
-  complexity: 'architectural',
-});
-
-// Create a simple fix (uses Haiku)
-mcp__automaker__create_feature({
-  projectPath: '/path/to/project',
-  title: 'Fix typo in README',
-  description: 'Fix spelling error...',
-  complexity: 'small',
-});
-```
-
-## Example Usage (via Claude Code)
-
-Once configured, you can ask Claude:
-
-- "List all features in /path/to/my/project"
-- "Create a feature to add user authentication"
-- "Move feature abc-123 to in-progress"
-- "What did the agent do on the login feature?"
-- "Create a context file with our coding standards"
-- "Show me the board summary"
 
 ## Development
 

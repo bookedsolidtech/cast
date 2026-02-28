@@ -1,13 +1,13 @@
 {
-  "name": "automaker",
-  "description": "Automaker - AI Development Studio. Manage Kanban boards, AI agents, and feature orchestration.",
-  "version": "1.1.1",
+  "name": "protolabs",
+  "description": "protoLabs Studio - AI Development Studio. Manage Kanban boards, AI agents, and feature orchestration.",
+  "version": "0.15.3",
   "author": {
     "name": "Proto Labs AI"
   },
   "repository": "https://github.com/proto-labs-ai/automaker",
   "mcpServers": {
-    "automaker": {
+    "studio": {
       "command": "bash",
       "args": ["${AUTOMAKER_ROOT}/packages/mcp-server/plugins/automaker/hooks/start-mcp.sh"],
       "env": {
@@ -78,11 +78,15 @@
           {
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/auto-update-plugin.sh\""
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/post-edit-typecheck.js\""
           }
         ]
       },
       {
-        "matcher": "mcp__plugin_automaker_automaker__create_feature",
+        "matcher": "mcp__plugin_protolabs_studio__create_feature",
         "hooks": [
           {
             "type": "command",
@@ -109,11 +113,19 @@
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/session-end-save.sh\""
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/evaluate-session.js\""
+          }
+        ]
       }
     ],
     "PostToolUseFailure": [
       {
-        "matcher": "mcp__plugin_automaker_automaker__",
+        "matcher": "mcp__plugin_protolabs_studio__",
         "hooks": [
           {
             "type": "command",

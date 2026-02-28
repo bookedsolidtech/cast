@@ -1,194 +1,146 @@
-# Automaker Claude Plugin
+# protoLabs Studio Claude Plugin
 
-Claude Code plugin for managing Automaker's Kanban board, AI agents, and feature orchestration.
+Claude Code plugin for managing protoLabs Studio's Kanban board, AI agents, and feature orchestration.
 
 ## Installation
 
-1. Build the MCP server (if not already built):
+### Option 1: Marketplace Install (Recommended)
 
-   ```bash
-   cd packages/mcp-server
-   npm run build
-   ```
+```bash
+# Add the plugin marketplace
+claude plugin marketplace add /path/to/automaker/packages/mcp-server/plugins
 
-2. Symlink the plugin to Claude's plugins directory:
+# Install the plugin
+claude plugin install protolabs
 
-   ```bash
-   # Replace <path-to-automaker> with your local repo path
-   ln -s <path-to-automaker>/packages/mcp-server/plugins/automaker ~/.claude/plugins/automaker
+# Configure environment
+PLUGIN_DIR=~/.claude/plugins/protolabs
+cp "$PLUGIN_DIR/.env.example" "$PLUGIN_DIR/.env"
+echo "AUTOMAKER_ROOT=$(pwd)" >> "$PLUGIN_DIR/.env"
+echo "AUTOMAKER_API_KEY=your-dev-key-2026" >> "$PLUGIN_DIR/.env"
+```
 
-   # Or from the automaker repo root:
-   ln -s "$PWD/packages/mcp-server/plugins/automaker" ~/.claude/plugins/automaker
-   ```
+### Option 2: Symlink
 
-3. Restart Claude Code
+```bash
+ln -s /path/to/automaker/packages/mcp-server/plugins/automaker ~/.claude/plugins/protolabs
+```
+
+Restart Claude Code after installation.
 
 ## Requirements
 
-- Automaker server must be running (`npm run dev` from automaker root)
-- Default API URL: `http://localhost:3008`
+- Automaker server running (`npm run dev` from automaker root)
+- MCP server built (`npm run build:packages`)
+- `AUTOMAKER_ROOT` set in plugin `.env` to your repo's absolute path
 
-## Commands
+## Commands (14)
 
-### /board
+| Command               | Description                                      |
+| --------------------- | ------------------------------------------------ |
+| `/board`              | View and manage your Kanban board                |
+| `/auto-mode`          | Start/stop autonomous feature processing         |
+| `/orchestrate`        | Manage feature dependencies                      |
+| `/context`            | Manage AI agent context files                    |
+| `/plan-project`       | Full project orchestration pipeline              |
+| `/ship`               | Stage, commit, push, create PR, auto-merge       |
+| `/headsdown`          | Deep work mode -- process features autonomously  |
+| `/linear`             | Manage Linear projects, issues, and cycles       |
+| `/create-project`     | Project orchestration from research to features  |
+| `/calendar-assistant` | Calendar and scheduling operations               |
+| `/due-diligence`      | Validate approaches with evidence-based research |
+| `/deep-research`      | Research codebase before planning                |
+| `/sparc-prd`          | Create a SPARC-style PRD                         |
+| `/improve-prompts`    | Analyze and improve LLM prompts                  |
 
-View and manage the Kanban board.
+## MCP Tools (~159)
 
-```
-/board                    # Show board overview
-/board create             # Create a new feature
-/board [feature-id]       # Show feature details
-/board agent-output       # Review what an agent did
-```
+The MCP server exposes ~159 tools organized by category:
 
-### /auto-mode
+- **Feature Management** (7) -- CRUD, move, git settings
+- **Agent Control** (5) -- start, stop, list, output, messaging
+- **Queue Management** (3) -- queue, list, clear
+- **Context & Skills** (8) -- context files, skills CRUD
+- **Project Spec** (2) -- get/update spec.md
+- **Orchestration** (6) -- dependencies, auto-mode, execution order
+- **Project Orchestration** (7) -- projects, milestones, phases, epics
+- **Project Lifecycle** (7) -- initiate, PRD, approval, launch
+- **GitHub Operations** (7) -- PRs, reviews, comments, enhanced status
+- **Git Operations** (2) -- staging, file details
+- **Worktrees** (3) -- list, status, create PR
+- **Worktree Git Ops** (7) -- cherry-pick, abort, continue, stash
+- **HITL / Forms** (5) -- user input, forms, responses
+- **Actionable Items** (2) -- list and act
+- **Calendar** (4) -- events CRUD
+- **Quarantine & Trust** (5) -- quarantine entries, trust tiers
+- **File Operations** (3) -- copy, move, browse
+- **Content Pipeline** (6) -- content flows, review, export
+- **Notes** (8) -- tabs CRUD, permissions
+- **Promotion** (5) -- staging/main promotion pipeline
+- **Scheduler** (2) -- status, maintenance tasks
+- **Observability** (8) -- Langfuse traces, costs, prompts, datasets
+- **Lead Engineer** (4) -- start, stop, status, handoffs
+- **Agent Templates** (7) -- template CRUD, execution
+- **Escalation** (3) -- status, logs, acknowledgment
+- **Reports** (2) -- generate, open
+- **SetupLab** (7) -- repo analysis, gap analysis, alignment
+- **Discord** (4) -- DMs, provisioning, ceremonies
+- **Integration** (4) -- Twitch, Linear sync
+- **Settings & Health** (4) -- settings, health, logs
+- **Events** (2) -- events, notifications
+- **Metrics** (3) -- project metrics, capacity, forecasts
+- **Utilities** (5) -- health, board summary, briefing, query
 
-Control autonomous feature processing.
+See [MCP Tools Reference](../../../docs/integrations/mcp-tools-reference.md) for the full catalog.
 
-```
-/auto-mode start          # Start auto-mode
-/auto-mode stop           # Stop auto-mode
-/auto-mode status         # Check if running
-```
+## Subagents (13)
 
-### /orchestrate
-
-Manage feature dependencies and execution order.
-
-```
-/orchestrate              # View dependency graph
-/orchestrate [feature]    # Set dependencies for a feature
-/orchestrate order        # Show execution order
-```
-
-### /context
-
-Manage context files for AI agents.
-
-```
-/context                  # List context files
-/context add              # Add a new context file
-/context [filename]       # View a context file
-/context spec             # View/edit project spec
-```
-
-## MCP Tools Available
-
-### Feature Management
-
-- `list_features` - List all features by status
-- `get_feature` - Get feature details
-- `create_feature` - Create a new feature
-- `update_feature` - Update feature properties
-- `delete_feature` - Delete a feature
-- `move_feature` - Move to different column
-
-### Agent Control
-
-- `start_agent` - Start an agent on a feature
-- `stop_agent` - Stop a running agent
-- `list_running_agents` - List active agents
-- `get_agent_output` - Get agent execution log
-- `send_message_to_agent` - Send message to running agent
-
-### Queue Management
-
-- `queue_feature` - Add feature to queue
-- `list_queue` - List queued features
-- `clear_queue` - Clear the queue
-
-### Context Files
-
-- `list_context_files` - List context files
-- `get_context_file` - Read a context file
-- `create_context_file` - Create a context file
-- `delete_context_file` - Delete a context file
-
-### Project Spec
-
-- `get_project_spec` - Get spec.md content
-- `update_project_spec` - Update spec.md
-
-### Orchestration
-
-- `set_feature_dependencies` - Set feature dependencies
-- `get_dependency_graph` - Get full dependency graph
-- `start_auto_mode` - Start auto-mode
-- `stop_auto_mode` - Stop auto-mode
-- `get_auto_mode_status` - Check auto-mode status
-- `get_execution_order` - Get resolved execution order
-
-### Utilities
-
-- `health_check` - Check server status
-- `get_board_summary` - Get feature counts by status
-
-## Subagents
-
-The plugin includes specialized agents for complex tasks:
-
-### automaker:feature-planner
-
-Breaks down complex features into smaller, implementable tasks with proper dependencies.
-
-```
-Task(subagent_type: "automaker:feature-planner",
-     prompt: "Project: /path/to/project. Feature: Add user authentication system.")
-```
-
-### automaker:agent-reviewer
-
-Reviews completed agent work and provides feedback.
-
-```
-Task(subagent_type: "automaker:agent-reviewer",
-     prompt: "Project: /path/to/project. Feature ID: abc-123. Focus: security, tests")
-```
-
-### automaker:codebase-analyzer
-
-Analyzes codebase structure, patterns, and suggests optimal execution order.
-
-```
-Task(subagent_type: "automaker:codebase-analyzer",
-     prompt: "Project: /path/to/project. Map architecture and suggest feature dependencies.")
-```
+| Agent                 | Model  | Purpose                             |
+| --------------------- | ------ | ----------------------------------- |
+| `feature-planner`     | Opus   | Break down features into tasks      |
+| `codebase-analyzer`   | Opus   | Analyze codebase patterns           |
+| `deep-research`       | Opus   | Explore codebase before planning    |
+| `sparc-prd`           | Opus   | Create SPARC PRDs                   |
+| `prd-reviewer`        | Opus   | Validate PRD quality                |
+| `agent-reviewer`      | Sonnet | Review completed agent work         |
+| `linear-triage`       | Sonnet | Triage Linear issues                |
+| `feature-factory`     | Haiku  | Create features from project phases |
+| `project-scaffold`    | Haiku  | Scaffold project directories        |
+| `linear-board`        | Haiku  | Query Linear board state            |
+| `devops-health-check` | Haiku  | Run health diagnostics              |
+| `devops-logs`         | Haiku  | Analyze container logs              |
+| `devops-backup`       | Haiku  | Backup/restore Docker volumes       |
 
 ## Configuration
 
-The plugin connects to Automaker via the MCP server. Configure the API URL in `plugin.json`:
+The plugin connects to Automaker via `start-mcp.sh`. Configure in the plugin `.env`:
 
-```json
-{
-  "mcpServers": {
-    "automaker": {
-      "command": "node",
-      "args": ["packages/mcp-server/dist/index.js"],
-      "env": {
-        "AUTOMAKER_API_URL": "http://localhost:3008"
-      }
-    }
-  }
-}
-```
+| Variable             | Description                            | Required |
+| -------------------- | -------------------------------------- | -------- |
+| `AUTOMAKER_ROOT`     | Absolute path to your repo clone       | Yes      |
+| `AUTOMAKER_API_KEY`  | API key matching the server            | Yes      |
+| `AUTOMAKER_API_URL`  | API base URL (default: localhost:3008) | No       |
+| `GH_TOKEN`           | GitHub token for PR operations         | No       |
+| `DISCORD_BOT_TOKEN`  | Discord bot token                      | No       |
+| `LINEAR_API_KEY`     | Linear API key                         | No       |
+| `CONTEXT7_API_KEY`   | Context7 API key                       | No       |
+| `ENABLE_TOOL_SEARCH` | Tool search mode (default: auto:10)    | No       |
 
 ## Development
 
-To modify the plugin:
-
-1. Edit files in `packages/mcp-server/plugins/automaker/`
-2. Restart Claude Code to pick up changes
-
-Commands are markdown files in `commands/`. Follow the frontmatter format:
+Commands are markdown files in `commands/`. Agents are in `agents/`.
 
 ```yaml
 ---
 name: command-name
 description: What the command does
+argument-hint: (optional arguments)
 allowed-tools:
-  - mcp__automaker__tool_name
+  - mcp__protolabs__tool_name
 ---
 # Command Instructions
 
 Your prompt content here...
 ```
+
+After modifying hooks, do a full reinstall: `claude plugin uninstall protolabs && claude plugin install protolabs`.

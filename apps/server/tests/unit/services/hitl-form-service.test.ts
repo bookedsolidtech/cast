@@ -532,6 +532,77 @@ describe('HITLFormService', () => {
     });
   });
 
+  // ---------- getByFeatureId() ----------
+
+  describe('getByFeatureId', () => {
+    it('returns pending form matching featureId', () => {
+      service.create(
+        createValidInput({ callerType: 'agent', featureId: 'feat-123', projectPath: '/proj' })
+      );
+
+      const found = service.getByFeatureId('feat-123');
+      expect(found).toBeDefined();
+      expect(found!.featureId).toBe('feat-123');
+      expect(found!.status).toBe('pending');
+    });
+
+    it('returns undefined when no pending form for featureId', () => {
+      service.create(
+        createValidInput({ callerType: 'agent', featureId: 'feat-other', projectPath: '/proj' })
+      );
+
+      expect(service.getByFeatureId('feat-999')).toBeUndefined();
+    });
+
+    it('returns undefined when matching form is submitted', async () => {
+      const form = service.create(
+        createValidInput({ callerType: 'agent', featureId: 'feat-sub', projectPath: '/proj' })
+      );
+      await service.submit(form.id, [{}]);
+
+      expect(service.getByFeatureId('feat-sub')).toBeUndefined();
+    });
+
+    it('returns undefined when matching form is cancelled', async () => {
+      const form = service.create(
+        createValidInput({ callerType: 'agent', featureId: 'feat-can', projectPath: '/proj' })
+      );
+      await service.cancel(form.id);
+
+      expect(service.getByFeatureId('feat-can')).toBeUndefined();
+    });
+
+    it('returns undefined when matching form is expired', () => {
+      service.create(
+        createValidInput({
+          callerType: 'agent',
+          featureId: 'feat-exp',
+          projectPath: '/proj',
+          ttlSeconds: 60,
+        })
+      );
+      vi.advanceTimersByTime(61 * 1000);
+
+      expect(service.getByFeatureId('feat-exp')).toBeUndefined();
+    });
+
+    it('filters by projectPath when provided', () => {
+      service.create(
+        createValidInput({ callerType: 'agent', featureId: 'feat-abc', projectPath: '/proj/a' })
+      );
+      service.create(
+        createValidInput({ callerType: 'agent', featureId: 'feat-abc', projectPath: '/proj/b' })
+      );
+
+      const foundA = service.getByFeatureId('feat-abc', '/proj/a');
+      expect(foundA).toBeDefined();
+      expect(foundA!.projectPath).toBe('/proj/a');
+
+      const notFound = service.getByFeatureId('feat-abc', '/proj/c');
+      expect(notFound).toBeUndefined();
+    });
+  });
+
   // ---------- reminder timer ----------
 
   describe('reminder timer', () => {

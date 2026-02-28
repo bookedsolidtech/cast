@@ -83,6 +83,7 @@ jobs:
           npm version "$LIB_VERSION" --no-git-tag-version --allow-same-version
           npm version "$LIB_VERSION" -w apps/server --no-git-tag-version --allow-same-version
           npm version "$LIB_VERSION" -w apps/ui --no-git-tag-version --allow-same-version
+          node -e "const f='packages/mcp-server/plugins/automaker/.claude-plugin/plugin.json';const p=JSON.parse(require('fs').readFileSync(f));p.version='$LIB_VERSION';require('fs').writeFileSync(f,JSON.stringify(p,null,2)+'\n')"
 
       - name: Get new version
         id: version

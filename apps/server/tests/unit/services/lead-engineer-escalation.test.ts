@@ -1,0 +1,211 @@
+/**
+ * Unit tests for EscalateProcessor — HITL form gating
+ *
+ * Verifies that forms are only created when featureFlags.pipeline=true
+ * and that duplicate forms are not created per feature.
+ */
+
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+vi.mock('@protolabs-ai/utils', () => ({
+  createLogger: () => ({
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  }),
+}));
+
+import { EscalateProcessor } from '../../../src/services/lead-engineer-escalation.js';
+import { FailureClassifierService } from '../../../src/services/failure-classifier-service.js';
+import type {
+  ProcessorServiceContext,
+  StateContext,
+} from '../../../src/services/lead-engineer-types.js';
+import type { HITLFormRequest } from '@protolabs-ai/types';
+
+// ── helpers ────────────────────────────────────────────────────────────────────
+
+const MOCK_FAILURE_ANALYSIS = {
+  category: 'unknown' as const,
+  isRetryable: false,
+  suggestedDelay: 0,
+  maxRetries: 1,
+  recoveryStrategy: { type: 'manual_intervention' as const, steps: [] },
+  explanation: 'Unknown failure',
+  confidence: 0.5,
+};
+
+function makeFeature(id = 'feat-001') {
+  return {
+    id,
+    title: 'Test Feature',
+    description: 'A test feature',
+    status: 'blocked' as const,
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z',
+    order: 0,
+  };
+}
+
+function makeCtx(featureId = 'feat-001', retryCount = 5): StateContext {
+  return {
+    feature: makeFeature(featureId),
+    projectPath: '/test/project',
+    options: {},
+    retryCount,
+    planRequired: false,
+    remediationAttempts: 0,
+    mergeRetryCount: 0,
+    planRetryCount: 0,
+    escalationReason: 'git commit failed',
+  };
+}
+
+function makeHitlFormService(existingForm?: HITLFormRequest) {
+  return {
+    create: vi.fn().mockReturnValue({
+      id: 'hitl-new',
+      status: 'pending',
+      title: 'Agent blocked',
+      steps: [],
+      callerType: 'lead_engineer',
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+    }),
+    getByFeatureId: vi.fn().mockReturnValue(existingForm),
+  };
+}
+
+function makeSettingsService(pipelineEnabled: boolean) {
+  return {
+    getGlobalSettings: vi.fn().mockResolvedValue({
+      featureFlags: {
+        calendar: false,
+        designs: false,
+        docs: false,
+        fileEditor: false,
+        pipeline: pipelineEnabled,
+      },
+    }),
+  };
+}
+
+function makeServiceContext(
+  overrides: Partial<ProcessorServiceContext> = {}
+): ProcessorServiceContext {
+  return {
+    events: { emit: vi.fn(), subscribe: vi.fn() } as unknown as ProcessorServiceContext['events'],
+    featureLoader: {
+      update: vi.fn().mockResolvedValue(undefined),
+      get: vi.fn().mockResolvedValue(null),
+      getAll: vi.fn().mockResolvedValue([]),
+    } as unknown as ProcessorServiceContext['featureLoader'],
+    autoModeService: {
+      getRunningAgents: vi.fn().mockResolvedValue([]),
+    } as unknown as ProcessorServiceContext['autoModeService'],
+    ...overrides,
+  };
+}
+
+// ── tests ──────────────────────────────────────────────────────────────────────
+
+describe('EscalateProcessor — HITL form gating', () => {
+  beforeEach(() => {
+    vi.spyOn(FailureClassifierService.prototype, 'classify').mockReturnValue(
+      MOCK_FAILURE_ANALYSIS as ReturnType<FailureClassifierService['classify']>
+    );
+  });
+
+  it('does NOT create form when featureFlags.pipeline = false (default)', async () => {
+    const hitlFormService = makeHitlFormService();
+    const ctx = makeServiceContext({
+      settingsService: makeSettingsService(
+        false
+      ) as unknown as ProcessorServiceContext['settingsService'],
+      hitlFormService: hitlFormService as unknown as ProcessorServiceContext['hitlFormService'],
+    });
+    const processor = new EscalateProcessor(ctx);
+
+    await processor.process(makeCtx());
+
+    expect(hitlFormService.create).not.toHaveBeenCalled();
+  });
+
+  it('does NOT create form when settingsService is undefined', async () => {
+    const hitlFormService = makeHitlFormService();
+    const ctx = makeServiceContext({
+      settingsService: undefined,
+      hitlFormService: hitlFormService as unknown as ProcessorServiceContext['hitlFormService'],
+    });
+    const processor = new EscalateProcessor(ctx);
+
+    await processor.process(makeCtx());
+
+    expect(hitlFormService.create).not.toHaveBeenCalled();
+  });
+
+  it('DOES create form when featureFlags.pipeline = true and failure is non-retryable', async () => {
+    const hitlFormService = makeHitlFormService(undefined);
+    const ctx = makeServiceContext({
+      settingsService: makeSettingsService(
+        true
+      ) as unknown as ProcessorServiceContext['settingsService'],
+      hitlFormService: hitlFormService as unknown as ProcessorServiceContext['hitlFormService'],
+    });
+    const processor = new EscalateProcessor(ctx);
+
+    await processor.process(makeCtx());
+
+    expect(hitlFormService.create).toHaveBeenCalledOnce();
+    expect(hitlFormService.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        callerType: 'lead_engineer',
+        featureId: 'feat-001',
+        projectPath: '/test/project',
+      })
+    );
+  });
+
+  it('does NOT create duplicate form when pending form already exists for featureId', async () => {
+    const existingForm: HITLFormRequest = {
+      id: 'hitl-existing',
+      title: 'Agent blocked: Test Feature',
+      status: 'pending',
+      callerType: 'lead_engineer',
+      featureId: 'feat-001',
+      projectPath: '/test/project',
+      steps: [],
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+    };
+    const hitlFormService = makeHitlFormService(existingForm);
+    const ctx = makeServiceContext({
+      settingsService: makeSettingsService(
+        true
+      ) as unknown as ProcessorServiceContext['settingsService'],
+      hitlFormService: hitlFormService as unknown as ProcessorServiceContext['hitlFormService'],
+    });
+    const processor = new EscalateProcessor(ctx);
+
+    await processor.process(makeCtx());
+
+    expect(hitlFormService.create).not.toHaveBeenCalled();
+  });
+
+  it('creates new form when existing form is expired (getByFeatureId returns undefined)', async () => {
+    // getByFeatureId returning undefined = no active pending form (expired forms return undefined)
+    const hitlFormService = makeHitlFormService(undefined);
+    const ctx = makeServiceContext({
+      settingsService: makeSettingsService(
+        true
+      ) as unknown as ProcessorServiceContext['settingsService'],
+      hitlFormService: hitlFormService as unknown as ProcessorServiceContext['hitlFormService'],
+    });
+    const processor = new EscalateProcessor(ctx);
+
+    await processor.process(makeCtx());
+
+    expect(hitlFormService.create).toHaveBeenCalledOnce();
+  });
+});

@@ -4,6 +4,7 @@ import { Code2, Flag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore, type ServerLogLevel } from '@/store/app-store';
 import { toast } from 'sonner';
+import type { FeatureFlags } from '@protolabs-ai/types';
 
 const LOG_LEVEL_OPTIONS: { value: ServerLogLevel; label: string; description: string }[] = [
   { value: 'error', label: 'Error', description: 'Only show error messages' },
@@ -12,7 +13,7 @@ const LOG_LEVEL_OPTIONS: { value: ServerLogLevel; label: string; description: st
   { value: 'debug', label: 'Debug', description: 'Show all messages including debug' },
 ];
 
-const FEATURE_FLAG_LABELS: Record<string, { label: string; description: string }> = {
+const FEATURE_FLAG_LABELS: Record<keyof FeatureFlags, { label: string; description: string }> = {
   calendar: {
     label: 'Calendar',
     description: 'Show the Calendar view in the project sidebar.',
@@ -30,8 +31,9 @@ const FEATURE_FLAG_LABELS: Record<string, { label: string; description: string }
     description: 'Show the File Editor (tabbed code editor) in the project sidebar.',
   },
   pipeline: {
-    label: 'Authority Pipeline',
-    description: 'Enable the authority pipeline (TRIAGE, SPEC, PUBLISH). Experimental.',
+    label: 'Authority Pipeline + HITL',
+    description:
+      'Enables HITL interrupt forms and pipeline gate cycling (TRIAGE, SPEC, PUBLISH). Off by default.',
   },
 };
 

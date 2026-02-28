@@ -1,6 +1,6 @@
 # MCP Tools Reference
 
-Complete catalog of **135 MCP tools** exposed by the protoLabs server. See `packages/mcp-server/src/index.ts` for the full definitions.
+Complete catalog of **159 MCP tools** exposed by the protoLabs server. See `packages/mcp-server/src/tools/` for the full definitions.
 
 For installation and configuration, see [Claude Plugin Setup](./claude-plugin.md). For commands and examples, see [Plugin Commands](./plugin-commands.md).
 
@@ -80,7 +80,7 @@ For installation and configuration, see [Claude Plugin Setup](./claude-plugin.md
 ### Using Project Tools
 
 ```
-[Calls mcp__automaker__create_project with:
+[Calls mcp__protolabs__create_project with:
   projectPath: "/path/to/project"
   title: "User Authentication System"
   goal: "Add secure user authentication"
@@ -94,7 +94,7 @@ For installation and configuration, see [Claude Plugin Setup](./claude-plugin.md
   milestones: [...]
 ]
 
-[Calls mcp__automaker__create_project_features with:
+[Calls mcp__protolabs__create_project_features with:
   projectPath: "/path/to/project"
   projectSlug: "user-authentication-system"
   createEpics: true
@@ -107,22 +107,22 @@ After creation, project files are organized as:
 
 ```
 .automaker/projects/user-authentication-system/
-├── project.md           # High-level overview
-├── project.json         # Full structured data
-├── prd.md              # SPARC PRD document
-└── milestones/
-    ├── 01-foundation/
-    │   ├── milestone.md
-    │   ├── phase-01-add-user-types.md
-    │   └── phase-02-create-auth-service.md
-    └── 02-api-endpoints/
-        ├── milestone.md
-        └── phase-01-auth-routes.md
+|-- project.md           # High-level overview
+|-- project.json         # Full structured data
+|-- prd.md              # SPARC PRD document
+|-- milestones/
+    |-- 01-foundation/
+    |   |-- milestone.md
+    |   |-- phase-01-add-user-types.md
+    |   |-- phase-02-create-auth-service.md
+    |-- 02-api-endpoints/
+        |-- milestone.md
+        |-- phase-01-auth-routes.md
 ```
 
 ### Epic Features
 
-When `createEpics: true`, each milestone becomes an epic feature. Phase 1 of each milestone is automatically marked `isFoundation: true` — downstream features won't start until the foundation's PR is merged to main.
+When `createEpics: true`, each milestone becomes an epic feature. Phase 1 of each milestone is automatically marked `isFoundation: true` -- downstream features won't start until the foundation's PR is merged to main.
 
 ## Project Lifecycle (7 tools)
 
@@ -142,14 +142,44 @@ When `createEpics: true`, each milestone becomes an epic feature. Phase 1 of eac
 | ------------ | ------------------------------------------------ |
 | `submit_prd` | Submit a PRD through the CoS pipeline for review |
 
-## GitHub Operations (4 tools)
+## GitHub Operations (7 tools)
 
-| Tool                 | Description                          |
-| -------------------- | ------------------------------------ |
-| `merge_pr`           | Merge a pull request                 |
-| `check_pr_status`    | Check PR status (CI, reviews, merge) |
-| `get_pr_feedback`    | Get PR review feedback               |
-| `resolve_pr_threads` | Resolve CodeRabbit review threads    |
+| Tool                     | Description                          |
+| ------------------------ | ------------------------------------ |
+| `merge_pr`               | Merge a pull request                 |
+| `check_pr_status`        | Check PR status (CI, reviews, merge) |
+| `get_pr_feedback`        | Get PR review feedback               |
+| `resolve_pr_threads`     | Resolve CodeRabbit review threads    |
+| `get_pr_review_comments` | Get review comments from a PR        |
+| `resolve_pr_comment`     | Resolve a specific PR review comment |
+| `git_enhanced_status`    | Enhanced git status with branch info |
+
+## Git Operations (2 tools)
+
+| Tool               | Description                          |
+| ------------------ | ------------------------------------ |
+| `git_stage_files`  | Stage specific files for commit      |
+| `git_file_details` | Get detailed file info (diff, blame) |
+
+## Worktrees (3 tools)
+
+| Tool                      | Description                          |
+| ------------------------- | ------------------------------------ |
+| `list_worktrees`          | List all git worktrees for a project |
+| `get_worktree_status`     | Get status of a specific worktree    |
+| `create_pr_from_worktree` | Create a PR from worktree changes    |
+
+## Worktree Git Operations (7 tools)
+
+| Tool                          | Description                          |
+| ----------------------------- | ------------------------------------ |
+| `worktree_cherry_pick`        | Cherry-pick a commit into a worktree |
+| `worktree_abort_operation`    | Abort an in-progress git operation   |
+| `worktree_continue_operation` | Continue a paused git operation      |
+| `worktree_stash_push`         | Stash changes in a worktree          |
+| `worktree_stash_list`         | List stashes in a worktree           |
+| `worktree_stash_apply`        | Apply a stash in a worktree          |
+| `worktree_stash_drop`         | Drop a stash in a worktree           |
 
 ## Escalation (3 tools)
 
@@ -159,21 +189,14 @@ When `createEpics: true`, each milestone becomes an epic feature. Phase 1 of eac
 | `get_escalation_log`     | Get escalation history           |
 | `acknowledge_escalation` | Acknowledge and resolve an alert |
 
-## Lead Engineer (3 tools)
+## Lead Engineer (4 tools)
 
-| Tool                       | Description                      |
-| -------------------------- | -------------------------------- |
-| `start_lead_engineer`      | Start the lead engineer service  |
-| `stop_lead_engineer`       | Stop the lead engineer service   |
-| `get_lead_engineer_status` | Get lead engineer running status |
-
-## Worktrees (3 tools)
-
-| Tool                      | Description                          |
-| ------------------------- | ------------------------------------ |
-| `list_worktrees`          | List all git worktrees for a project |
-| `get_worktree_status`     | Get status of a specific worktree    |
-| `create_pr_from_worktree` | Create a PR from worktree changes    |
+| Tool                       | Description                          |
+| -------------------------- | ------------------------------------ |
+| `start_lead_engineer`      | Start the lead engineer service      |
+| `stop_lead_engineer`       | Stop the lead engineer service       |
+| `get_lead_engineer_status` | Get lead engineer running status     |
+| `get_feature_handoff`      | Get phase handoff data for a feature |
 
 ## Agent Templates (7 tools)
 
@@ -186,6 +209,50 @@ When `createEpics: true`, each milestone becomes an epic feature. Phase 1 of eac
 | `unregister_agent_template` | Remove a template                   |
 | `execute_dynamic_agent`     | Execute an agent from a template    |
 | `get_role_registry_status`  | Get template registry statistics    |
+
+## HITL / Forms (5 tools)
+
+| Tool                   | Description                           |
+| ---------------------- | ------------------------------------- |
+| `request_user_input`   | Request input from user via HITL form |
+| `get_form_response`    | Get response to a pending form        |
+| `list_pending_forms`   | List all pending HITL forms           |
+| `submit_form_response` | Submit a response to a pending form   |
+| `cancel_form`          | Cancel a pending HITL form            |
+
+## Actionable Items (2 tools)
+
+| Tool                     | Description                             |
+| ------------------------ | --------------------------------------- |
+| `list_actionable_items`  | List actionable items from the system   |
+| `act_on_actionable_item` | Execute an action on an actionable item |
+
+## Calendar (4 tools)
+
+| Tool                    | Description                 |
+| ----------------------- | --------------------------- |
+| `list_calendar_events`  | List calendar events        |
+| `create_calendar_event` | Create a new calendar event |
+| `update_calendar_event` | Update an existing event    |
+| `delete_calendar_event` | Delete a calendar event     |
+
+## Quarantine & Trust (5 tools)
+
+| Tool                       | Description                         |
+| -------------------------- | ----------------------------------- |
+| `list_quarantine_entries`  | List quarantined items              |
+| `approve_quarantine_entry` | Approve a quarantined item          |
+| `reject_quarantine_entry`  | Reject a quarantined item           |
+| `get_trust_tier`           | Get trust tier for an agent or user |
+| `set_trust_tier`           | Set trust tier for an agent or user |
+
+## File Operations (3 tools)
+
+| Tool                   | Description                    |
+| ---------------------- | ------------------------------ |
+| `copy_file`            | Copy a file within the project |
+| `move_file`            | Move a file within the project |
+| `browse_project_files` | Browse project file structure  |
 
 ## Content Pipeline (6 tools)
 
@@ -210,6 +277,23 @@ When `createEpics: true`, each milestone becomes an epic feature. Phase 1 of eac
 | `rename_note_tab`             | Rename a tab                                   |
 | `update_note_tab_permissions` | Update agentRead/agentWrite permissions        |
 | `reorder_note_tabs`           | Reorder tabs in the workspace                  |
+
+## Promotion Pipeline (5 tools)
+
+| Tool                      | Description                               |
+| ------------------------- | ----------------------------------------- |
+| `list_staging_candidates` | List features ready for staging promotion |
+| `create_promotion_batch`  | Create a promotion batch                  |
+| `promote_to_staging`      | Promote a batch to staging                |
+| `promote_to_main`         | Promote staging to main                   |
+| `list_promotion_batches`  | List all promotion batches                |
+
+## Scheduler (2 tools)
+
+| Tool                      | Description                           |
+| ------------------------- | ------------------------------------- |
+| `get_scheduler_status`    | Get scheduler status and active tasks |
+| `update_maintenance_task` | Update a scheduled maintenance task   |
 
 ## Reports (2 tools)
 
@@ -238,6 +322,15 @@ When `createEpics: true`, each milestone becomes an epic feature. Phase 1 of eac
 | `read_discord_dms`  | Read recent Discord DMs                |
 | `provision_discord` | Provision Discord server for a project |
 | `trigger_ceremony`  | Trigger an agile ceremony via Discord  |
+
+## Integration (4 tools)
+
+| Tool                      | Description                              |
+| ------------------------- | ---------------------------------------- |
+| `twitch_list_suggestions` | List Twitch chat suggestions             |
+| `twitch_build_suggestion` | Build a feature from a Twitch suggestion |
+| `twitch_create_poll`      | Create a Twitch poll                     |
+| `sync_project_to_linear`  | Sync project milestones to Linear issues |
 
 ## Setup & Beads (1 tool)
 
@@ -269,7 +362,7 @@ When `createEpics: true`, each milestone becomes an epic feature. Phase 1 of eac
 | `get_capacity_metrics` | Get agent capacity and utilization |
 | `get_forecast`         | Get delivery forecasts             |
 
-## Observability (6 tools)
+## Observability (8 tools)
 
 | Tool                      | Description                        |
 | ------------------------- | ---------------------------------- |
@@ -278,15 +371,19 @@ When `createEpics: true`, each milestone becomes an epic feature. Phase 1 of eac
 | `langfuse_get_costs`      | Get cost breakdown                 |
 | `langfuse_list_prompts`   | List prompt versions               |
 | `langfuse_score_trace`    | Score a trace for quality tracking |
+| `langfuse_list_datasets`  | List evaluation datasets           |
 | `langfuse_add_to_dataset` | Add trace to evaluation dataset    |
+| `langfuse_seed_prompts`   | Seed prompts from Langfuse         |
 
-## Utilities (4 tools)
+## Utilities (5 tools)
 
-| Tool                | Description                          |
-| ------------------- | ------------------------------------ |
-| `health_check`      | Check if protoLabs server is running |
-| `get_board_summary` | Get feature counts by status         |
-| `get_briefing`      | Get operational briefing digest      |
+| Tool                       | Description                          |
+| -------------------------- | ------------------------------------ |
+| `health_check`             | Check if protoLabs server is running |
+| `get_board_summary`        | Get feature counts by status         |
+| `get_briefing`             | Get operational briefing digest      |
+| `query_board`              | Query board with natural language    |
+| `get_feature_dependencies` | Get dependency info for a feature    |
 
 ## Other (1 tool)
 
@@ -296,6 +393,6 @@ When `createEpics: true`, each milestone becomes an epic feature. Phase 1 of eac
 
 ## Related Documentation
 
-- [Claude Plugin Setup](./claude-plugin.md) — Installation, configuration, Docker deployment
-- [Plugin Commands](./plugin-commands.md) — Commands, subagents, examples
-- [MCP Integration](/agents/mcp-integration) — How MCP tools interact with agents
+- [Claude Plugin Setup](./claude-plugin.md) -- Installation, configuration, Docker deployment
+- [Plugin Commands](./plugin-commands.md) -- Commands, subagents, examples
+- [MCP Integration](/agents/mcp-integration) -- How MCP tools interact with agents

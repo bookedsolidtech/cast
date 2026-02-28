@@ -263,6 +263,20 @@ import { createLogger } from '../lib/logger'; // Wrong
 
 ## Key Patterns
 
+### Feature Flag Checklist
+
+Feature flags are boolean toggles that gate in-development functionality per installation. The single source of truth is `DEFAULT_FEATURE_FLAGS` in `libs/types/src/global-settings.ts`. See `docs/dev/feature-flags.md` for full detail.
+
+**`FeatureFlags` vs `WorkflowSettings`**: `FeatureFlags` are global per-install product on/off toggles stored in `data/settings.json`. `WorkflowSettings` are per-project pipeline tuning parameters (model tier, retry counts) stored in `.automaker/settings.json`. Do not conflate them.
+
+When adding a new feature flag, follow these 5 steps in order:
+
+1. Add the field to `FeatureFlags` interface in `libs/types/src/global-settings.ts` and set its default to `false` in `DEFAULT_FEATURE_FLAGS`.
+2. TypeScript will immediately error in `developer-section.tsx` — add a label and description entry to `FEATURE_FLAG_LABELS` there. The `Record<keyof FeatureFlags, ...>` type makes this a compile-time requirement.
+3. Do NOT add hardcoded defaults elsewhere. `DEFAULT_FEATURE_FLAGS` is the only source. The spread pattern in `use-settings-sync.ts` automatically propagates new flags to existing installs.
+4. Add a server-side guard wherever the feature has side effects: `const enabled = featureFlags?.yourFlag ?? false` via `settingsService.getGlobalSettings()`. Always treat `settingsService` as optional — default to `false` when absent.
+5. Add unit tests covering behavior when the flag is `false` (default) and when `true`.
+
 ### Event-Driven Architecture
 
 All server operations emit events that stream to the frontend via WebSocket. Events are created using `createEventEmitter()` from `lib/events.ts`.
@@ -349,7 +363,7 @@ Auto-mode uses a tiered model selection based on feature complexity:
 **Setting complexity via MCP:**
 
 ```typescript
-mcp__automaker__create_feature({
+mcp__protolabs__create_feature({
   projectPath: '/path/to/project',
   title: 'Core Infrastructure Setup',
   description: '...',
@@ -411,12 +425,12 @@ npm run build:packages
 
 # 3. Add the plugin marketplace and install
 claude plugin marketplace add /path/to/automaker/packages/mcp-server/plugins
-claude plugin install automaker
+claude plugin install protolabs
 ```
 
 ### Available MCP Tools
 
-The MCP server exposes 135 tools organized by category:
+The MCP server exposes ~159 tools organized by category:
 
 **Feature Management:** `list_features`, `get_feature`, `create_feature`, `update_feature`, `delete_feature`, `move_feature`
 
@@ -434,7 +448,7 @@ The MCP server exposes 135 tools organized by category:
 
 **Agent Templates:** `list_agent_templates`, `get_agent_template`, `register_agent_template`, `update_agent_template`, `unregister_agent_template`, `execute_dynamic_agent`, `get_role_registry_status`
 
-**GitHub Operations:** `merge_pr`, `check_pr_status`, `resolve_review_threads`
+**GitHub Operations:** `merge_pr`, `check_pr_status`, `resolve_pr_threads`
 
 **Observability:** `langfuse_list_traces`, `langfuse_get_trace`, `langfuse_get_costs`, `langfuse_list_prompts`, `langfuse_score_trace`, `langfuse_add_to_dataset`
 
@@ -519,16 +533,16 @@ When features belong to an epic, the git workflow follows a hierarchical PR stru
 ```
 main
   ↑
-epic/foundation ──────────── Epic PR (targets main)
+epic/foundation ──────────── Epic PR (targets dev)
   ↑         ↑         ↑
 feat-a    feat-b    feat-c   Feature PRs (target epic branch)
 ```
 
 **Automatic Behavior:**
 
-- Feature PRs automatically target their epic's branch (not main)
-- Epic PRs target main
-- Features without an epic target main directly
+- Feature PRs automatically target their epic's branch (not dev)
+- Epic PRs target dev
+- Features without an epic target dev directly
 
 **Merge Order:**
 
@@ -541,7 +555,7 @@ This keeps main clean while allowing incremental feature development within epic
 
 ```typescript
 // Create project plan
-mcp__automaker__create_project({
+mcp__protolabs__create_project({
   projectPath: '/path/to/project',
   title: 'My Feature',
   goal: 'Implement X functionality',
@@ -570,7 +584,7 @@ mcp__automaker__create_project({
 });
 
 // Convert to board features
-mcp__automaker__create_project_features({
+mcp__protolabs__create_project_features({
   projectPath: '/path/to/project',
   projectSlug: 'my-feature',
   createEpics: true,

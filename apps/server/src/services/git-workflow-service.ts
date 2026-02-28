@@ -810,10 +810,13 @@ export class GitWorkflowService {
       const files = stagedFiles.trim().split('\n').filter(Boolean);
       if (files.length > 0) {
         const prettierBin = path.join(projectPath, 'node_modules/.bin/prettier');
-        await execAsync(`node "${prettierBin}" --write ${files.map((f) => `"${f}"`).join(' ')}`, {
-          cwd: workDir,
-          env: execEnv,
-        });
+        await execAsync(
+          `node "${prettierBin}" --ignore-path /dev/null --write ${files.map((f) => `"${f}"`).join(' ')}`,
+          {
+            cwd: workDir,
+            env: execEnv,
+          }
+        );
         // Re-stage after formatting
         await execAsync(buildGitAddCommand(workDir), { cwd: workDir, env: execEnv });
         logger.debug(`Auto-formatted ${files.length} staged files`);
@@ -1013,10 +1016,10 @@ export class GitWorkflowService {
 
       // Format them using the workspace Prettier binary (worktrees have no node_modules)
       const prettierBin = path.join(projectPath, 'node_modules/.bin/prettier');
-      await execAsync(`node "${prettierBin}" --write ${files.map((f) => `"${f}"`).join(' ')}`, {
-        cwd: workDir,
-        env: execEnv,
-      });
+      await execAsync(
+        `node "${prettierBin}" --ignore-path /dev/null --write ${files.map((f) => `"${f}"`).join(' ')}`,
+        { cwd: workDir, env: execEnv }
+      );
 
       // Check if formatting actually changed anything
       const { stdout: status } = await execAsync('git status --porcelain', {

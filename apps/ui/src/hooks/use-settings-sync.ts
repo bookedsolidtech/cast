@@ -26,6 +26,7 @@ import { waitForMigrationComplete, resetMigrationState } from './use-settings-mi
 import {
   DEFAULT_OPENCODE_MODEL,
   DEFAULT_MAX_CONCURRENCY,
+  DEFAULT_FEATURE_FLAGS,
   getAllOpencodeModelIds,
   getAllCursorModelIds,
   migrateCursorModelIds,
@@ -824,13 +825,7 @@ export async function refreshSettingsFromServer(): Promise<boolean> {
       lastProjectDir: serverSettings.lastProjectDir ?? '',
       recentFolders: serverSettings.recentFolders ?? [],
       eventHooks: serverSettings.eventHooks ?? [],
-      featureFlags: serverSettings.featureFlags ?? {
-        calendar: false,
-        designs: false,
-        docs: false,
-        fileEditor: false,
-        pipeline: false,
-      },
+      featureFlags: { ...DEFAULT_FEATURE_FLAGS, ...(serverSettings.featureFlags ?? {}) },
     });
 
     // Also refresh setup wizard state

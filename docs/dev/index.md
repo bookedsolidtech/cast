@@ -27,6 +27,7 @@ Extend protoLabs. Architecture, packages, code standards, and how to contribute.
 
 ## Guides
 
+- **[Feature Flags](./feature-flags)** — How to add and consume feature flags; single source of truth; FeatureFlags vs WorkflowSettings
 - **[Clean Code](./clean-code)** — Code quality standards and patterns
 - **[Testing Patterns](./testing-patterns)** — Test patterns and anti-patterns
 - **[Design Philosophy](./design-philosophy)** — UI design direction (Linear, Vercel, shadcn/ui)

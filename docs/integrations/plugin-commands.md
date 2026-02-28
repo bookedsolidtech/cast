@@ -101,9 +101,9 @@ Manage feature dependencies and execution order.
 
 ### Dependency Chains
 [abc-123] Database Schema
-  └── [def-456] User Authentication
-        ├── [ghi-789] User Dashboard
-        └── [jkl-012] User Profile
+  |-- [def-456] User Authentication
+        |-- [ghi-789] User Dashboard
+        |-- [jkl-012] User Profile
 ```
 
 ### /context
@@ -148,40 +148,6 @@ Creating coding-standards.md...
 - Use const assertions for literals
 ```
 
-### /groom
-
-Review and organize your Kanban board for health and maintenance.
-
-```bash
-/groom                    # Run full board grooming
-/groom quick              # Quick status check
-```
-
-**What It Does:**
-
-- Shows board summary (backlog, in-progress, review, done counts)
-- Identifies stale features (no activity > 24 hours)
-- Checks for blocked features with unmet dependencies
-- Suggests next actions based on board state
-- Provides cleanup recommendations
-
-### /pr-review
-
-Systematically review and organize open pull requests.
-
-```bash
-/pr-review                # Review all open PRs
-/pr-review [pr-number]    # Review specific PR
-```
-
-**What It Does:**
-
-- Lists all open PRs with status (CodeRabbit checks, CI, conflicts)
-- Checks PR alignment (features→epics, epics→main)
-- Identifies merge conflicts
-- Suggests merge order based on dependencies
-- Finds branches with work but no PR
-
 ### /plan-project
 
 Full project lifecycle from research to launch. Works with Linear as source of truth or standalone.
@@ -200,44 +166,165 @@ Full project lifecycle from research to launch. Works with Linear as source of t
 5. **Features** - Creates board features with dependencies
 6. **Launch** - Starts auto-mode
 
-Supports resuming mid-stream — re-running picks up where you left off.
+Supports resuming mid-stream -- re-running picks up where you left off.
 
-### /cleanup
+### /ship
 
-Comprehensive codebase maintenance and hygiene check.
+Ship current changes with full git workflow automation.
 
 ```bash
-/cleanup                  # Full cleanup report
-/cleanup docs             # Documentation only
-/cleanup git              # Git hygiene only
+/ship                     # Stage, commit, push, create PR, auto-merge
 ```
 
-**What It Checks:**
+**What It Does:**
 
-- **Documentation**: status.md, CLAUDE.md, README.md currency
-- **Git Hygiene**: Merged branches, stale worktrees, orphaned branches
-- **Dependencies**: npm audit, outdated packages
-- **Code Quality**: TODO comments, console.logs, unused imports
-- **Test Coverage**: Missing tests, commented tests
+- Stages all changes
+- Creates a commit with a descriptive message
+- Pushes to remote
+- Creates a PR targeting the correct base branch
+- Enables auto-merge
+- Handles conflicts automatically
+
+### /headsdown
+
+Deep work mode for autonomous feature processing.
+
+```bash
+/headsdown                # Enter deep work mode
+```
+
+**What It Does:**
+
+- Autonomously processes features from the backlog
+- Merges approved PRs
+- Grooms the board
+- Stays productive until the system is void of work
+- Minimal human interaction required
+
+### /linear
+
+Manage Linear projects, issues, teams, cycles, and initiatives.
+
+```bash
+/linear                   # Start Linear management
+/linear [query]           # Search or act on Linear issues
+```
+
+**Capabilities:**
+
+- Search and triage Linear issues
+- Create and update issues
+- Manage team assignments
+- View cycle and project status
+
+### /create-project
+
+Full project orchestration pipeline from research to feature creation.
+
+```bash
+/create-project           # Start project creation wizard
+/create-project [idea]    # Quick start with a project idea
+```
+
+**Workflow:**
+
+1. Research codebase and gather context
+2. Generate SPARC PRD
+3. Review and approve PRD
+4. Scaffold project structure
+5. Create board features with dependencies
+
+### /calendar-assistant
+
+Calendar and scheduling operations.
+
+```bash
+/calendar-assistant       # Start calendar management
+```
+
+**Capabilities:**
+
+- List, create, update, and delete calendar events
+- Schedule meetings and deadlines
+- Track upcoming events
+
+### /due-diligence
+
+Validate approaches and question architectures with evidence-based research.
+
+```bash
+/due-diligence            # Start validation session
+/due-diligence [topic]    # Validate a specific approach
+```
+
+**What It Does:**
+
+- Evaluates technology choices
+- Compares alternative solutions
+- Questions architectural decisions with evidence
+- Provides risk assessment
+
+### /deep-research
+
+Research codebase before planning a feature.
+
+```bash
+/deep-research            # Start codebase research
+/deep-research [topic]    # Research a specific area
+```
+
+**What It Does:**
+
+- Gathers context about codebase structure
+- Identifies patterns and conventions
+- Documents constraints and dependencies
+- Prepares context for feature planning
+
+### /sparc-prd
+
+Create a SPARC-style Product Requirements Document.
+
+```bash
+/sparc-prd                # Start PRD creation
+/sparc-prd [feature]      # Create PRD for a specific feature
+```
+
+**SPARC Structure:**
+
+- **S**ituation - Current state and context
+- **P**roblem - What needs to be solved
+- **A**pproach - Proposed solution
+- **R**esults - Expected outcomes
+- **C**onstraints - Limitations and requirements
+
+### /improve-prompts
+
+Analyze, critique, and improve prompts for LLM agents.
+
+```bash
+/improve-prompts          # Start prompt improvement session
+/improve-prompts [file]   # Improve a specific prompt file
+```
+
+**What It Does:**
+
+- Evaluates prompt structure (5-component check)
+- Audits specificity and technique selection
+- Identifies anti-patterns
+- Rewrites with improvements and explanations
 
 ## Subagents
 
-The plugin includes specialized agents for complex tasks. Invoke them via the `Task` tool.
+The plugin includes 13 specialized agents for complex tasks. Invoke them via the `Task` tool with `subagent_type: "protolabs:<agent-name>"`.
 
-### automaker:feature-planner
+### protolabs:feature-planner
 
 Breaks down complex features into smaller, implementable tasks with proper dependencies.
 
-**When to Use:**
-
-- Planning a large feature with multiple components
-- Need help identifying the right task breakdown
-- Want to set up dependencies automatically
-
-**Example:**
+**Model:** Opus | **When to Use:** Planning a large feature with multiple components
 
 ```javascript
-Task(subagent_type: "automaker:feature-planner",
+Task(subagent_type: "protolabs:feature-planner",
      prompt: "Project: /path/to/project.
               Feature: Add a complete user authentication system with:
               - Login/logout
@@ -247,48 +334,123 @@ Task(subagent_type: "automaker:feature-planner",
               Context: Using React and Express with PostgreSQL.")
 ```
 
-### automaker:agent-reviewer
+### protolabs:agent-reviewer
 
 Reviews completed agent work and provides feedback.
 
-**When to Use:**
-
-- After an agent completes a feature
-- Need a code quality assessment
-- Want security or performance review
-
-**Example:**
+**Model:** Sonnet | **When to Use:** After an agent completes a feature, for code quality assessment
 
 ```javascript
-Task(subagent_type: "automaker:agent-reviewer",
+Task(subagent_type: "protolabs:agent-reviewer",
      prompt: "Project: /path/to/project.
               Feature ID: abc-123.
               Focus: security, code quality, tests")
 ```
 
-### automaker:codebase-analyzer
+### protolabs:codebase-analyzer
 
 Analyzes codebase structure, patterns, and suggests feature dependencies.
 
-**When to Use:**
+**Model:** Opus | **When to Use:** Understanding a new codebase, planning optimal execution order
 
-- Understanding a new codebase
-- Planning optimal feature execution order
-- Analyzing impact of changes
+### protolabs:deep-research
 
-### Model Assignment Reference
+Codebase exploration agent for gathering context before planning.
 
-| Component            | Model  | Rationale               |
-| -------------------- | ------ | ----------------------- |
-| `/deep-research`     | Haiku  | Fast exploration        |
-| `/codebase-analyzer` | Haiku  | Quick pattern detection |
-| `/project-scaffold`  | Haiku  | Simple file operations  |
-| `/feature-factory`   | Haiku  | Straightforward parsing |
-| `/plan-project`      | Sonnet | Complex orchestration   |
-| `/sparc-prd`         | Sonnet | Sophisticated analysis  |
-| `/feature-planner`   | Sonnet | Architectural decisions |
-| `/agent-reviewer`    | Sonnet | Code quality judgment   |
-| `/prd-reviewer`      | Sonnet | PRD validation          |
+**Model:** Opus | **When to Use:** Deep-diving into a codebase area before implementing a feature
+
+### protolabs:sparc-prd
+
+SPARC PRD creation agent for structured requirements documents.
+
+**Model:** Opus | **When to Use:** Creating comprehensive PRDs with situation/problem/approach/results/constraints
+
+### protolabs:prd-reviewer
+
+PRD validation agent that checks quality and feasibility.
+
+**Model:** Opus | **When to Use:** Reviewing a generated PRD before approval
+
+### protolabs:feature-factory
+
+Creates features from project phases with proper dependencies.
+
+**Model:** Haiku | **When to Use:** Converting project phases into board features
+
+### protolabs:project-scaffold
+
+Creates project directory structure from approved PRD.
+
+**Model:** Haiku | **When to Use:** Scaffolding `.automaker/projects/` structure from a PRD
+
+### protolabs:linear-triage
+
+Triage Linear issues -- find unassigned work, suggest priorities, identify stale issues.
+
+**Model:** Sonnet | **When to Use:** Organizing and prioritizing Linear backlog
+
+### protolabs:linear-board
+
+Linear board operations -- search issues, view status, check assignments.
+
+**Model:** Haiku | **When to Use:** Quick queries against Linear board state
+
+### protolabs:devops-health-check
+
+Run comprehensive health diagnostics for deployment.
+
+**Model:** Haiku | **When to Use:** Checking system health, diagnosing issues
+
+### protolabs:devops-logs
+
+Analyze container logs for errors, patterns, and issues.
+
+**Model:** Haiku | **When to Use:** Investigating runtime errors or anomalies
+
+### protolabs:devops-backup
+
+Backup and restore Docker volumes.
+
+**Model:** Haiku | **When to Use:** Creating or restoring backups
+
+## Model Assignment Reference
+
+### Command Models
+
+| Command               | Model  | Rationale                    |
+| --------------------- | ------ | ---------------------------- |
+| `/deep-research`      | Haiku  | Fast exploration             |
+| `/board`              | --     | No model (direct tool calls) |
+| `/auto-mode`          | --     | No model (direct tool calls) |
+| `/orchestrate`        | --     | No model (direct tool calls) |
+| `/context`            | --     | No model (direct tool calls) |
+| `/ship`               | --     | No model (direct tool calls) |
+| `/headsdown`          | --     | No model (direct tool calls) |
+| `/linear`             | --     | No model (direct tool calls) |
+| `/calendar-assistant` | --     | No model (direct tool calls) |
+| `/improve-prompts`    | --     | No model (direct tool calls) |
+| `/due-diligence`      | Sonnet | Evidence-based analysis      |
+| `/create-project`     | Sonnet | Complex orchestration        |
+| `/plan-project`       | Sonnet | Complex orchestration        |
+| `/sparc-prd`          | Sonnet | Sophisticated analysis       |
+
+### Agent Models
+
+| Agent                 | Model  | Rationale               |
+| --------------------- | ------ | ----------------------- |
+| `feature-factory`     | Haiku  | Straightforward parsing |
+| `project-scaffold`    | Haiku  | Simple file operations  |
+| `linear-board`        | Haiku  | Quick queries           |
+| `devops-health-check` | Haiku  | Quick diagnostics       |
+| `devops-logs`         | Haiku  | Log parsing             |
+| `devops-backup`       | Haiku  | Simple file operations  |
+| `agent-reviewer`      | Sonnet | Code quality judgment   |
+| `linear-triage`       | Sonnet | Priority analysis       |
+| `feature-planner`     | Opus   | Architectural decisions |
+| `codebase-analyzer`   | Opus   | Deep pattern analysis   |
+| `deep-research`       | Opus   | Thorough exploration    |
+| `sparc-prd`           | Opus   | Sophisticated analysis  |
+| `prd-reviewer`        | Opus   | PRD validation          |
 
 ## Step-by-Step Examples
 
@@ -299,7 +461,7 @@ User: Create a feature to add a dark mode toggle
 
 Claude: I'll create that feature for you.
 
-[Calls mcp__automaker__create_feature with:
+[Calls mcp__protolabs__create_feature with:
   projectPath: "/path/to/project"
   title: "Add dark mode toggle"
   description: "## Overview
@@ -327,7 +489,7 @@ User: The dashboard feature should depend on the auth feature
 
 Claude: I'll set up that dependency.
 
-[Calls mcp__automaker__set_feature_dependencies with:
+[Calls mcp__protolabs__set_feature_dependencies with:
   projectPath: "/path/to/project"
   featureId: "dashboard-id"
   dependencies: ["auth-id"]]
@@ -343,7 +505,7 @@ User: Start auto-mode with 2 concurrent agents
 
 Claude: Starting auto-mode...
 
-[Calls mcp__automaker__start_auto_mode with:
+[Calls mcp__protolabs__start_auto_mode with:
   projectPath: "/path/to/project"
   maxConcurrency: 2]
 
@@ -362,7 +524,7 @@ User: What did the agent do on the auth feature?
 
 Claude: Let me check the agent output.
 
-[Calls mcp__automaker__get_agent_output with:
+[Calls mcp__protolabs__get_agent_output with:
   projectPath: "/path/to/project"
   featureId: "auth-id"]
 
@@ -396,7 +558,7 @@ name: my-command
 description: What this command does
 argument-hint: (optional arguments)
 allowed-tools:
-  - mcp__automaker__tool_name
+  - mcp__protolabs__tool_name
 ---
 # Command Instructions
 
@@ -414,7 +576,7 @@ description: What this agent does
 allowed-tools:
   - Read
   - Write
-  - mcp__automaker__tool_name
+  - mcp__protolabs__tool_name
 model: sonnet
 ---
 # Agent Instructions
@@ -424,6 +586,6 @@ Your agent prompt here...
 
 ## Related Documentation
 
-- [Claude Plugin Setup](./claude-plugin.md) — Installation, configuration, Docker deployment
-- [MCP Tools Reference](./mcp-tools-reference.md) — Full MCP tool catalog
-- [Context System](/agents/context-system) — Best practices for context files
+- [Claude Plugin Setup](./claude-plugin.md) -- Installation, configuration, Docker deployment
+- [MCP Tools Reference](./mcp-tools-reference.md) -- Full MCP tool catalog
+- [Context System](/agents/context-system) -- Best practices for context files

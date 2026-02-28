@@ -23,6 +23,18 @@ if (!bumpType || !['major', 'minor', 'patch'].includes(bumpType)) {
 
 const uiPackageJsonPath = join(__dirname, '..', 'package.json');
 const serverPackageJsonPath = join(__dirname, '..', '..', 'server', 'package.json');
+const pluginJsonPath = join(
+  __dirname,
+  '..',
+  '..',
+  '..',
+  'packages',
+  'mcp-server',
+  'plugins',
+  'automaker',
+  '.claude-plugin',
+  'plugin.json'
+);
 
 function bumpVersion(packageJsonPath, packageName) {
   try {
@@ -76,16 +88,23 @@ try {
   const serverOldVersion = JSON.parse(readFileSync(serverPackageJsonPath, 'utf8')).version;
   const serverNewVersion = bumpVersion(serverPackageJsonPath, '@protolabs-ai/server');
 
+  // Sync plugin.json version
+  const pluginJson = JSON.parse(readFileSync(pluginJsonPath, 'utf8'));
+  const pluginOldVersion = pluginJson.version;
+  pluginJson.version = uiNewVersion;
+  writeFileSync(pluginJsonPath, JSON.stringify(pluginJson, null, 2) + '\n', 'utf8');
+
   // Verify versions match
   if (uiNewVersion !== serverNewVersion) {
     console.error(`Error: Version mismatch! UI: ${uiNewVersion}, Server: ${serverNewVersion}`);
     process.exit(1);
   }
 
-  console.log(`✅ Bumped version from ${uiOldVersion} to ${uiNewVersion} (${bumpType})`);
-  console.log(`📦 Updated @protolabs-ai/ui: ${uiOldVersion} -> ${uiNewVersion}`);
-  console.log(`📦 Updated @protolabs-ai/server: ${serverOldVersion} -> ${serverNewVersion}`);
-  console.log(`📦 Version is now: ${uiNewVersion}`);
+  console.log(`Bumped version from ${uiOldVersion} to ${uiNewVersion} (${bumpType})`);
+  console.log(`Updated @protolabs-ai/ui: ${uiOldVersion} -> ${uiNewVersion}`);
+  console.log(`Updated @protolabs-ai/server: ${serverOldVersion} -> ${serverNewVersion}`);
+  console.log(`Updated plugin.json: ${pluginOldVersion} -> ${uiNewVersion}`);
+  console.log(`Version is now: ${uiNewVersion}`);
 } catch (error) {
   console.error(`Error bumping version: ${error.message}`);
   process.exit(1);

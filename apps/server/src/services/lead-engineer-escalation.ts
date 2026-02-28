@@ -84,77 +84,103 @@ export class EscalateProcessor implements StateProcessor {
     const maxRetriesHit = ctx.retryCount >= failureAnalysis.maxRetries;
     const needsHumanInput = !failureAnalysis.isRetryable || maxRetriesHit;
 
-    if (needsHumanInput && this.serviceContext.hitlFormService) {
+    // Check feature flag: HITL forms only created when pipeline flag is enabled
+    let hitlEnabled = false;
+    if (this.serviceContext.settingsService) {
       try {
-        const confidencePct = Math.round(failureAnalysis.confidence * 100);
-        this.serviceContext.hitlFormService.create({
-          title: `Agent blocked: ${ctx.feature.title}`,
-          description: `Failure category: ${failureAnalysis.category}\nRoot cause: ${failureAnalysis.explanation}\nConfidence: ${confidencePct}%`,
-          steps: [
-            {
-              title: 'How would you like to proceed?',
-              schema: {
-                type: 'object',
-                properties: {
-                  resolution: {
-                    type: 'string',
-                    title: 'Resolution',
-                    oneOf: [
-                      {
-                        const: 'retry',
-                        title: 'Retry',
-                        description: 'Reset and re-run the agent',
-                      },
-                      {
-                        const: 'provide_context',
-                        title: 'Provide context',
-                        description: 'Give the agent additional information',
-                      },
-                      {
-                        const: 'skip',
-                        title: 'Skip this feature',
-                        description: 'Mark as done without implementing',
-                      },
-                      {
-                        const: 'close',
-                        title: 'Close as blocked',
-                        description: 'Keep blocked for manual handling',
-                      },
-                    ],
-                  },
-                },
-                required: ['resolution'],
-              },
-            },
-            {
-              title: 'Additional context',
-              description:
-                'Provide additional information for the agent (only required if you selected "Provide context")',
-              schema: {
-                type: 'object',
-                properties: {
-                  context: {
-                    type: 'string',
-                    title: 'Context',
-                    description: 'Additional information to help the agent proceed',
-                  },
-                },
-              },
-            },
-          ],
-          callerType: 'lead_engineer',
-          featureId: ctx.feature.id,
-          projectPath: ctx.projectPath,
-        });
-
-        logger.info(`[ESCALATE] Created HITL form for feature ${ctx.feature.id}`, {
-          category: failureAnalysis.category,
-          isRetryable: failureAnalysis.isRetryable,
-          maxRetriesHit,
-        });
+        const globalSettings = await this.serviceContext.settingsService.getGlobalSettings();
+        hitlEnabled = globalSettings.featureFlags?.pipeline ?? false;
       } catch (err) {
-        logger.error(`[ESCALATE] Failed to create HITL form for feature ${ctx.feature.id}:`, err);
+        logger.warn('[ESCALATE] Failed to read feature flags, HITL disabled:', err);
       }
+    }
+
+    if (needsHumanInput && hitlEnabled && this.serviceContext.hitlFormService) {
+      // Deduplication: skip if a pending form already exists for this feature
+      const existingForm = this.serviceContext.hitlFormService.getByFeatureId(
+        ctx.feature.id,
+        ctx.projectPath
+      );
+      if (existingForm) {
+        logger.info(
+          `[ESCALATE] HITL form ${existingForm.id} already pending for feature ${ctx.feature.id}, skipping`
+        );
+      } else {
+        try {
+          const confidencePct = Math.round(failureAnalysis.confidence * 100);
+          this.serviceContext.hitlFormService.create({
+            title: `Agent blocked: ${ctx.feature.title}`,
+            description: `Failure category: ${failureAnalysis.category}\nRoot cause: ${failureAnalysis.explanation}\nConfidence: ${confidencePct}%`,
+            steps: [
+              {
+                title: 'How would you like to proceed?',
+                schema: {
+                  type: 'object',
+                  properties: {
+                    resolution: {
+                      type: 'string',
+                      title: 'Resolution',
+                      oneOf: [
+                        {
+                          const: 'retry',
+                          title: 'Retry',
+                          description: 'Reset and re-run the agent',
+                        },
+                        {
+                          const: 'provide_context',
+                          title: 'Provide context',
+                          description: 'Give the agent additional information',
+                        },
+                        {
+                          const: 'skip',
+                          title: 'Skip this feature',
+                          description: 'Mark as done without implementing',
+                        },
+                        {
+                          const: 'close',
+                          title: 'Close as blocked',
+                          description: 'Keep blocked for manual handling',
+                        },
+                      ],
+                    },
+                  },
+                  required: ['resolution'],
+                },
+              },
+              {
+                title: 'Additional context',
+                description:
+                  'Provide additional information for the agent (only required if you selected "Provide context")',
+                schema: {
+                  type: 'object',
+                  properties: {
+                    context: {
+                      type: 'string',
+                      title: 'Context',
+                      description: 'Additional information to help the agent proceed',
+                    },
+                  },
+                },
+              },
+            ],
+            callerType: 'lead_engineer',
+            featureId: ctx.feature.id,
+            projectPath: ctx.projectPath,
+          });
+
+          logger.info(`[ESCALATE] Created HITL form for feature ${ctx.feature.id}`, {
+            category: failureAnalysis.category,
+            isRetryable: failureAnalysis.isRetryable,
+            maxRetriesHit,
+          });
+        } catch (err) {
+          logger.error(`[ESCALATE] Failed to create HITL form for feature ${ctx.feature.id}:`, err);
+        }
+      }
+    } else if (needsHumanInput && !hitlEnabled) {
+      logger.info(
+        `[ESCALATE] HITL forms disabled (featureFlags.pipeline=false), skipping form for feature ${ctx.feature.id}`
+      );
     }
 
     logger.warn(`[ESCALATE] Feature ${ctx.feature.id} moved to blocked`, {
