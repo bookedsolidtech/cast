@@ -1,5 +1,28 @@
 # @protolabs-ai/git-utils
 
+## 0.8.0
+
+### Minor Changes
+
+- ### Features
+  - OpenAICompatibleProvider — native OpenAI SDK provider with CRUD settings API (#1384)
+  - Ava API client mixin and AvaSettingsPanel component (#1381)
+  - mobile responsive memory and context views (#1377)
+  - chat store and hook — project scoping (#1378)
+  - add Ava config CRUD endpoints and wire services into chat routes (#1376)
+
+  ### Bug Fixes
+  - guard git add pathspec against missing .automaker dirs (#1387)
+  - remove stale llm-providers COPY from Dockerfile [HOTFIX] (#1383)
+  - use workspace Prettier binary in worktrees (#1385)
+  - branch worktrees from origin/dev, not HEAD (#1380)
+
+### Patch Changes
+
+- Updated dependencies
+  - @protolabs-ai/types@0.8.0
+  - @protolabs-ai/utils@0.8.0
+
 ## 0.7.0
 
 ### Minor Changes
