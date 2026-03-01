@@ -103,9 +103,27 @@ jobs:
 
       - name: Create GitHub Release
         run: |
-          gh release create "v${{ steps.version.outputs.version }}" \
-            --title "v${{ steps.version.outputs.version }} Alpha" \
-            --generate-notes
+          VERSION="v${{ steps.version.outputs.version }}"
+
+          # Generate notes, then filter out chore PRs (unless they're the only entries)
+          RAW_NOTES=$(gh api "repos/${{ github.repository }}/releases/generate-notes" \
+            -f tag_name="$VERSION" --jq '.body')
+
+          # Extract "What's Changed" lines (PR entries start with "* ")
+          ALL_LINES=$(echo "$RAW_NOTES" | grep '^\* ' || true)
+          NON_CHORE=$(echo "$ALL_LINES" | grep -vi '^\* chore' || true)
+
+          if [ -n "$NON_CHORE" ]; then
+            # Has real changes — filter out chores
+            FILTERED_NOTES=$(echo "$RAW_NOTES" | grep -vi '^\* chore')
+          else
+            # Only chores — keep them so the release isn't empty
+            FILTERED_NOTES="$RAW_NOTES"
+          fi
+
+          gh release create "$VERSION" \
+            --title "$VERSION Alpha" \
+            --notes "$FILTERED_NOTES"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
