@@ -312,6 +312,7 @@ export type {
 export {
   DEFAULT_KEYBOARD_SHORTCUTS,
   DEFAULT_PHASE_MODELS,
+  DEFAULT_FLOW_MODELS,
   DEFAULT_GLOBAL_SETTINGS,
   DEFAULT_FEATURE_FLAGS,
   DEFAULT_CREDENTIALS,
@@ -836,6 +837,17 @@ export type {
   VerifiedTrajectory,
   TrajectoryDomain,
 } from './trajectory.js';
+
+// Automation types (trigger-based automation definitions and run records)
+export type {
+  CronTrigger,
+  EventTrigger,
+  WebhookTrigger,
+  AutomationTrigger,
+  AutomationRunStatus,
+  AutomationRunRecord,
+  Automation,
+} from './automation.js';
 
 // PenFile types (vector graphics format v2.8)
 export type {
