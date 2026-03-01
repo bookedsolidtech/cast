@@ -1,5 +1,12 @@
 # @protolabs-ai/ui
 
+## 0.18.1
+
+### Patch Changes
+
+- ### Bug Fixes
+  - use default API key instead of random generation
+
 ## 0.18.0
 
 ### Minor Changes
