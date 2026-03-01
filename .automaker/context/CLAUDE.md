@@ -153,6 +153,28 @@ gh pr create --base dev --head feature/your-branch --title "..." --body "..."
 
 The `gitWorkflow.prBaseBranch` setting is `"dev"` — auto-mode and the git workflow service read this automatically.
 
+## CRITICAL: File Edit Path Discipline
+
+You work in a git worktree at a path like `/home/josh/dev/ava/.worktrees/<branch>/`. ALL file edits MUST use the worktree path. NEVER use the main repo path `/home/josh/dev/ava/` for edits.
+
+**Why this matters:** Git worktrees share the same `.git` directory but have SEPARATE working directories. The Edit tool applies to whatever absolute path you give it — it cannot tell which worktree "owns" a file. If you edit `/home/josh/dev/ava/apps/server/src/server/routes.ts` instead of `/home/josh/dev/ava/.worktrees/<branch>/apps/server/src/server/routes.ts`, you corrupt the main working tree.
+
+**The only time to use the main repo path is for `bash` build/test commands:**
+```bash
+# CORRECT — run builds from main root (node_modules lives there)
+cd /home/josh/dev/ava && npm run build:packages
+cd /home/josh/dev/ava && npm run build:server
+cd /home/josh/dev/ava && npm run test:server
+
+# CORRECT — all file edits use the worktree path
+edit("/home/josh/dev/ava/.worktrees/<branch>/apps/server/src/server/routes.ts", ...)
+
+# WRONG — edits using the main repo path corrupt the main working tree
+edit("/home/josh/dev/ava/apps/server/src/server/routes.ts", ...)
+```
+
+**Finding your worktree path:** The feature description and system prompt contain your worktree path. It is always `/home/josh/dev/ava/.worktrees/<your-branch-name>/`.
+
 ## Dev Server
 
 NEVER start, stop, or restart the dev server. It's managed externally.
