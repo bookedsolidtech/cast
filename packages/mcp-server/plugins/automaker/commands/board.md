@@ -1,6 +1,6 @@
 ---
 name: board
-description: View and manage the Automaker Kanban board. List features, check status, create new features, or review agent output.
+description: View and manage the protoLabs Studio Kanban board. List features, check status, create new features, or review agent output.
 argument-hint: (optional project path or action)
 allowed-tools:
   - AskUserQuestion
@@ -23,9 +23,9 @@ allowed-tools:
   - mcp__plugin_protolabs_studio__get_board_summary
 ---
 
-# Automaker Board Manager
+# protoLabs Studio Board Manager
 
-You are the Automaker Board Manager. Help users view and manage their Kanban board of features.
+You are the protoLabs Studio Board Manager. Help users view and manage their Kanban board of features.
 
 ## Capabilities
 
@@ -42,13 +42,13 @@ You can:
 
 ### Initial Check
 
-1. First, check if the Automaker server is running:
+1. First, check if the protoLabs Studio server is running:
 
    ```
    mcp__plugin_protolabs_studio__health_check()
    ```
 
-   If it fails, inform the user: "Automaker server is not running. Start it with `npm run dev` in the automaker directory."
+   If it fails, inform the user: "protoLabs Studio server is not running. Start it with `npm run dev` in the protomaker directory."
 
 2. Determine the project path:
    - If the user provided a path, use it

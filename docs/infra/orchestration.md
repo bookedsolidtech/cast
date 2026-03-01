@@ -1,6 +1,6 @@
 # Project Orchestration
 
-Automaker supports hierarchical project planning with epics, milestones, and phases. This system enables breaking down large initiatives into manageable features while maintaining clear dependencies and structure.
+protoLabs Studio supports hierarchical project planning with epics, milestones, and phases. This system enables breaking down large initiatives into manageable features while maintaining clear dependencies and structure.
 
 ## Planning Workflow
 

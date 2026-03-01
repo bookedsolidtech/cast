@@ -15,7 +15,7 @@ The AI development tool market has matured significantly since 2024. We're seein
 
 **Key Market Shift:** Tools moved from "suggestion engines" to "action takers." The question is no longer "will AI write code?" but "how much autonomy should developers delegate?"
 
-**protoLabs Position:** We compete in the autonomous agent category, but with a critical differentiator — we're the only tool that ships production-ready products built with itself. MythXEngine, SVGVal, and protoMaker itself prove the methodology works at scale.
+**protoLabs Position:** We compete in the autonomous agent category, but with a critical differentiator — we're the only tool that ships production-ready products built with itself. MythXEngine, SVGVal, and protoLabs itself prove the methodology works at scale.
 
 ---
 
@@ -339,7 +339,7 @@ The AI development tool market has matured significantly since 2024. We're seein
 
 ### 5. Trust and Control Remain Unsolved
 
-- No competitor has a quarantine/review system like protoMaker's
+- No competitor has a quarantine/review system like protoLabs'
 - Agents either run free (risky) or require constant human approval (slow)
 - "Autonomous" is marketing. Reality is supervised execution.
 - **Industry acknowledgment:** "The real advantage is not speed alone, but reduced mental load—when AI handles context, repetition, and scaffolding, developers can focus on design, correctness, and long-term thinking." (2026 Agentic Coding Trends)
@@ -358,9 +358,9 @@ The AI development tool market has matured significantly since 2024. We're seein
 ### What We Do That No One Else Does
 
 1. **Portfolio Proof**
-   - MythXEngine: AI-powered TTRPG engine built with protoMaker
-   - SVGVal: SVG validation toolkit built with protoMaker
-   - protoMaker itself: The tool that built the tool
+   - MythXEngine: AI-powered TTRPG engine built with protoLabs
+   - SVGVal: SVG validation toolkit built with protoLabs
+   - protoLabs itself: The tool that built the tool
    - **Message:** We don't just build AI dev tools. We build products with them.
 
 2. **Quarantine/Trust System**
@@ -413,7 +413,7 @@ We're the AI-native development agency. The tool is open source. The methodology
 ## Recommended GTM Angles
 
 1. **"We ship products, not demos"**
-   - Lead with MythXEngine, SVGVal, protoMaker
+   - Lead with MythXEngine, SVGVal, protoLabs
    - Challenge competitors: "Show us what you've built with your tool"
 
 2. **"Autonomy with accountability"**
@@ -439,8 +439,8 @@ We're the AI-native development agency. The tool is open source. The methodology
 - [ ] Monitor competitor feature releases (especially Devin, GitHub Copilot Workspace)
 - [ ] Track pricing changes (race to bottom continues)
 - [ ] Collect founder testimonials from setupLab consulting engagements
-- [ ] Document protoMaker portfolio products with metrics (PRs merged, features shipped, time to production)
-- [ ] Prepare comparative demo: protoMaker vs. Devin vs. Cursor (same task, measure autonomy + output quality)
+- [ ] Document protoLabs portfolio products with metrics (PRs merged, features shipped, time to production)
+- [ ] Prepare comparative demo: protoLabs vs. Devin vs. Cursor (same task, measure autonomy + output quality)
 
 ---
 

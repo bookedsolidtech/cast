@@ -1,6 +1,6 @@
 # Memory System
 
-The memory system manages how Automaker agents learn and retain knowledge across sessions. It consists of two components: the **file-based memory** (`.automaker/memory/`) and the **knowledge store** (`.automaker/knowledge.db`).
+The memory system manages how protoLabs Studio agents learn and retain knowledge across sessions. It consists of two components: the **file-based memory** (`.automaker/memory/`) and the **knowledge store** (`.automaker/knowledge.db`).
 
 This guide covers the write pipeline, deduplication, compaction, pruning, and debugging.
 

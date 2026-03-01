@@ -34,6 +34,9 @@ pnpm-lock.yaml
 routeTree.gen.ts
 apps/ui/src/routeTree.gen.ts
 
+# Plugin manifest — version-bumped by release script (jq rewrites array formatting)
+packages/mcp-server/plugins/automaker/.claude-plugin/plugin.json
+
 # Template files (contain placeholders)
 packages/create-protolab/src/templates/
 

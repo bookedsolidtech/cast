@@ -1,6 +1,6 @@
 # Idea to production pipeline
 
-The complete lifecycle of work in Automaker, from initial signal through merged PR. This document is the canonical reference for all pipeline phases, gates, authority agents, and state transitions.
+The complete lifecycle of work in protoLabs Studio, from initial signal through merged PR. This document is the canonical reference for all pipeline phases, gates, authority agents, and state transitions.
 
 ## Overview
 

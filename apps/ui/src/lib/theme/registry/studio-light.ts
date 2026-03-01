@@ -1,5 +1,5 @@
 /**
- * Studio Light — the default protoMaker light theme.
+ * Studio Light — the default protoLabs Studio light theme.
  *
  * Linear-inspired: warm gray canvas, pure white cards,
  * same violet accent as Studio Dark. Clean, readable, professional.

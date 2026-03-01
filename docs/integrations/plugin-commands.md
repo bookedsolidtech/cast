@@ -6,6 +6,22 @@ For installation and configuration, see [Claude Plugin Setup](./claude-plugin.md
 
 ## Commands Reference
 
+### /welcome
+
+User onboarding and status refresh. Detects your setup state, collects identity, orients you to the board, helps create a first feature, and prints a command reference card. Safe to re-run — skips phases you've already completed.
+
+```bash
+/welcome                  # Run onboarding (or refresh your status)
+```
+
+**5-Phase Flow:**
+
+1. **Preflight** -- Health check, fetch settings, detect CWD project
+2. **Identity** -- Name and role (skipped if profile exists)
+3. **Orientation** -- Board status, context files, project spec (or offer to initialize)
+4. **First Action** -- Create a real feature from your description (skipped if board has 3+ features)
+5. **Reference Card** -- Command cheat sheet and key concepts
+
 ### /board
 
 View and manage the protoLabs Kanban board.
@@ -313,6 +329,66 @@ Analyze, critique, and improve prompts for LLM agents.
 - Identifies anti-patterns
 - Rewrites with improvements and explanations
 
+### /ava
+
+Autonomous operator -- identifies friction, ships fixes, keeps work flowing. Supports multi-project delegation across repos.
+
+```bash
+/ava                      # Activate in current project
+/ava /path/to/project     # Activate for a specific project
+```
+
+**Capabilities:**
+
+- Full control surface: features, agents, worktrees, PRs, context files, auto-mode
+- Multi-project awareness -- can switch between repos
+- Delegation tree: spawns subagents for parallel work
+- Autonomous decision-making: creates features, starts agents, merges PRs
+- Session continuity: state persists across compaction via hooks
+
+**When to Use:**
+
+- Hands-off autonomous operation ("go work on the backlog")
+- Operational leadership across multiple projects
+- When things need to get done without step-by-step guidance
+
+### /setuplab
+
+Point at any repo -- scan it, measure the gap against the protoLabs gold standard, initialize automation, and propose alignment work. The entry point for onboarding projects.
+
+```bash
+/setuplab https://github.com/org/repo    # Onboard from git URL
+/setuplab /path/to/local/project         # Onboard from local path
+```
+
+**7-Phase Pipeline:**
+
+1. **Clone/Locate** -- Clone the repo or validate the local path
+2. **Research** -- Analyze codebase structure, patterns, and conventions
+3. **Gap Analysis** -- Compare against protoLabs gold standard
+4. **Alignment Proposal** -- Suggest features to close the gaps
+5. **Initialize** -- Create `.automaker/` directory, context files, project spec
+6. **Discord Provisioning** -- Set up channels and webhooks (optional)
+7. **Report** -- Generate onboarding summary
+
+### /upgrade-plugin
+
+Guided plugin version upgrade. Handles uninstall, reinstall, env migration, and verification.
+
+```bash
+/upgrade-plugin           # Start guided upgrade
+```
+
+**What It Does:**
+
+- Backs up existing `.env` secrets
+- Uninstalls old plugin version (handles `automaker` to `protolabs` rename)
+- Reinstalls from current source
+- Migrates environment variables
+- Verifies MCP server connectivity
+
+> **Note:** This is a temporary command for early tester onboarding. It will be removed once all testers are on v0.15.x+.
+
 ## Subagents
 
 The plugin includes 13 specialized agents for complex tasks. Invoke them via the `Task` tool with `subagent_type: "protolabs:<agent-name>"`.
@@ -419,6 +495,7 @@ Backup and restore Docker volumes.
 
 | Command               | Model  | Rationale                    |
 | --------------------- | ------ | ---------------------------- |
+| `/welcome`            | Sonnet | Adaptive conversational flow |
 | `/deep-research`      | Haiku  | Fast exploration             |
 | `/board`              | --     | No model (direct tool calls) |
 | `/auto-mode`          | --     | No model (direct tool calls) |
@@ -433,6 +510,9 @@ Backup and restore Docker volumes.
 | `/create-project`     | Sonnet | Complex orchestration        |
 | `/plan-project`       | Sonnet | Complex orchestration        |
 | `/sparc-prd`          | Sonnet | Sophisticated analysis       |
+| `/ava`                | --     | No model (direct tool calls) |
+| `/setuplab`           | Sonnet | Complex multi-phase pipeline |
+| `/upgrade-plugin`     | --     | No model (direct tool calls) |
 
 ### Agent Models
 
@@ -586,6 +666,8 @@ Your agent prompt here...
 
 ## Related Documentation
 
+- [Plugin Quickstart](./plugin-quickstart.md) -- 5-minute setup guide
+- [Plugin Deep Dive](./plugin-deep-dive.md) -- Architecture, hooks, tools, and extension points
 - [Claude Plugin Setup](./claude-plugin.md) -- Installation, configuration, Docker deployment
 - [MCP Tools Reference](./mcp-tools-reference.md) -- Full MCP tool catalog
 - [Context System](/agents/context-system) -- Best practices for context files

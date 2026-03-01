@@ -1,6 +1,6 @@
 # Git Workflow
 
-Automaker follows a feature-branch workflow with branch protection on `main`. This guide covers branching strategies, commit conventions, PR processes, and git worktree isolation for agent execution.
+protoLabs Studio follows a feature-branch workflow with branch protection on `main`. This guide covers branching strategies, commit conventions, PR processes, and git worktree isolation for agent execution.
 
 ## Branch Protection
 
@@ -60,7 +60,7 @@ gh pr create --title "Add user authentication service" --body "..."
 
 ### Epic-Based Workflow
 
-For larger features organized into epics, Automaker uses a hierarchical PR structure:
+For larger features organized into epics, protoLabs Studio uses a hierarchical PR structure:
 
 ```
 main
@@ -99,11 +99,11 @@ gh pr create --base epic/my-epic-name --title "Child feature"
 
 ## Git Worktree Isolation
 
-Automaker executes AI agents in isolated git worktrees to protect the main branch during implementation.
+protoLabs Studio executes AI agents in isolated git worktrees to protect the main branch during implementation.
 
 ### What is a Worktree?
 
-A git worktree is a separate working directory linked to the same repository. Automaker uses worktrees to:
+A git worktree is a separate working directory linked to the same repository. protoLabs Studio uses worktrees to:
 
 - **Isolate agent execution** - Agents work in `.worktrees/{branch-name}/`
 - **Protect main branch** - Main codebase remains untouched during agent runs
@@ -139,7 +139,7 @@ git worktree remove .worktrees/my-branch
 
 ### Worktree Metadata
 
-Automaker tracks worktree metadata in `.automaker/worktrees/`:
+protoLabs Studio tracks worktree metadata in `.automaker/worktrees/`:
 
 ```json
 {
@@ -152,7 +152,7 @@ Automaker tracks worktree metadata in `.automaker/worktrees/`:
 
 ## Commit Conventions
 
-Automaker follows [Conventional Commits](https://www.conventionalcommits.org/) for clear commit history and automated changelog generation.
+protoLabs Studio follows [Conventional Commits](https://www.conventionalcommits.org/) for clear commit history and automated changelog generation.
 
 ### Format
 
@@ -264,7 +264,7 @@ gh pr merge <pr-number> --squash
 
 ## Memory File Management
 
-`.automaker/memory/` files are updated by Automaker agents during autonomous work. These files track learned patterns and should be included in commits:
+`.automaker/memory/` files are updated by protoLabs Studio agents during autonomous work. These files track learned patterns and should be included in commits:
 
 ```bash
 # Check for memory updates
@@ -342,7 +342,7 @@ gh pr view <number>
 
 ## Git Hooks
 
-Automaker uses [Husky](https://typicode.github.io/husky/) for git hooks:
+protoLabs Studio uses [Husky](https://typicode.github.io/husky/) for git hooks:
 
 ### Pre-Commit Hook
 
@@ -419,11 +419,11 @@ git worktree remove .worktrees/my-branch
 
 ## Multi-Instance PR Ownership
 
-When multiple Automaker instances (local dev, staging, CI bot) monitor the same repository, they coordinate via **instance-stamped ownership** embedded in every PR body.
+When multiple protoLabs Studio instances (local dev, staging, CI bot) monitor the same repository, they coordinate via **instance-stamped ownership** embedded in every PR body.
 
 ### PR Watermark
 
-Every PR created by Automaker includes a hidden HTML comment:
+Every PR created by protoLabs Studio includes a hidden HTML comment:
 
 ```html
 <!-- automaker:owner instance=ava-staging team=proto-labs-ai created=2026-02-25T19:00:00.000Z -->
@@ -435,12 +435,12 @@ This is invisible in rendered GitHub markdown but parseable by `check-pr-status`
 
 Use the `ownership` field returned by `POST /api/github/check-pr-status`:
 
-| Scenario                                         | Action                                             |
-| ------------------------------------------------ | -------------------------------------------------- |
-| `isOwnedByThisInstance: true`                    | Act freely (rebase, fix, comment, merge)           |
-| `isOwnedByThisInstance: false`, `isStale: false` | **Skip** — another live instance owns this PR      |
-| `isOwnedByThisInstance: false`, `isStale: true`  | May act — original owner appears inactive          |
-| `instanceId: null`                               | PR not created by Automaker — apply project policy |
+| Scenario                                         | Action                                                    |
+| ------------------------------------------------ | --------------------------------------------------------- |
+| `isOwnedByThisInstance: true`                    | Act freely (rebase, fix, comment, merge)                  |
+| `isOwnedByThisInstance: false`, `isStale: false` | **Skip** — another live instance owns this PR             |
+| `isOwnedByThisInstance: false`, `isStale: true`  | May act — original owner appears inactive                 |
+| `instanceId: null`                               | PR not created by protoLabs Studio — apply project policy |
 
 Stale = BOTH last commit AND last activity older than `prOwnershipStaleTtlHours` (default 24h).
 
@@ -460,7 +460,7 @@ For the full reference, see [Multi-Instance PR Coordination](./multi-instance-pr
 
 ## Post-Agent Worktree Recovery
 
-`WorktreeRecoveryService` runs after every agent exit (success or failure). It detects uncommitted changes in the worktree and automatically:
+The `WorktreeRecoveryService` runs after every agent exit (success or failure). It detects uncommitted changes in the worktree and automatically:
 
 1. Formats changed files with `npx prettier --ignore-path /dev/null --write <files>`
 2. Stages selectively (excludes `.automaker/`)

@@ -73,7 +73,7 @@ Create `/etc/systemd/system/automaker-runner-N.service`:
 
 ```ini
 [Unit]
-Description=Automaker GitHub Actions Runner N
+Description=protoLabs Studio GitHub Actions Runner N
 After=network.target
 
 [Service]
@@ -140,7 +140,7 @@ for N in $(seq "$START" "$END"); do
   # Create systemd unit
   sudo tee "/etc/systemd/system/automaker-runner-${N}.service" > /dev/null <<EOF
 [Unit]
-Description=Automaker GitHub Actions Runner ${N}
+Description=protoLabs Studio GitHub Actions Runner ${N}
 After=network.target
 
 [Service]
@@ -210,7 +210,7 @@ Each runner service sets `MemoryMax=8G`. This prevents a runaway build job from 
 
 ### Concurrent agent limit
 
-Automaker agents (Claude Sonnet, Opus) allocate significant RAM per instance. Rough allocations:
+protoLabs Studio agents (Claude Sonnet, Opus) allocate significant RAM per instance. Rough allocations:
 
 | Model  | RAM per agent | Max safe concurrent |
 | ------ | ------------- | ------------------- |

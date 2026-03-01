@@ -77,8 +77,8 @@ export function ConflictResolutionModal({ open, onOpenChange }: ConflictResoluti
             Sync Conflicts
           </DialogTitle>
           <DialogDescription>
-            These features received updates from both Linear and Automaker within a short window.
-            Choose which state to keep.
+            These features received updates from both Linear and protoLabs Studio within a short
+            window. Choose which state to keep.
           </DialogDescription>
         </DialogHeader>
 
@@ -103,7 +103,7 @@ export function ConflictResolutionModal({ open, onOpenChange }: ConflictResoluti
 
               <div className="flex items-center gap-2 text-xs">
                 <span className="text-muted-foreground">Last sync:</span>
-                <span>{conflict.syncSource === 'linear' ? 'Linear' : 'Automaker'}</span>
+                <span>{conflict.syncSource === 'linear' ? 'Linear' : 'protoLabs Studio'}</span>
                 {conflict.lastLinearState && (
                   <>
                     <span className="text-muted-foreground">|</span>
@@ -131,7 +131,7 @@ export function ConflictResolutionModal({ open, onOpenChange }: ConflictResoluti
                   onClick={() => handleResolve(conflict.featureId, 'accept-automaker')}
                 >
                   <ArrowRight className="mr-1 h-3 w-3" />
-                  Keep Automaker
+                  Keep protoLabs Studio
                 </Button>
                 <Button
                   size="sm"

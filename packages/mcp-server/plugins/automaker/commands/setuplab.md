@@ -1,6 +1,6 @@
 ---
 name: setuplab
-description: Point at any repo — scan it, measure the gap against our gold standard, initialize automation, and propose alignment work. The entry point for onboarding projects to ProtoLabs. Accepts either a git URL or a local path.
+description: Point at any repo — scan it, measure the gap against our gold standard, initialize automation, and propose alignment work. The entry point for onboarding projects to protoLabs Studio. Accepts either a git URL or a local path.
 argument-hint: <git URL or project path>
 allowed-tools:
   - AskUserQuestion
@@ -29,11 +29,27 @@ allowed-tools:
 model: sonnet
 ---
 
-# /setuplab — ProtoLabs Agency Setup Pipeline
+# /setuplab — protoLabs Studio Project Onboarding Pipeline
 
-You are the ProtoLabs setup orchestrator. Your job is to take any repository, assess its current state against **our gold standard**, and bring it into alignment.
+You are the protoLabs Studio setup orchestrator. Your job is to take any repository, assess its current state against **our gold standard**, and bring it into the protoLabs Studio system.
 
 **This is prescriptive, not adaptive.** We define the standard, measure the gap, and propose the alignment work. We don't accommodate — we upgrade.
+
+## Multi-Project Awareness
+
+setuplab onboards projects into the protoLabs Studio ecosystem. Each project gets its own `.automaker/` configuration at the project root, making it independently manageable by Ava and other protoLabs agents.
+
+**Every MCP tool call requires `projectPath`.** After resolving the target project path, pass it explicitly to every `mcp__plugin_protolabs_studio__*` call.
+
+**What setuplab creates:**
+
+- `{projectPath}/.automaker/` — Project automation root (features, context, settings, spec)
+- `{projectPath}/.automaker/context/` — AI agent coding rules and conventions (tailored to detected stack)
+- `{projectPath}/.automaker/settings.json` — Workflow config (git settings, model preferences)
+- `{projectPath}/.automaker/spec.md` — Project specification
+- `{projectPath}/.beads/` — Operational task tracker (optional)
+
+Once initialized, the project is ready for `/ava <projectPath>` to manage it.
 
 ## Our Gold Standard
 
@@ -57,19 +73,19 @@ Execute these phases in order, presenting results to the user between phases.
 
 ### Phase 1: Health Check & Path Resolution
 
-1. Verify Automaker server is running:
+1. Verify protoLabs Studio server is running:
 
    ```
    mcp__plugin_protolabs_studio__health_check()
    ```
 
-   If down, tell the user: "Automaker server is not running. Start it with `npm run dev` in the automaker directory."
+   If down, tell the user: "protoLabs Studio server is not running. Start it with `npm run dev` in the protomaker directory."
 
 2. Resolve the project path from the user's argument:
    - **If argument is a git URL** (starts with `https://`, `git@`, or ends with `.git`):
      - Use `mcp__plugin_protolabs_studio__clone_repo({ gitUrl })` to clone to `./labs/{repo-name}/`
      - The tool returns `{ success: true, path: "/absolute/path/to/labs/repo-name", message: "..." }`
-     - Use the returned path for subsequent phases
+     - Use the returned path as `projectPath` for all subsequent phases
      - Present to user: "Cloned {gitUrl} to {path}"
    - **If argument is a local path**:
      - Resolve to absolute path (handle `~` expansion and relative paths)
@@ -101,7 +117,7 @@ mcp__plugin_protolabs_studio__research_repo({ projectPath })
 - **Testing:** {hasVitest ? "Vitest" : ""} {hasPlaywright ? "Playwright" : ""} {hasJest ? "Jest (legacy)" : ""}
 - **CI/CD:** {hasCI ? provider + " (" + workflows.length + " workflows)" : "None"}
 - **Quality:** {hasTypeScript ? "TS " + tsVersion + (tsStrict ? " strict" : "") : "No TS"} | {hasESLint ? "ESLint " + eslintVersion : "No ESLint"} | {hasPrettier ? "Prettier" : "No Prettier"}
-- **Automation:** {hasAutomaker ? ".automaker" : "No .automaker"} | {hasBeads ? ".beads" : "No .beads"}
+- **Automation:** {hasAutomaker ? ".automaker (already initialized)" : "No .automaker"} | {hasBeads ? ".beads" : "No .beads"}
 ```
 
 ### Phase 3: Gap Analysis & Report Generation
@@ -177,7 +193,7 @@ AskUserQuestion:
 
 ### Phase 5: Initialize
 
-**5a. Automaker Init:**
+**5a. protoLabs Studio Init:**
 
 ```
 mcp__plugin_protolabs_studio__setup_lab({ projectPath })
@@ -276,7 +292,8 @@ If approved, create features on the board:
 ## Setup Complete
 
 **Project:** {projectName}
-{if cloned:}**Cloned to:** {projectPath}
+**Path:** {projectPath}
+{if cloned:}**Cloned from:** {gitUrl}
 **Alignment Score:** {overallScore}%
 
 ### What was done:
@@ -284,7 +301,7 @@ If approved, create features on the board:
 {if cloned:}- Cloned repository from {gitUrl}
 
 - Scanned repository structure and tech stack
-- Analyzed {gaps.length} gaps against ProtoLabs standard
+- Analyzed {gaps.length} gaps against protoLabs standard
 - Generated HTML gap report (opened in browser)
 - Initialized .automaker/ with tailored context files
   {if beads initialized:}- Initialized .beads/ task tracker
@@ -294,10 +311,11 @@ If approved, create features on the board:
 ### Next Steps:
 
 1. Review the gap report in your browser
-2. Review the board: `/board`
+2. Review the board: `/board {projectPath}`
 3. Start agents on alignment work: `/auto-mode start {projectPath}`
-4. Monitor progress: `/board`
-5. Customize context: `/context`
+4. Monitor progress: `/board {projectPath}`
+5. Manage the project: `/ava {projectPath}`
+6. Customize context: `/context {projectPath}`
 ```
 
 ## Important Notes
@@ -308,3 +326,4 @@ If approved, create features on the board:
 - **Actual code changes** only happen when agents are started (Phase 7 next steps).
 - Always present results between phases so the user stays informed.
 - If any phase fails, show the error and ask if the user wants to continue with remaining phases.
+- All `projectPath` references are resolved once in Phase 1 and reused throughout — never assume CWD.

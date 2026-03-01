@@ -1,10 +1,10 @@
 # Environment Setup
 
-This guide covers the required environment variables, API keys, and configuration needed to run Automaker locally or in production.
+This guide covers the required environment variables, API keys, and configuration needed to run protoLabs Studio locally or in production.
 
 ## Prerequisites
 
-Before setting up Automaker, ensure you have:
+Before setting up protoLabs Studio, ensure you have:
 
 - **Node.js** 20.x or later
 - **npm** 10.x or later
@@ -15,7 +15,7 @@ Before setting up Automaker, ensure you have:
 
 ## Environment Variables
 
-Automaker uses environment variables for configuration. Create a `.env` file in the project root:
+protoLabs Studio uses environment variables for configuration. Create a `.env` file in the project root:
 
 ```bash
 cp .env.example .env
@@ -56,7 +56,7 @@ PORT=3008
 
 # Production
 HOST=0.0.0.0
-HOSTNAME=automaker.example.com
+HOSTNAME=protolabs.example.com
 PORT=3008
 ```
 
@@ -73,7 +73,7 @@ PORT=3008
 VITE_HOSTNAME=localhost
 
 # Production
-VITE_HOSTNAME=automaker.example.com
+VITE_HOSTNAME=protolabs.example.com
 ```
 
 ### Data Storage
@@ -374,7 +374,7 @@ export NODE_ENV=production
 # .env.production
 NODE_ENV=production
 HOST=0.0.0.0
-HOSTNAME=automaker.example.com
+HOSTNAME=protolabs.example.com
 PORT=3008
 ANTHROPIC_API_KEY=sk-ant-api03-...
 GITHUB_TOKEN=ghp_...
@@ -484,7 +484,7 @@ lsof -ti:3008 | xargs kill
 VITE_HOSTNAME=localhost
 
 # For production
-VITE_HOSTNAME=automaker.example.com
+VITE_HOSTNAME=protolabs.example.com
 ```
 
 ### \"Langfuse connection failed\"

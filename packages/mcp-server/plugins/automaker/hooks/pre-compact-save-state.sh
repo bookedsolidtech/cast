@@ -79,6 +79,7 @@ cat > "$STATE_FILE" <<EOJSON
 {
   "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
   "event": "PreCompact",
+  "projectPath": "$PROJECT_ROOT",
   "branch": "$BRANCH",
   "board": {
     "total": $TOTAL,

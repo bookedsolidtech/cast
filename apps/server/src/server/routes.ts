@@ -262,6 +262,7 @@ export function registerRoutes(app: Express, services: ServiceContainer): void {
   app.use('/api/suggestions', createSuggestionsRoutes(events, settingsService));
   app.use('/api/models', createModelsRoutes());
   app.use('/api/spec-regeneration', createSpecRegenerationRoutes(events, settingsService));
+  app.use('/api/app-spec', createSpecRegenerationRoutes(events, settingsService));
   app.use('/api/running-agents', createRunningAgentsRoutes(autoModeService));
   app.use('/api/workspace', createWorkspaceRoutes());
   app.use('/api/templates', createTemplatesRoutes());

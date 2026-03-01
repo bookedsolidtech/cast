@@ -16,7 +16,7 @@ _All code work is delegated to agents. These are GTM / launch-track items only._
 ## 🔴 High Priority
 
 - [ ] **PRO-160** — Activate automated content pipeline — schedule Week 2+ posts
-- [ ] **PRO-159** — Add license file to all repos (FSL or Automaker License)
+- [ ] **PRO-159** — Add license file to all repos (MIT)
 - [ ] **PRO-137** — Define setupLab consulting offering (organic, not outbound)
 - [ ] **PRO-152** — Launch stream — live code on Twitch
 - [ ] **PRO-154** — Publish "What Is AI-Native Development" blog post

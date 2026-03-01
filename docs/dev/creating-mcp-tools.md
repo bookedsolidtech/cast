@@ -1,6 +1,6 @@
 # Creating MCP Tools
 
-This guide explains how to create new Model Context Protocol (MCP) tools for Automaker. MCP tools extend the capabilities of AI agents by providing structured, validated interfaces to backend functionality.
+This guide explains how to create new Model Context Protocol (MCP) tools for protoLabs Studio. MCP tools extend the capabilities of AI agents by providing structured, validated interfaces to backend functionality.
 
 ## Quick Start
 

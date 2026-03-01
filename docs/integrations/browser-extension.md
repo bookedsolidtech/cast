@@ -1,6 +1,6 @@
 # Browser Extension
 
-The protoLabs.studio browser extension brings Automaker into any browser tab. Chat with Ava, monitor agent status, and extract context from GitHub pages -- all from Chrome's side panel.
+The protoLabs.studio browser extension brings protoLabs Studio into any browser tab. Chat with Ava, monitor agent status, and extract context from GitHub pages -- all from Chrome's side panel.
 
 **Status:** Optional
 **Repository:** [proto-labs-ai/protoExtension](https://github.com/proto-labs-ai/protoExtension)
@@ -12,12 +12,12 @@ The protoLabs.studio browser extension brings Automaker into any browser tab. Ch
 - **Context menu** -- Select text, right-click "Ask Ava about this", and the selection is sent to the chat
 - **Agent badge** -- Toolbar icon shows active (blue) and blocked (red) agent counts in real-time
 - **GitHub extraction** -- On GitHub pages, the extension extracts repo metadata, PR diffs, issue details, and file contents as context for Ava
-- **Project picker** -- Switch between Automaker projects without leaving the browser
+- **Project picker** -- Switch between protoLabs Studio projects without leaving the browser
 
 ## Prerequisites
 
-- A running Automaker server (default `http://localhost:3008`)
-- An API key (`AUTOMAKER_API_KEY` from your Automaker `.env`)
+- A running protoLabs Studio server (default `http://localhost:3008`)
+- An API key (`AUTOMAKER_API_KEY` from your server `.env`)
 - Chrome 114+ (for side panel support) or Firefox
 
 ## Quick Setup
@@ -38,13 +38,13 @@ See the full [Developer Quickstart](https://github.com/proto-labs-ai/protoExtens
 ### Configuration
 
 1. Open the extension options page (right-click extension icon > Options)
-2. Enter your Automaker server URL (default: `http://localhost:3008`)
+2. Enter your protoLabs Studio server URL (default: `http://localhost:3008`)
 3. Enter your API key
 4. Click **Test Connection** to verify, then **Save**
 
 ## How It Connects
 
-The extension communicates with the Automaker server via two channels:
+The extension communicates with the protoLabs Studio server via two channels:
 
 ### HTTP API
 
@@ -69,13 +69,13 @@ Real-time updates flow through `/api/events`:
 
 ## Server Requirements
 
-The extension works with the standard Automaker server. No additional configuration is needed on the server side -- the existing `/api/health`, `/api/chat`, `/api/events`, and `/api/auth/token` endpoints are all it uses.
+The extension works with the standard protoLabs Studio server. No additional configuration is needed on the server side -- the existing `/api/health`, `/api/chat`, `/api/events`, and `/api/auth/token` endpoints are all it uses.
 
 If your server runs on a non-default port or host, update the Server URL in the extension options.
 
 ### CORS
 
-If the extension makes requests from a content script context (rather than the background service worker), the server may need CORS headers. The default Automaker server configuration handles this. If you encounter CORS errors, ensure the server's CORS middleware allows the extension's origin.
+If the extension makes requests from a content script context (rather than the background service worker), the server may need CORS headers. The default protoLabs Studio server configuration handles this. If you encounter CORS errors, ensure the server's CORS middleware allows the extension's origin.
 
 ## Badge Reference
 

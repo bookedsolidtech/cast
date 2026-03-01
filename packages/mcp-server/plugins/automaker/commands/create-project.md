@@ -40,7 +40,7 @@ Complete project orchestration pipeline:
 
 ### Step 1: Initialize
 
-Check Automaker server health:
+Check protoLabs Studio server health:
 
 ```
 mcp__plugin_protolabs_studio__health_check()
@@ -205,7 +205,7 @@ Present the final summary:
 
 ### Next Steps
 
-1. Review features in Automaker UI
+1. Review features in protoLabs Studio UI
 2. Start auto-mode: `/auto-mode start`
 3. Or manually start first feature
 ```
@@ -215,7 +215,7 @@ Present the final summary:
 ### Server Not Running
 
 ```
-Automaker server is not running.
+protoLabs Studio server is not running.
 Start with: npm run dev
 ```
 
