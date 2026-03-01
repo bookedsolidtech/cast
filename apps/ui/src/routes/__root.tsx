@@ -668,8 +668,8 @@ function RootLayoutContent() {
         return;
       }
       if (currentProject) {
-        // Project is selected, go to analytics dashboard
-        navigate({ to: '/analytics' });
+        // Project is selected, go to system view
+        navigate({ to: '/system-view' });
       } else {
         // No project selected, go to dashboard
         navigate({ to: '/dashboard' });
@@ -706,7 +706,7 @@ function RootLayoutContent() {
         }
 
         if (isRootRoute) {
-          navigate({ to: '/analytics' });
+          navigate({ to: '/system-view' });
         }
       } catch (error) {
         logger.error('Auto-open project crashed:', error);

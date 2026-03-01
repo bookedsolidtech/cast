@@ -12,7 +12,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { id: 'board', icon: Grid, label: 'Board', path: '/board' },
-  { id: 'analytics', icon: BarChart3, label: 'Analytics', path: '/analytics' },
+  { id: 'system-view', icon: BarChart3, label: 'System', path: '/system-view' },
   { id: 'chat', icon: MessageCircle, label: 'Chat', path: '/chat' },
   { id: 'notes', icon: FileText, label: 'Notes', path: '/notes' },
   { id: 'settings', icon: Settings, label: 'Settings', path: '/settings' },
