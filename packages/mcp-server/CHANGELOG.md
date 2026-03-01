@@ -1,5 +1,14 @@
 # @protolabs-ai/mcp-server
 
+## 0.18.1
+
+### Patch Changes
+
+- ### Bug Fixes
+  - use default API key instead of random generation
+- Updated dependencies
+  - @protolabs-ai/tools@0.18.1
+
 ## 0.18.0
 
 ### Minor Changes
