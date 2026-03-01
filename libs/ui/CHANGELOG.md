@@ -1,5 +1,12 @@
 # @protolabs-ai/ui
 
+## 0.18.0
+
+### Minor Changes
+
+- ### Features
+  - rename /analytics to /system-view and add keyboard shortcuts for all nav items
+
 ## 0.17.0
 
 ### Minor Changes

@@ -1,5 +1,21 @@
 # @protolabs-ai/flows
 
+## 0.18.0
+
+### Minor Changes
+
+- ### Features
+  - rename /analytics to /system-view and add keyboard shortcuts for all nav items
+
+### Patch Changes
+
+- Updated dependencies
+  - @protolabs-ai/types@0.18.0
+  - @protolabs-ai/utils@0.18.0
+  - @protolabs-ai/prompts@0.18.0
+  - @protolabs-ai/model-resolver@0.18.0
+  - @protolabs-ai/observability@0.18.0
+
 ## 0.17.0
 
 ### Minor Changes
