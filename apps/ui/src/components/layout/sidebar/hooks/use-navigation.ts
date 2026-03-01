@@ -43,6 +43,11 @@ interface UseNavigationProps {
     githubIssues: string;
     githubPrs: string;
     notifications: string;
+    systemView: string;
+    inbox: string;
+    fileEditor: string;
+    designs: string;
+    calendar: string;
   };
   hideSpecEditor: boolean;
   hideContext: boolean;
@@ -168,9 +173,10 @@ export function useNavigation({
         shortcut: shortcuts.board,
       },
       {
-        id: 'analytics',
+        id: 'system-view',
         label: 'System View',
         icon: Network,
+        shortcut: shortcuts.systemView,
       },
       {
         id: 'notes',
@@ -185,6 +191,7 @@ export function useNavigation({
         id: 'file-editor',
         label: 'File Editor',
         icon: FolderOpen,
+        shortcut: shortcuts.fileEditor,
       });
     }
 
@@ -193,6 +200,7 @@ export function useNavigation({
         id: 'designs',
         label: 'Designs',
         icon: Palette,
+        shortcut: shortcuts.designs,
       });
     }
 
@@ -201,6 +209,7 @@ export function useNavigation({
         id: 'calendar',
         label: 'Calendar',
         icon: CalendarDays,
+        shortcut: shortcuts.calendar,
       });
     }
 
@@ -256,6 +265,7 @@ export function useNavigation({
           id: 'inbox',
           label: 'Inbox',
           icon: Inbox,
+          shortcut: shortcuts.inbox,
           count: inboxCount || undefined,
         },
         {

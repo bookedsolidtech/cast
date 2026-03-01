@@ -231,6 +231,11 @@ export interface KeyboardShortcuts {
   notifications: string;
   githubIssues: string;
   githubPrs: string;
+  systemView: string;
+  inbox: string;
+  fileEditor: string;
+  designs: string;
+  calendar: string;
 
   // UI shortcuts
   toggleSidebar: string;
@@ -273,6 +278,11 @@ export const DEFAULT_KEYBOARD_SHORTCUTS: KeyboardShortcuts = {
   notifications: 'X',
   githubIssues: 'G',
   githubPrs: 'R',
+  systemView: 'V',
+  inbox: 'B',
+  fileEditor: 'F',
+  designs: 'Shift+D',
+  calendar: 'Shift+C',
 
   // UI
   toggleSidebar: '`',
