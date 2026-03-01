@@ -2,7 +2,7 @@
 
 ## Overview
 
-Automaker uses [Changesets](https://github.com/changesets/changesets) for version management across the monorepo. All publishable library packages share a single version number (**fixed versioning**). The project follows [Semantic Versioning](https://semver.org/) and enforces [Conventional Commits](https://www.conventionalcommits.org/) via commitlint.
+protoLabs Studio uses [Changesets](https://github.com/changesets/changesets) for version management across the monorepo. All publishable library packages share a single version number (**fixed versioning**). The project follows [Semantic Versioning](https://semver.org/) and enforces [Conventional Commits](https://www.conventionalcommits.org/) via commitlint.
 
 ## Version Scheme
 

@@ -317,7 +317,7 @@ CREATE TABLE embeddings (
 | Milvus   | Heavy (Java/Go), distributed system, not embeddable         |
 | Chroma   | Better than others, but still requires external service     |
 
-**Core Philosophy:** Automaker is a **local-first** desktop app. Adding external dependencies (cloud services, Docker containers) breaks the "install and run" experience.
+**Core Philosophy:** protoLabs Studio is a **local-first** desktop app. Adding external dependencies (cloud services, Docker containers) breaks the "install and run" experience.
 
 **SQLite is sufficient.** For corpora under 100k chunks:
 

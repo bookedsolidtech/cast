@@ -1066,7 +1066,7 @@ app.whenReady().then(async () => {
     const errorMessage = (error as Error).message;
     const isNodeError = errorMessage.includes('Node.js');
     dialog.showErrorBox(
-      'Automaker Failed to Start',
+      'protoLabs Studio Failed to Start',
       `The application failed to start.\n\n${errorMessage}\n\n${
         isNodeError
           ? 'Please install Node.js from https://nodejs.org or via a package manager (Homebrew, nvm, fnm).'

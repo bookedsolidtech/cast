@@ -10,6 +10,8 @@ import { createGenerateFeaturesHandler } from './routes/generate-features.js';
 import { createSyncHandler } from './routes/sync.js';
 import { createStopHandler } from './routes/stop.js';
 import { createStatusHandler } from './routes/status.js';
+import { createGetSpecHandler } from './routes/get-spec.js';
+import { createUpdateSpecHandler } from './routes/update-spec.js';
 import type { SettingsService } from '../../services/settings-service.js';
 
 export function createSpecRegenerationRoutes(
@@ -18,6 +20,8 @@ export function createSpecRegenerationRoutes(
 ): Router {
   const router = Router();
 
+  router.post('/get', createGetSpecHandler());
+  router.post('/update', createUpdateSpecHandler());
   router.post('/create', createCreateHandler(events));
   router.post('/generate', createGenerateHandler(events, settingsService));
   router.post('/generate-features', createGenerateFeaturesHandler(events, settingsService));

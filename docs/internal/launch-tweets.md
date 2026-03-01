@@ -3,7 +3,7 @@
 **Author:** Jon (GTM Specialist)
 **Date:** February 24, 2026 (Updated with latest competitive intel)
 **Brand:** protoLabs.studio — AI-native development agency
-**Product:** protoMaker — the AI development studio
+**Product:** protoLabs — the AI development studio
 
 ---
 
@@ -19,7 +19,7 @@
 
 **Our Differentiators:**
 
-1. **Portfolio proof:** MythXEngine, SVGVal, protoMaker (only tool with production portfolio)
+1. **Portfolio proof:** MythXEngine, SVGVal, protoLabs (only tool with production portfolio)
 2. **Quarantine/trust system:** Autonomy without recklessness (unsolved by competitors)
 3. **Open source core:** No SaaS extraction, consulting revenue model
 4. **Orchestration methodology:** Josh = architect, agents = implementers
@@ -33,7 +33,7 @@
 
 ## Variant 1: Capability-Focused
 
-**Angle:** What protoMaker does that competitors don't. Lead with the quarantine/trust system.
+**Angle:** What protoLabs does that competitors don't. Lead with the quarantine/trust system.
 
 **Thread:**
 
@@ -43,14 +43,14 @@ AI coding tools promise autonomy but deliver chaos.
 
 Devin runs wild. Cursor needs hand-holding. Bolt ships prototypes, not production.
 
-We built protoMaker: autonomous AI agents that ship real code without reckless behavior.
+We built protoLabs: autonomous AI agents that ship real code without reckless behavior.
 
 Here's how it works:
 ```
 
 ```
 2/
-protoMaker is an AI development studio with a team of specialized agents.
+protoLabs is an AI development studio with a team of specialized agents.
 
 Each agent works in quarantine — isolated git branches, no access to production until reviewed.
 
@@ -106,11 +106,11 @@ The goal: ship fast, stay in control.
 
 ```
 7/
-We built three production apps with protoMaker:
+We built three production apps with protoLabs:
 
 - MythXEngine: AI-powered TTRPG engine
 - SVGVal: SVG validation toolkit
-- protoMaker itself
+- protoLabs itself
 
 This isn't vaporware. The tool built the tool.
 ```
@@ -132,12 +132,12 @@ The lesson:
 
 Autonomy requires trust boundaries. AI agents can ship production code, but not without review gates, isolated branches, and escalation policies.
 
-Copilots are too slow. Rogue agents are too risky. protoMaker is the middle path.
+Copilots are too slow. Rogue agents are too risky. protoLabs is the middle path.
 ```
 
 ```
 10/
-protoMaker is fully open source.
+protoLabs is fully open source.
 
 No paywalls. No subscriptions. No SaaS extraction.
 
@@ -145,7 +145,7 @@ Revenue model: consulting (setupLab). We teach you to build your own proto lab.
 
 Try it: https://protolabs.studio
 
-🧵 Built with protoMaker <noreply@anthropic.com>
+🧵 Built with protoLabs <noreply@anthropic.com>
 ```
 
 ---
@@ -192,7 +192,7 @@ I needed agents that execute, not suggest.
 
 ```
 4/
-So I built protoMaker.
+So I built protoLabs.
 
 An AI development studio where I architect systems and specialized agents implement them.
 
@@ -214,11 +214,11 @@ Autonomy without recklessness. Speed without chaos.
 
 ```
 6/
-I used protoMaker to build:
+I used protoLabs to build:
 
 - MythXEngine (AI-powered TTRPG engine)
 - SVGVal (SVG validation toolkit)
-- protoMaker itself (the tool built the tool)
+- protoLabs itself (the tool built the tool)
 
 Three production apps. Zero lines of code written by me in six months.
 ```
@@ -261,7 +261,7 @@ Orchestration beats implementation.
 
 ```
 10/
-protoMaker is fully open source.
+protoLabs is fully open source.
 
 No subscriptions. No paywalls. No SaaS rent-seeking.
 
@@ -269,7 +269,7 @@ Revenue: consulting (setupLab). We teach you to set up your own proto lab.
 
 Stop coding. Start orchestrating: https://protolabs.studio
 
-🧵 Built with protoMaker
+🧵 Built with protoLabs
 ```
 
 ---
@@ -286,17 +286,17 @@ December 2025:
 
 - 141 features shipped by AI agents
 - 300+ PRs merged without human implementation
-- 3 production apps built: MythXEngine, SVGVal, protoMaker itself
+- 3 production apps built: MythXEngine, SVGVal, protoLabs itself
 - 0 production incidents
 
-How? protoMaker — the AI development studio that actually ships.
+How? protoLabs — the AI development studio that actually ships.
 ```
 
 ```
 2/
 The proof:
 
-protoMaker built protoMaker.
+protoLabs built protoLabs.
 
 The tool that built the tool. Meta, but it works.
 
@@ -307,11 +307,11 @@ Every feature after October 2025 was implemented by AI agents.
 
 ```
 3/
-Three production apps shipped with protoMaker:
+Three production apps shipped with protoLabs:
 
 1. MythXEngine: AI-powered TTRPG engine (40+ PRs)
 2. SVGVal: SVG validation toolkit (22 PRs)
-3. protoMaker: The studio itself (300+ PRs)
+3. protoLabs: The studio itself (300+ PRs)
 
 Not demos. Not prototypes. Production software.
 ```
@@ -363,7 +363,7 @@ Comparison (same task: "add dark mode"):
 
 - Cursor: 45 min hands-on implementation
 - Devin: "Processing..." (no measurable output)
-- protoMaker: Agent done in 30 min, PR ready for review
+- protoLabs: Agent done in 30 min, PR ready for review
 
 Time saved per feature: 60-80%
 ```
@@ -381,7 +381,7 @@ Proof beats promises.
 
 ```
 10/
-protoMaker is fully open source.
+protoLabs is fully open source.
 
 GitHub: https://github.com/protolabs-ai/protomaker
 Docs: https://protolabs.studio/docs
@@ -389,14 +389,14 @@ Try it: https://protolabs.studio
 
 No subscriptions. No paywalls. Just an AI dev studio that actually works.
 
-🧵 Built with protoMaker
+🧵 Built with protoLabs
 ```
 
 ---
 
 ## Variant 4: Problem → Solution
 
-**Angle:** Pain point first. Relatable frustration. protoMaker as the answer.
+**Angle:** Pain point first. Relatable frustration. protoLabs as the answer.
 
 **Thread:**
 
@@ -408,7 +408,7 @@ They're either too slow (copilots that suggest, you implement) or too reckless (
 
 You want speed. You need control.
 
-protoMaker solves this: https://protolabs.studio
+protoLabs solves this: https://protolabs.studio
 ```
 
 ```
@@ -437,7 +437,7 @@ You either supervise every step (slow) or let it run free (risky).
 4/
 The middle path:
 
-protoMaker gives you autonomous agents with review gates.
+protoLabs gives you autonomous agents with review gates.
 
 Agents work in quarantine (isolated branches). They implement features, run tests, open PRs.
 
@@ -479,7 +479,7 @@ We proved it works by shipping three products:
 
 - MythXEngine: AI-powered TTRPG engine
 - SVGVal: SVG validation toolkit
-- protoMaker itself
+- protoLabs itself
 
 300+ PRs merged. Zero production incidents.
 
@@ -493,7 +493,7 @@ Results vs. competitors:
 - Cursor: 360k paying customers, but still hands-on
 - Devin: 83% task completion, but no shipped products, $20/mo + usage fees
 - Bolt.new: $40M ARR in 5 months, but prototypes only
-- protoMaker: Autonomous + accountable, 3 production apps, fully open source
+- protoLabs: Autonomous + accountable, 3 production apps, fully open source
 
 Proof beats promises.
 ```
@@ -511,7 +511,7 @@ Orchestration beats implementation. Design systems, direct agents, ship products
 
 ```
 10/
-protoMaker is fully open source.
+protoLabs is fully open source.
 
 No paywalls. No subscriptions. No SaaS extraction.
 
@@ -519,7 +519,7 @@ Revenue model: consulting (setupLab). We teach you to build your own proto lab.
 
 Try it: https://protolabs.studio
 
-🧵 Built with protoMaker
+🧵 Built with protoLabs
 ```
 
 ---
@@ -536,7 +536,7 @@ Every AI coding tool wants your $20/month forever.
 
 We don't.
 
-protoMaker is fully open source. No paywalls. No subscriptions.
+protoLabs is fully open source. No paywalls. No subscriptions.
 
 Revenue model: we teach you to set up your own proto lab (consulting).
 
@@ -560,7 +560,7 @@ When the price goes up (it always does), you're stuck.
 3/
 We took a different path:
 
-protoMaker is MIT licensed. Fork it. Extend it. Audit it. Run it on your infra.
+protoLabs is MIT licensed. Fork it. Extend it. Audit it. Run it on your infra.
 
 No vendor lock-in. No usage limits. No surprise bills.
 
@@ -594,11 +594,11 @@ Open > closed. Every time.
 6/
 The proof:
 
-We built three production apps with protoMaker:
+We built three production apps with protoLabs:
 
 - MythXEngine (AI-powered TTRPG engine)
 - SVGVal (SVG validation toolkit)
-- protoMaker itself
+- protoLabs itself
 
 All open source. All built by AI agents. All yours to study, fork, extend.
 ```
@@ -611,7 +611,7 @@ Compare to competitors:
 - Devin: $20/mo + usage fees (was $500), closed source, no portfolio
 - Bolt.new: $20/mo, $40M ARR, web-only prototypes
 - OpenCode: Free, 70k GitHub stars, but community-driven = slower
-- protoMaker: $0, MIT license, self-hosted, portfolio proof
+- protoLabs: $0, MIT license, self-hosted, portfolio proof
 
 Infrastructure, not extraction.
 ```
@@ -644,7 +644,7 @@ We're building the rails. You build the trains.
 
 ```
 10/
-protoMaker: https://protolabs.studio
+protoLabs: https://protolabs.studio
 
 GitHub: https://github.com/protolabs-ai/protomaker
 Docs: https://protolabs.studio/docs
@@ -652,7 +652,7 @@ setupLab consulting: https://protolabs.studio/setup
 
 Open source. Open process. Open invitation.
 
-🧵 Built with protoMaker
+🧵 Built with protoLabs
 ```
 
 ---
@@ -723,7 +723,7 @@ Open source. Open process. Open invitation.
   - "How is this different from Devin?" → Portfolio proof (we ship products, they don't)
   - "Why not just use Cursor?" → Autonomy (we execute, they suggest)
   - "What about trust/safety?" → Quarantine system (review gates + trust levels)
-  - "Is it production-ready?" → Yes (3 apps live: MythXEngine, SVGVal, protoMaker)
+  - "Is it production-ready?" → Yes (3 apps live: MythXEngine, SVGVal, protoLabs)
 
 **Key Talking Points (For Josh's Engagement):**
 

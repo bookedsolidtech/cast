@@ -1,6 +1,6 @@
 # Claude Agent SDK Integration
 
-Automaker integrates with the [Claude Agent SDK](https://github.com/anthropics/agent-sdk-typescript) to power its AI agent execution system. This guide explains the architecture, configuration patterns, and how agents are invoked.
+protoLabs Studio integrates with the [Claude Agent SDK](https://github.com/anthropics/agent-sdk-typescript) to power its AI agent execution system. This guide explains the architecture, configuration patterns, and how agents are invoked.
 
 ## Architecture Overview
 
@@ -28,7 +28,7 @@ Agent Execution in Worktree
 
 ## Provider Architecture
 
-Automaker uses a provider abstraction to support multiple LLM backends:
+protoLabs Studio uses a provider abstraction to support multiple LLM backends:
 
 ### Supported Providers
 
@@ -130,7 +130,7 @@ mcp__protolabs__start_agent({
 
 ## Context Injection
 
-Automaker automatically loads context files before agent execution:
+protoLabs Studio automatically loads context files before agent execution:
 
 ### Context File Discovery
 
@@ -221,7 +221,7 @@ PATCH /api/agent/update-session
 
 ## MCP Server Integration
 
-Automaker supports Model Context Protocol (MCP) servers for tool augmentation:
+protoLabs Studio supports Model Context Protocol (MCP) servers for tool augmentation:
 
 ### Configuring MCP Servers
 
@@ -249,13 +249,13 @@ Automaker supports Model Context Protocol (MCP) servers for tool augmentation:
 
 ### Available MCP Servers
 
-| Server           | Tools                                         | Use Case                  |
-| ---------------- | --------------------------------------------- | ------------------------- |
-| **automaker**    | 135 tools (feature mgmt, agents, queue, etc.) | Core Automaker operations |
-| **github**       | PR management, issue tracking                 | GitHub integration        |
-| **filesystem**   | File read/write, directory operations         | Advanced file ops         |
-| **brave-search** | Web search                                    | Research tasks            |
-| **context7**     | Documentation lookup                          | Library documentation     |
+| Server           | Tools                                         | Use Case                         |
+| ---------------- | --------------------------------------------- | -------------------------------- |
+| **automaker**    | 135 tools (feature mgmt, agents, queue, etc.) | Core protoLabs Studio operations |
+| **github**       | PR management, issue tracking                 | GitHub integration               |
+| **filesystem**   | File read/write, directory operations         | Advanced file ops                |
+| **brave-search** | Web search                                    | Research tasks                   |
+| **context7**     | Documentation lookup                          | Library documentation            |
 
 ### Enabling MCP Servers
 
@@ -508,7 +508,7 @@ await cleanupWorktree({
 
 ## Custom Tool Integration
 
-Automaker can register custom tools for agent use:
+protoLabs Studio can register custom tools for agent use:
 
 ### Defining a Tool
 

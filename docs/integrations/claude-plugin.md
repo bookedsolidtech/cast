@@ -71,22 +71,26 @@ That's it! You now have access to ~170 MCP tools and slash commands for managing
 
 ### What You Can Do
 
-| Command               | Description                                      |
-| --------------------- | ------------------------------------------------ |
-| `/board`              | View and manage your Kanban board                |
-| `/auto-mode`          | Start/stop autonomous feature processing         |
-| `/orchestrate`        | Manage feature dependencies                      |
-| `/context`            | Manage AI agent context files                    |
-| `/plan-project`       | Full project orchestration pipeline              |
-| `/ship`               | Stage, commit, push, create PR, auto-merge       |
-| `/headsdown`          | Deep work mode — process features autonomously   |
-| `/linear`             | Manage Linear projects, issues, and cycles       |
-| `/create-project`     | Project orchestration from research to features  |
-| `/calendar-assistant` | Calendar and scheduling operations               |
-| `/due-diligence`      | Validate approaches with evidence-based research |
-| `/deep-research`      | Research codebase before planning                |
-| `/sparc-prd`          | Create a SPARC-style PRD                         |
-| `/improve-prompts`    | Analyze and improve LLM prompts                  |
+| Command               | Description                                       |
+| --------------------- | ------------------------------------------------- |
+| `/welcome`            | User onboarding and status refresh                |
+| `/board`              | View and manage your Kanban board                 |
+| `/auto-mode`          | Start/stop autonomous feature processing          |
+| `/orchestrate`        | Manage feature dependencies                       |
+| `/context`            | Manage AI agent context files                     |
+| `/plan-project`       | Full project orchestration pipeline               |
+| `/ship`               | Stage, commit, push, create PR, auto-merge        |
+| `/headsdown`          | Deep work mode — process features autonomously    |
+| `/linear`             | Manage Linear projects, issues, and cycles        |
+| `/create-project`     | Project orchestration from research to features   |
+| `/calendar-assistant` | Calendar and scheduling operations                |
+| `/due-diligence`      | Validate approaches with evidence-based research  |
+| `/deep-research`      | Research codebase before planning                 |
+| `/sparc-prd`          | Create a SPARC-style PRD                          |
+| `/improve-prompts`    | Analyze and improve LLM prompts                   |
+| `/ava`                | Autonomous operator with multi-project delegation |
+| `/setuplab`           | 7-phase project onboarding pipeline               |
+| `/upgrade-plugin`     | Guided plugin version upgrade                     |
 
 See [Plugin Commands](./plugin-commands.md) for full command reference and examples.
 
@@ -219,7 +223,7 @@ The plugin configuration is in `packages/mcp-server/plugins/automaker/.claude-pl
 ```json
 {
   "name": "automaker",
-  "description": "Automaker - AI Development Studio. Manage Kanban boards, AI agents, and feature orchestration.",
+  "description": "protoLabs Studio — AI Development Studio. Manage Kanban boards, AI agents, and feature orchestration.",
   "version": "1.1.1",
   "mcpServers": {
     "automaker": {
@@ -449,6 +453,8 @@ docker build --platform linux/amd64 -t discord-mcp:amd64 .
 
 ## Related Documentation
 
+- [Plugin Quickstart](./plugin-quickstart.md) — 5-minute setup guide
+- [Plugin Deep Dive](./plugin-deep-dive.md) — Architecture, hooks, tools, and extension points
 - [Plugin Commands](./plugin-commands.md) — Commands reference, subagents, examples
 - [MCP Tools Reference](./mcp-tools-reference.md) — Full MCP tool catalog
 - [Context System](/agents/context-system) — Best practices for context files

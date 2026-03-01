@@ -422,7 +422,7 @@ const execution = await mcp__protolabs__execute_dynamic_agent({
 
 ## Built-in Templates
 
-Automaker includes several pre-registered templates:
+protoLabs Studio includes several pre-registered templates:
 
 ### Product Manager (PM)
 

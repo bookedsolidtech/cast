@@ -48,7 +48,7 @@ The project is 5 weeks old as of this spike (created Jan 22, 2026) with 279 comm
 
 The `PreToolUse` hook unconditionally emits `"permissionDecision": "allow"` for any command that matches RTK's rewrite patterns. This bypasses the user's `.claude/settings.json` deny rules — including `git push --force`, `git branch -D`, and `gh pr merge`.
 
-If you use Claude Code's permission system as a safety guardrail (which protoMaker does), installing RTK's hook silently nullifies those guardrails for matched commands. A fix has been proposed in the issue but has not been merged as of this spike date.
+If you use Claude Code's permission system as a safety guardrail (which protoLabs Studio does), installing RTK's hook silently nullifies those guardrails for matched commands. A fix has been proposed in the issue but has not been merged as of this spike date.
 
 ### Token counting is approximate
 
@@ -78,7 +78,7 @@ Git, GitHub CLI, Cargo, npm/pnpm, pytest, ruff, pip, Go, golangci-lint, TypeScri
 
 The token compression idea is mechanically sound and could meaningfully reduce costs for agent runs. However:
 
-1. The security bypass (issue #260) directly conflicts with protoMaker's safety model. Our `PreToolUse` hooks and `.claude/settings.json` deny rules are a key guardrail for autonomous agents. RTK's hook would silently override them.
+1. The security bypass (issue #260) directly conflicts with protoLabs Studio's safety model. Our `PreToolUse` hooks and `.claude/settings.json` deny rules are a key guardrail for autonomous agents. RTK's hook would silently override them.
 
 2. The project is 5 weeks old with active bugs in basic flag handling. For autonomous agent use (not interactive use), silent mishandling of commands (wrong exit codes, stripped output) creates debugging nightmares.
 

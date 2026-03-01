@@ -272,7 +272,7 @@ export function ContextView() {
       }
 
       const message =
-        result.error || `Automaker couldn't generate a description for “${fileName}”.`;
+        result.error || `protoLabs Studio couldn't generate a description for “${fileName}”.`;
       toast.error('Failed to generate description', { description: message });
     } catch (error) {
       logger.error('Failed to generate description:', error);

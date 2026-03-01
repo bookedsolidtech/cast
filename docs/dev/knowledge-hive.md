@@ -1,6 +1,6 @@
 # Knowledge Hive
 
-The Knowledge Hive is Automaker's persistent memory and retrieval system. It solves the problem of unbounded context window growth by indexing project knowledge into a searchable SQLite database with hybrid retrieval (BM25 + vector embeddings).
+The Knowledge Hive is protoLabs Studio's persistent memory and retrieval system. It solves the problem of unbounded context window growth by indexing project knowledge into a searchable SQLite database with hybrid retrieval (BM25 + vector embeddings).
 
 ## The Problem
 
@@ -579,7 +579,7 @@ Use the top 3 results to inform your implementation.
 
 ### From MCP Tools
 
-The Automaker MCP server exposes knowledge search:
+The protoLabs Studio MCP server exposes knowledge search:
 
 ```typescript
 mcp__protolabs__search_knowledge({
@@ -591,7 +591,7 @@ mcp__protolabs__search_knowledge({
 
 ### From UI
 
-The Automaker UI (future) will include a knowledge search panel.
+The protoLabs Studio UI (future) will include a knowledge search panel.
 
 ## Debugging
 

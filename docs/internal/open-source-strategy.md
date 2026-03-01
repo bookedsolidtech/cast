@@ -424,7 +424,7 @@ This blog post doubles as thought leadership content for the consulting business
 
 Structure for the `#announcements` channel:
 
-1. **What is changing.** The protoMaker repository is now public. Anyone can read the code, file issues, and join discussions.
+1. **What is changing.** The protoLabs Studio repository is now public. Anyone can read the code, file issues, and join discussions.
 2. **How to participate.** Ideas go to GitHub Discussions. Bugs go to GitHub Issues. Chat happens here on Discord.
 3. **What is NOT changing.** We still implement everything internally. AI agents still do the work. PRs from external contributors are auto-closed with a friendly redirect.
 4. **Why we are doing this.** Transparency, community input, and because open source is the right default for developer tools.
