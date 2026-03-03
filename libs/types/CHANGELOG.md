@@ -1,5 +1,12 @@
 # @protolabs-ai/types
 
+## 0.28.0
+
+### Minor Changes
+
+- ### Features
+  - remove calendar and projects from feature flags — always enabled
+
 ## 0.27.0
 
 ### Minor Changes

@@ -1,5 +1,18 @@
 # @protolabs-ai/prompts
 
+## 0.28.0
+
+### Minor Changes
+
+- ### Features
+  - remove calendar and projects from feature flags — always enabled
+
+### Patch Changes
+
+- Updated dependencies
+  - @protolabs-ai/types@0.28.0
+  - @protolabs-ai/utils@0.28.0
+
 ## 0.27.0
 
 ### Minor Changes
