@@ -1,5 +1,26 @@
 # @protolabs-ai/prompts
 
+## 0.26.0
+
+### Minor Changes
+
+- ### Features
+  - native project management system with shared tools, tabbed UI, and PM agent
+
+  ### Bug Fixes
+  - oauth auth detection + pr-feedback stale entry cleanup
+  - address CodeRabbit review feedback on project management PR
+  - add @protolabs-ai/tools as server dependency
+
+  ### Refactors
+  - unify project view with design system atoms and semantic tokens
+
+### Patch Changes
+
+- Updated dependencies
+  - @protolabs-ai/types@0.26.0
+  - @protolabs-ai/utils@0.26.0
+
 ## 0.25.0
 
 ### Minor Changes
