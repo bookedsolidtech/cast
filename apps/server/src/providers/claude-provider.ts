@@ -326,20 +326,34 @@ export class ClaudeProvider extends BaseProvider {
   }
 
   /**
-   * Detect Claude SDK installation (always available via npm)
+   * Detect Claude SDK installation and auth status.
+   * Checks API key, OAuth tokens, and CLI auth indicators.
    */
   async detectInstallation(): Promise<InstallationStatus> {
-    // Claude SDK is always available since it's a dependency
     const hasApiKey = !!process.env.ANTHROPIC_API_KEY;
+    let authenticated = hasApiKey;
 
-    const status: InstallationStatus = {
+    // If no API key, check for OAuth/CLI auth
+    if (!authenticated) {
+      try {
+        const { getClaudeAuthIndicators } = await import('@protolabs-ai/platform');
+        const indicators = await getClaudeAuthIndicators();
+        authenticated =
+          indicators.hasStatsCacheWithActivity ||
+          (indicators.hasSettingsFile && indicators.hasProjectsSessions) ||
+          !!indicators.credentials?.hasOAuthToken ||
+          !!indicators.credentials?.hasApiKey;
+      } catch {
+        // Platform check unavailable, fall back to API key only
+      }
+    }
+
+    return {
       installed: true,
       method: 'sdk',
       hasApiKey,
-      authenticated: hasApiKey,
+      authenticated,
     };
-
-    return status;
   }
 
   /**

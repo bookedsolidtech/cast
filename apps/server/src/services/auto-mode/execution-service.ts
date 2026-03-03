@@ -2896,25 +2896,9 @@ You can use the Read tool to view these images at any time during implementation
       const phaseModelEntry =
         settings?.phaseModels?.memoryExtractionModel || DEFAULT_PHASE_MODELS.memoryExtractionModel;
       const { model } = resolvePhaseModel(phaseModelEntry);
-      const hasClaudeKey = Boolean(process.env.ANTHROPIC_API_KEY);
-      let resolvedModel = model;
-
-      if (isClaudeModel(model) && !hasClaudeKey) {
-        const fallbackModel = feature.model
-          ? resolveModelString(feature.model, DEFAULT_MODELS.autoMode)
-          : null;
-        if (fallbackModel && !isClaudeModel(fallbackModel)) {
-          logger.debug(
-            `Claude not configured for memory extraction; using feature model "${fallbackModel}".`
-          );
-          resolvedModel = fallbackModel;
-        } else {
-          logger.debug(
-            'Claude not configured for memory extraction; skipping learning extraction.'
-          );
-          return;
-        }
-      }
+      // SDK handles auth resolution (API key, OAuth, CLI auth) transparently.
+      // If auth is unavailable, simpleQuery will throw and the catch block handles it.
+      const resolvedModel = model;
 
       const result = await simpleQuery({
         prompt: userPrompt,

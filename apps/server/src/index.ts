@@ -76,20 +76,32 @@ const REPO_ROOT =
   })();
 logger.info('[SERVER_STARTUP] REPO_ROOT:', REPO_ROOT);
 
-// Check for required environment variables
-if (!process.env.ANTHROPIC_API_KEY) {
-  const wHeader = '⚠️  WARNING: No Claude authentication configured'.padEnd(BOX_CONTENT_WIDTH);
-  const w1 = 'The Claude Agent SDK requires authentication to function.'.padEnd(BOX_CONTENT_WIDTH);
-  const w2 = 'Set your Anthropic API key:'.padEnd(BOX_CONTENT_WIDTH);
-  const w3 = '  export ANTHROPIC_API_KEY="sk-ant-..."'.padEnd(BOX_CONTENT_WIDTH);
-  const w4 = 'Or use the setup wizard in Settings to configure authentication.'.padEnd(
-    BOX_CONTENT_WIDTH
-  );
-  logger.warn(
-    `\n╔${'═'.repeat(BOX_CONTENT_WIDTH + 2)}╗\n║  ${wHeader}║\n╠${'═'.repeat(BOX_CONTENT_WIDTH + 2)}╣\n║  ${w1}║\n║  ${w2}║\n║  ${w3}║\n║  ${w4}║\n╚${'═'.repeat(BOX_CONTENT_WIDTH + 2)}╝`
-  );
+// Check for authentication (API key or OAuth/CLI auth)
+if (process.env.ANTHROPIC_API_KEY) {
+  logger.info('Claude auth: API key detected');
 } else {
-  logger.info('✓ ANTHROPIC_API_KEY detected');
+  // Check for OAuth/CLI auth before warning
+  const { getClaudeAuthIndicators } = await import('@protolabs-ai/platform');
+  const indicators = await getClaudeAuthIndicators();
+  const hasOAuth =
+    indicators.hasStatsCacheWithActivity ||
+    (indicators.hasSettingsFile && indicators.hasProjectsSessions) ||
+    !!indicators.credentials?.hasOAuthToken;
+
+  if (hasOAuth) {
+    logger.info('Claude auth: OAuth/CLI authentication detected');
+  } else {
+    const wHeader = 'WARNING: No Claude authentication configured'.padEnd(BOX_CONTENT_WIDTH);
+    const w1 = 'The Claude Agent SDK requires authentication to function.'.padEnd(
+      BOX_CONTENT_WIDTH
+    );
+    const w2 = 'Set your Anthropic API key:'.padEnd(BOX_CONTENT_WIDTH);
+    const w3 = '  export ANTHROPIC_API_KEY="sk-ant-..."'.padEnd(BOX_CONTENT_WIDTH);
+    const w4 = 'Or authenticate via: claude login'.padEnd(BOX_CONTENT_WIDTH);
+    logger.warn(
+      `\n╔${'═'.repeat(BOX_CONTENT_WIDTH + 2)}╗\n║  ${wHeader}║\n╠${'═'.repeat(BOX_CONTENT_WIDTH + 2)}╣\n║  ${w1}║\n║  ${w2}║\n║  ${w3}║\n║  ${w4}║\n╚${'═'.repeat(BOX_CONTENT_WIDTH + 2)}╝`
+    );
+  }
 }
 
 // Initialize security
