@@ -18,11 +18,23 @@ You create a feature → Agent claims it → Works in isolated branch → Create
 
 Walk through the core workflow: create a feature, let an agent implement it, and merge the PR.
 
-### Step 1: Start the Server
+### Step 1: Start the Application
+
+`npm run dev:web` starts only the UI frontend (port 3007). The backend server (port 3008) must also be running. Use `dev:full` to start both in one command:
 
 ```bash
 cd /path/to/your-project
-npm run dev:web   # Starts UI on :3007, server on :3008
+npm run dev:full   # Starts UI on :3007 and server on :3008 concurrently
+```
+
+Or start them separately in two terminals:
+
+```bash
+# Terminal 1 — backend server
+npm run dev:server
+
+# Terminal 2 — web UI
+npm run dev:web
 ```
 
 Open `http://localhost:3007` in your browser. You'll see the Kanban board.

@@ -31,11 +31,13 @@ This opens an interactive launcher. Choose between:
 Or specify directly:
 
 ```bash
-npm run dev:web              # Web browser mode
-npm run dev:electron         # Desktop app
+npm run dev:full             # Web mode — starts UI (:3007) AND server (:3008) together (recommended)
+npm run dev:electron         # Desktop app (bundles server automatically)
 npm run dev:electron:debug   # Desktop with DevTools
 npm run dev:electron:wsl     # WSL (Windows Subsystem for Linux)
 ```
+
+> **Important:** `npm run dev:web` starts only the UI frontend on port 3007. It requires the backend server to be running separately on port 3008. Use `npm run dev:full` to start both in one command, or run `npm run dev:server` in a second terminal alongside `npm run dev:web`.
 
 ## TUI Launcher
 
