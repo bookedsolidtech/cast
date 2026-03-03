@@ -109,6 +109,13 @@
   }
 }
 
+/* Native date/time inputs: inherit dark mode color scheme */
+input[type='date'],
+input[type='time'],
+input[type='datetime-local'] {
+  color-scheme: light dark;
+}
+
 /* Universal scrollbar styling using theme CSS variables */
 ::-webkit-scrollbar {
   width: 8px;
@@ -116,16 +123,16 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--muted);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--muted-foreground);
+  background: var(--border);
   border-radius: var(--radius-sm);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--foreground);
+  background: var(--muted-foreground);
 }
 
 /* Always visible scrollbar for file diffs and code blocks */

@@ -237,6 +237,8 @@ function RootLayoutContent() {
   const effectiveTheme = getEffectiveTheme();
   // Defer the theme value to keep UI responsive during rapid hover changes
   const deferredTheme = useDeferredValue(effectiveTheme);
+  // Derive light/dark for components that need an explicit theme (Sonner, native inputs)
+  const isDarkTheme = themeOptions.find((t) => t.value === deferredTheme)?.isDark ?? true;
 
   // Get effective theme and fonts for the current project
   // Note: theme/fontFamilySans/fontFamilyMono are destructured above to ensure re-renders when they change
@@ -863,7 +865,7 @@ function RootLayoutContent() {
       <>
         <main className="h-screen-safe overflow-hidden" data-testid="app-container">
           <Outlet />
-          <Toaster richColors position="bottom-right" />
+          <Toaster richColors position="bottom-right" theme={isDarkTheme ? 'dark' : 'light'} />
         </main>
         <SandboxRiskDialog
           open={showSandboxDialog}
@@ -897,7 +899,7 @@ function RootLayoutContent() {
         </div>
         <ChatModal />
         <MobileBottomNav />
-        <Toaster richColors position="bottom-right" />
+        <Toaster richColors position="bottom-right" theme={isDarkTheme ? 'dark' : 'light'} />
       </main>
       <SandboxRiskDialog
         open={showSandboxDialog}

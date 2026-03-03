@@ -155,6 +155,7 @@ export function CreateEventDialog({
                   setDate(e.target.value);
                   if (e.target.value) setDateError(false);
                 }}
+                onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
                 className={cn(dateError && 'border-destructive')}
                 data-testid="event-date-input"
               />
@@ -167,6 +168,7 @@ export function CreateEventDialog({
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
+                onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
                 min={date || undefined}
                 data-testid="event-end-date-input"
               />

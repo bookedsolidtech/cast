@@ -357,6 +357,12 @@ export function Sidebar() {
             navSections={navSections}
             isActiveRoute={isActiveRoute}
             navigate={navigate}
+            onNavItemClick={() => {
+              // Close sidebar when in overlay mode (viewport below lg breakpoint)
+              if (sidebarOpen && !window.matchMedia('(min-width: 1024px)').matches) {
+                handleToggleSidebar();
+              }
+            }}
           />
         </div>
 
