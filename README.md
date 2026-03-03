@@ -64,9 +64,11 @@ git clone https://github.com/proto-labs-ai/protolabs-studio.git
 cd protolabs-studio
 npm install
 npm run dev                 # Interactive launcher (choose web or electron)
-npm run dev:web             # Web browser mode (localhost:3007)
-npm run dev:electron        # Desktop app mode
+npm run dev:full            # Web mode — starts UI (localhost:3007) AND server (localhost:3008)
+npm run dev:electron        # Desktop app mode (bundles server automatically)
 ```
+
+> **Note:** `npm run dev:web` starts only the UI frontend on port 3007. It requires a separate server instance running on port 3008. Use `npm run dev:full` (recommended) to start both together, or `npm run dev:server` in a second terminal.
 
 Requires **Node.js 22+** and an authenticated [Claude Code CLI](https://code.claude.com/docs/en/quickstart).
 

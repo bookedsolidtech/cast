@@ -108,8 +108,10 @@ See `docs/protolabs/brand.md` for the full brand bible including voice, team, na
 ```bash
 # Development
 npm run dev                 # Interactive launcher (choose web or electron)
-npm run dev:web             # Web browser mode (localhost:3007)
-npm run dev:electron        # Desktop app mode
+npm run dev:full            # Web mode — starts UI (:3007) AND server (:3008) together
+npm run dev:web             # UI only (localhost:3007) — requires server running separately on :3008
+npm run dev:server          # Backend server only (localhost:3008)
+npm run dev:electron        # Desktop app mode (bundles server automatically)
 npm run dev:electron:debug  # Desktop with DevTools open
 
 # Building
