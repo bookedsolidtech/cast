@@ -1,5 +1,24 @@
 # @protolabs-ai/spec-parser
 
+## 0.27.0
+
+### Minor Changes
+
+- ### Features
+  - compact sidebar nav, enable calendar + projects flags by default
+  - move Ava Chat from sidebar nav to bottom ticker bar
+  - tighten kanban column spacing — reduce gap, padding, and min width
+  - list view consistency for projects + board header uses PanelHeader
+  - unified PanelHeader component for consistent panel headers
+  - google calendar-style month grid, fix MCP calendar endpoints, add API docs
+  - persistent bugs project with ongoing flag and bug triage wiring
+  - project delete stats capture, delete UI button, nav fix + hotkey
+
+### Patch Changes
+
+- Updated dependencies
+  - @protolabs-ai/types@0.27.0
+
 ## 0.26.0
 
 ### Minor Changes
