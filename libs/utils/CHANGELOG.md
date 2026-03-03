@@ -1,5 +1,45 @@
 # @protolabs-ai/utils
 
+## 0.25.0
+
+### Minor Changes
+
+- ### Features
+  - discord channel workflow engine + bug triage flow
+  - decouple project lifecycle from Linear + add Projects UI
+  - add Ava Chat nav item to desktop sidebar + update docs
+
+  ### Bug Fixes
+  - remove undefined react-hooks/exhaustive-deps disable comment
+  - show project details inline instead of broken PrdReviewDialog
+  - update worktree-recovery-service tests for projectPath parameter
+  - use main repo prettier binary in worktree formatting
+
+  ### Performance
+  - remove duplicate status polling from /spec page load
+
+  ### Refactors
+  - Message Branch Navigation (response variants) (#1621)
+  - Delete MaintenanceSection UI and scheduler backend routes (#1620)
+  - cant adjust concurrent agents (#1615)
+  - ask ava chat window doesn't focus on open (#1613)
+  - Add Run Now, timestamps, stats, and human-readable cron (#1616)
+  - Enrich automation list response with scheduler stats (#1614)
+  - Replace inline hardcoded colors in flow-graph, analytics, and renderers (#1612)
+  - Relocate domain components from shared/ to view directories (#1611)
+  - Eliminate rounded-2xl and audit rounded-xl overuse (#1610)
+  - Migrate dashboard, welcome, calendar, settings, and remaining views (#1609)
+  - Adaptive notification routing + get_presence_state Ava tool (#1607)
+  - Migrate git-diff-panel, log-viewer, and shared components (#1606)
+  - Migrate status color violations (usage popovers, terminal, board) (#1603)
+  - Server-side plan streaming chunk + AvaConfig plan tool (#1598)
+
+### Patch Changes
+
+- Updated dependencies
+  - @protolabs-ai/types@0.25.0
+  - @protolabs-ai/platform@0.25.0
+
 ## 0.24.0
 
 ### Minor Changes
