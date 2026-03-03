@@ -55,11 +55,9 @@ interface UseNavigationProps {
   hideSpecEditor: boolean;
   hideContext: boolean;
   hideTerminal: boolean;
-  hideCalendar: boolean;
   hideDesigns: boolean;
   hideDocs: boolean;
   hideFileEditor: boolean;
-  hideProjects: boolean;
   hideSystemView: boolean;
   currentProject: Project | null;
   projects: Project[];
@@ -84,11 +82,9 @@ export function useNavigation({
   hideSpecEditor,
   hideContext,
   hideTerminal,
-  hideCalendar,
   hideDesigns,
   hideDocs,
   hideFileEditor,
-  hideProjects,
   hideSystemView,
   currentProject,
   projects,
@@ -188,14 +184,12 @@ export function useNavigation({
       shortcut: shortcuts.notes,
     });
 
-    if (!hideProjects) {
-      projectItems.push({
-        id: 'projects',
-        label: 'Projects',
-        icon: FolderKanban,
-        shortcut: shortcuts.projects,
-      });
-    }
+    projectItems.push({
+      id: 'projects',
+      label: 'Projects',
+      icon: FolderKanban,
+      shortcut: shortcuts.projects,
+    });
 
     if (!hideSystemView) {
       projectItems.splice(1, 0, {
@@ -224,14 +218,12 @@ export function useNavigation({
       });
     }
 
-    if (!hideCalendar) {
-      projectItems.push({
-        id: 'calendar',
-        label: 'Calendar',
-        icon: CalendarDays,
-        shortcut: shortcuts.calendar,
-      });
-    }
+    projectItems.push({
+      id: 'calendar',
+      label: 'Calendar',
+      icon: CalendarDays,
+      shortcut: shortcuts.calendar,
+    });
 
     // Add Terminal to Project section if not hidden
     if (!hideTerminal) {
@@ -303,11 +295,9 @@ export function useNavigation({
     hideSpecEditor,
     hideContext,
     hideTerminal,
-    hideCalendar,
     hideDesigns,
     hideDocs,
     hideFileEditor,
-    hideProjects,
     hideSystemView,
     hasGitHubRemote,
     unviewedValidationsCount,

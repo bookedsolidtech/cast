@@ -192,7 +192,6 @@ export interface FeatureFlags {
   /** Ava Anywhere — chat overlay, Cmd+K modal, /chat route, mobile chat tab */
   avaChat: boolean;
   /** Calendar view in project sidebar */
-  calendar: boolean;
   /** Designs/pen file viewer in project sidebar */
   designs: boolean;
   /** Docs view in project sidebar */
@@ -207,8 +206,6 @@ export interface FeatureFlags {
   pipeline: boolean;
   /** System View — network/dependency graph view in the project sidebar */
   systemView: boolean;
-  /** Projects view — in-app project lifecycle management (PRDs, milestones, phases) */
-  projects: boolean;
   /**
    * User Presence Detection — enables sensor-driven presence awareness.
    * Built-in sensors: tab visibility, user activity (idle/afk), connectivity.
@@ -220,12 +217,10 @@ export interface FeatureFlags {
 /** Default feature flags — all off by default, opt-in per environment */
 export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   avaChat: false,
-  calendar: true,
   designs: false,
   docs: false,
   fileEditor: false,
   pipeline: false,
-  projects: true,
   systemView: false,
   userPresenceDetection: false,
 };

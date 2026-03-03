@@ -18,10 +18,6 @@ const FEATURE_FLAG_LABELS: Record<keyof FeatureFlags, { label: string; descripti
     label: 'Ava Anywhere',
     description: 'Chat overlay, Cmd+K modal, /chat route, and mobile chat tab.',
   },
-  calendar: {
-    label: 'Calendar',
-    description: 'Show the Calendar view in the project sidebar.',
-  },
   designs: {
     label: 'Designs',
     description: 'Show the Designs (pen file) viewer in the project sidebar.',
@@ -38,11 +34,6 @@ const FEATURE_FLAG_LABELS: Record<keyof FeatureFlags, { label: string; descripti
     label: 'Authority Pipeline + HITL',
     description:
       'Enables HITL interrupt forms and pipeline gate cycling (TRIAGE, SPEC, PUBLISH). Off by default.',
-  },
-  projects: {
-    label: 'Projects',
-    description:
-      'Show the Projects view for in-app project lifecycle management (PRDs, milestones, phases).',
   },
   systemView: {
     label: 'System View',
