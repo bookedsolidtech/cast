@@ -1,5 +1,12 @@
 # @protolabs-ai/types
 
+## 0.30.1
+
+### Patch Changes
+
+- ### Bug Fixes
+  - capture thinking blocks in simpleQuery for Opus plan generation
+
 ## 0.30.0
 
 ### Minor Changes
