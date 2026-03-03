@@ -190,6 +190,9 @@ export interface Project {
   /** Display color (hex) */
   color?: string;
 
+  /** Ongoing projects never complete — they are persistent containers (e.g., Bugs) */
+  ongoing?: boolean;
+
   /** External links */
   links?: ProjectLink[];
 
@@ -423,6 +426,9 @@ export interface CreateProjectInput {
 
   /** Display color (hex) */
   color?: string;
+
+  /** Create an ongoing project (never completes) */
+  ongoing?: boolean;
 
   /** Optional initial milestones */
   milestones?: Array<{

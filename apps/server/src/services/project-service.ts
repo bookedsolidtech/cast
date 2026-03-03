@@ -154,6 +154,23 @@ export class ProjectService {
   }
 
   /**
+   * Ensure the persistent "bugs" project exists, creating it if not.
+   */
+  async ensureBugsProject(projectPath: string): Promise<Project> {
+    const existing = await this.getProject(projectPath, 'bugs');
+    if (existing) return existing;
+
+    return this.createProject(projectPath, {
+      slug: 'bugs',
+      title: 'Bugs',
+      goal: 'Persistent project for tracking all bug reports, investigations, and fixes.',
+      ongoing: true,
+      priority: 'high',
+      color: '#ef4444',
+    });
+  }
+
+  /**
    * Update an existing project
    */
   async updateProject(
@@ -164,6 +181,10 @@ export class ProjectService {
     const existing = await this.getProject(projectPath, projectSlug);
     if (!existing) {
       return null;
+    }
+
+    if (updates.status === 'completed' && existing.ongoing) {
+      throw new Error('Cannot complete an ongoing project');
     }
 
     const updated: Project = {
