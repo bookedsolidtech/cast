@@ -229,27 +229,6 @@ export function cleanupAutomakerDir(projectPath: string, force: boolean = false)
 }
 
 /**
- * Clean up .beads directory if setup is incomplete
- */
-export function cleanupBeadsDir(projectPath: string, force: boolean = false): void {
-  const beadsDir = path.join(projectPath, '.beads');
-
-  if (!fs.existsSync(beadsDir)) {
-    return;
-  }
-
-  // Check if directory is empty
-  const entries = fs.readdirSync(beadsDir);
-
-  if (force || entries.length === 0) {
-    fs.rmSync(beadsDir, { recursive: true, force: true });
-    console.log('✓ Cleaned up .beads directory');
-  } else {
-    console.log('⚠ .beads directory contains files, skipping cleanup');
-  }
-}
-
-/**
  * Create a backup of a file before modifying it
  */
 export function backupFile(filePath: string): string | null {

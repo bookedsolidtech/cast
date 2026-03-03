@@ -36,7 +36,6 @@ The server writes to `.automaker/features/` at runtime. Any `git checkout` chang
 
 These stage everything, including:
 - `.automaker/features/` runtime data
-- `.beads/` runtime files (beads.db, daemon.log)
 - Temporary/generated files
 
 **Instead:** Always stage specific files by name:

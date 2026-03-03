@@ -92,7 +92,6 @@ async function verify() {
       },
       automation: {
         hasAutomaker: false,
-        hasBeads: false,
         hasDiscordIntegration: false,
         hasProtolabConfig: false,
         hasAnalytics: false,

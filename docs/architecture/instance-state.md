@@ -26,7 +26,6 @@ This is intentional. An instance's operational state is ephemeral. Its _knowledg
 │  .automaker/features/    Board state (Kanban features)   │
 │  .automaker/projects/    Project plans & milestones      │
 │  .automaker/settings.json  Instance-specific config      │
-│  .beads/                 Operational task queue           │
 │  .worktrees/             Agent execution worktrees       │
 │  labs/                   Cloned client repositories       │
 └─────────────────────────────────────────────────────────┘
@@ -40,7 +39,6 @@ This is intentional. An instance's operational state is ephemeral. Its _knowledg
 
 - **Board state** is runtime-managed by the server. Git-tracking it caused data loss (Feb 10 incident).
 - **Project plans** are created per engagement. A staging VM working on client A doesn't need client B's plans.
-- **Beads** (Ava's task queue) are operational tasks specific to the current machine's workload.
 - **Settings** may differ per machine (API keys, concurrency limits, model preferences).
 
 ## The setupLab Onboarding Pipeline
@@ -89,7 +87,7 @@ The fresh-state model is foundational for **hivemind** — protoLabs's multi-ins
                             │
                     Shared git repo
                     Shared knowledge (.automaker/context, memory, skills)
-                    Instance-local boards, beads, projects
+                    Instance-local boards, projects
 ```
 
 ### Why Fresh State Enables This
@@ -128,9 +126,9 @@ NEW INSTANCE
   ├─ git clone → gets shared knowledge (context, memory, skills)
   │
   ├─ /setuplab → builds instance-specific understanding
-  │              creates .automaker/features/, .beads/, .automaker/projects/
+  │              creates .automaker/features/, .automaker/projects/
   │
-  ├─ OPERATING → board fills with features, beads track tasks
+  ├─ OPERATING → board fills with features
   │              agents execute, PRs merge, knowledge updates pushed to git
   │
   ├─ HIVEMIND JOIN → announces to mesh, receives domain assignment
@@ -146,7 +144,6 @@ NEW INSTANCE
 
 | Decision                          | Rationale                                                                                                   |
 | --------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `.beads/` fully gitignored        | Operational task queue is instance-specific. Fresh instances shouldn't inherit another machine's todo list. |
 | `.automaker/projects/` gitignored | Project plans are created per-engagement. Multiple instances may create different plans for different work. |
 | `.automaker/features/` gitignored | Server runtime manages feature state. Git-tracking caused the Feb 10 data loss incident.                    |
 | `.automaker/memory/` git-tracked  | Agent learnings are organizational knowledge. Every instance should benefit from past discoveries.          |
@@ -157,7 +154,7 @@ NEW INSTANCE
 
 ### Single Developer (Current)
 
-One machine, one instance. setupLab runs once. Board and beads are local. Knowledge pushed to git on commit.
+One machine, one instance. setupLab runs once. Board state is local. Knowledge pushed to git on commit.
 
 ### Staging + Dev (Near-term)
 

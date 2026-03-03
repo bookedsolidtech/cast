@@ -348,11 +348,6 @@ export interface Feature {
    */
   githubIssueUrl?: string;
   /**
-   * Beads task ID (if linked to a Beads issue)
-   * Links feature to Ava's operational task manager.
-   */
-  beadsTaskId?: string;
-  /**
    * Per-thread review feedback tracking with agent decisions.
    * Each thread can be accepted, denied, or pending with reasoning.
    */

@@ -5,7 +5,6 @@ import pc from 'picocolors';
 import { researchRepo } from './phases/research.js';
 import { analyzeGaps } from './phases/analyze.js';
 import { init } from './phases/init.js';
-import { initializeBeads } from './phases/beads.js';
 import { setupCI } from './phases/ci.js';
 import { generateCodeRabbitConfig } from './phases/coderabbit.js';
 import { createBranchProtectionRuleset } from './phases/branch-protection.js';
@@ -224,7 +223,6 @@ async function main() {
 
       if (!options.dryRun) {
         const initResult = await init({ projectPath, research: researchResult });
-        const beadsResult = await initializeBeads(projectPath);
         const pm = researchResult.monorepo.packageManager;
         const ciResult = await setupCI({
           projectPath,
@@ -284,7 +282,7 @@ async function main() {
 
     if (options.yes) {
       // Pre-select all recommended phases
-      selectedPhases = ['automaker', 'beads', 'ci', 'features'];
+      selectedPhases = ['automaker', 'ci', 'features'];
       clack.log.info(pc.dim('\nRunning all phases (--yes mode)'));
     } else {
       const phaseSelection = await clack.multiselect({
@@ -293,11 +291,6 @@ async function main() {
           {
             value: 'automaker',
             label: 'Initialize .automaker/',
-            hint: 'recommended',
-          },
-          {
-            value: 'beads',
-            label: 'Initialize .beads/ task tracker',
             hint: 'recommended',
           },
           {
@@ -311,7 +304,7 @@ async function main() {
             hint: 'recommended',
           },
         ],
-        initialValues: ['automaker', 'beads', 'ci', 'features'],
+        initialValues: ['automaker', 'ci', 'features'],
         required: false,
       });
 
@@ -340,11 +333,6 @@ async function main() {
       if (result.filesCreated) {
         createdFiles.push(...result.filesCreated);
       }
-    }
-
-    if (selectedPhases.includes('beads')) {
-      await runPhase('Initializing .beads/ task tracker...', () => initializeBeads(projectPath));
-      createdFiles.push('.beads/');
     }
 
     if (selectedPhases.includes('ci')) {

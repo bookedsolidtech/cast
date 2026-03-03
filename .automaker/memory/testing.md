@@ -199,12 +199,6 @@ usageStats:
 - **Root cause:** Setup tools are inherently fragile to automate: they create real files, git repos, and network calls. Playwright designed for web UI, not CLI. Mock-based tests lose coverage of actual file I/O errors. Real setup requires real environment.
 - **How to avoid:** Easier: manual verification catches real-world issues (permission errors, missing git, etc.). Harder: not reproducible in CI/CD (requires real environment setup).
 
-#### [Pattern] Used temporary directory + cleanup pattern for verification test rather than mocking bd CLI or requiring bd to be installed (2026-02-13)
-
-- **Problem solved:** Function directly executes system commands (bd init, which bd) and modifies filesystem (.beads/ directory). Can't unit test in isolation
-- **Why this works:** Integration testing with real filesystem catches actual failure modes (bd CLI missing, permissions, YAML parsing). Mock-based tests would pass but fail in production. Temporary directory ensures no pollution of actual projects
-- **Trade-offs:** Slower test but higher confidence. Test requires cleanup discipline. Test depends on runtime environment (bd CLI availability)
-
 ### Created standalone Node.js verification script instead of Jest/vitest tests. Script was deleted after verification to avoid test infrastructure debt. (2026-02-13)
 
 - **Context:** New package in early development. Needed to verify core functionality (file generation, idempotence, content integrity) before integration.

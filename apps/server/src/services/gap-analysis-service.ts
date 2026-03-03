@@ -449,27 +449,6 @@ export function analyzeGaps(
     });
   }
 
-  // --- Beads ---
-  if (!research.automation.hasBeads) {
-    addGap({
-      id: 'beads',
-      category: 'automation',
-      severity: 'recommended',
-      title: 'Missing .beads/ task tracker',
-      current: 'No Beads initialization',
-      target: 'Beads for AI agent task management',
-      effort: 'small',
-      featureDescription:
-        'Initialize Beads task tracker with bd init. Configure no-daemon: true in .beads/config.yaml. Set issue prefix from project name. Beads provides git-backed task tracking for AI agent operations.',
-    });
-  } else {
-    addCompliant({
-      category: 'automation',
-      title: 'Beads',
-      detail: '.beads/ task tracker initialized',
-    });
-  }
-
   // --- Discord ---
   if (!research.automation.hasDiscordIntegration) {
     addGap({

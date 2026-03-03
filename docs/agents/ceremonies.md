@@ -99,7 +99,7 @@ project:completed ───→ CeremonyService.handleProjectCompleted()
                               → LLM retrospective
                               → Impact report
                               → Reflection loop (memory synthesis)
-                              → Improvement items (Beads/features)
+                              → Improvement items (features)
                               → emit('project:reflection:complete')
 ```
 
@@ -186,20 +186,20 @@ Posted when all milestones complete. Uses an LLM to generate a structured retros
 
 ### Key Methods
 
-| Method                       | Visibility | Purpose                                           |
-| ---------------------------- | ---------- | ------------------------------------------------- |
-| `initialize()`               | public     | Wire up dependencies and event subscriptions      |
-| `destroy()`                  | public     | Cleanup subscriptions                             |
-| `handleEpicCreated()`        | private    | Generate + post epic kickoff                      |
-| `handleMilestoneStarted()`   | private    | Generate + post standup                           |
-| `handleMilestoneCompleted()` | private    | Generate + post retro + content brief             |
-| `handleEpicCompleted()`      | private    | Generate + post epic delivery announcement        |
-| `handleProjectCompleted()`   | private    | Generate + post LLM retro + reflection loop       |
-| `generateReflectionLoop()`   | private    | Synthesize agent memory into project learnings    |
-| `createImprovementItems()`   | private    | Extract action items from retro as Beads/features |
-| `getCeremonySettings()`      | private    | Load config from project settings                 |
-| `splitMessage()`             | private    | Chunk content for Discord's 2000-char limit       |
-| `emitDiscordEvent()`         | private    | Emit `integration:discord` event                  |
+| Method                       | Visibility | Purpose                                        |
+| ---------------------------- | ---------- | ---------------------------------------------- |
+| `initialize()`               | public     | Wire up dependencies and event subscriptions   |
+| `destroy()`                  | public     | Cleanup subscriptions                          |
+| `handleEpicCreated()`        | private    | Generate + post epic kickoff                   |
+| `handleMilestoneStarted()`   | private    | Generate + post standup                        |
+| `handleMilestoneCompleted()` | private    | Generate + post retro + content brief          |
+| `handleEpicCompleted()`      | private    | Generate + post epic delivery announcement     |
+| `handleProjectCompleted()`   | private    | Generate + post LLM retro + reflection loop    |
+| `generateReflectionLoop()`   | private    | Synthesize agent memory into project learnings |
+| `createImprovementItems()`   | private    | Extract action items from retro as features    |
+| `getCeremonySettings()`      | private    | Load config from project settings              |
+| `splitMessage()`             | private    | Chunk content for Discord's 2000-char limit    |
+| `emitDiscordEvent()`         | private    | Emit `integration:discord` event               |
 
 ## Discord Delivery
 

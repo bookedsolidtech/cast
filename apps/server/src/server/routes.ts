@@ -82,7 +82,6 @@ import { createAIRoutes } from '../routes/ai/index.js';
 import { createNotesRoutes } from '../routes/notes/index.js';
 import { createLeadEngineerRoutes } from '../routes/lead-engineer/index.js';
 import { createPrometheusRoute } from '../routes/metrics/prometheus.js';
-import { createBeadsRoutes } from '../routes/beads/index.js';
 import { createAutomationsRoutes } from '../routes/automations/index.js';
 import { createSensorRoutes } from '../routes/sensors/index.js';
 
@@ -132,7 +131,6 @@ export function registerRoutes(app: Express, services: ServiceContainer): void {
     ceremonyAuditLog,
     escalationRouter,
     authorityService,
-    beadsService,
     calendarService,
     jobExecutorService,
     googleCalendarSyncService,
@@ -284,7 +282,6 @@ export function registerRoutes(app: Express, services: ServiceContainer): void {
   app.use('/api/content', createContentRoutes(settingsService));
   app.use('/api/backlog-plan', createBacklogPlanRoutes(events, settingsService));
   app.use('/api/calendar', createCalendarRoutes(calendarService, jobExecutorService));
-  app.use('/api/beads', createBeadsRoutes(beadsService));
   app.use('/api/mcp', createMCPRoutes(mcpTestService));
   app.use(
     '/api/integrations',

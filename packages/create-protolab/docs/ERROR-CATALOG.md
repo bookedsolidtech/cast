@@ -9,13 +9,10 @@ Complete reference of all error codes with examples, root causes, and step-by-st
 | E001 | Not a git repository         | High     | Git           |
 | E002 | No write access              | High     | Filesystem    |
 | E003 | Claude CLI not found         | High     | CLI Tools     |
-| E004 | Beads CLI not found          | High     | CLI Tools     |
 | E005 | jq not installed             | High     | CLI Tools     |
 | E006 | Server not running           | Medium   | Automaker     |
 | E007 | Connection timeout           | Medium   | Network       |
 | E008 | SSL/TLS error                | Medium   | Network       |
-| E009 | Beads init failed            | High     | Beads         |
-| E010 | Bead permission error        | High     | Filesystem    |
 | E011 | Automaker init failed        | High     | Automaker     |
 | E012 | Automaker file error         | High     | Filesystem    |
 | E013 | Plugin marketplace not found | Medium   | Claude Plugin |
@@ -88,7 +85,7 @@ $ ./scripts/setup-protolab.sh .
    ./scripts/setup-protolab.sh .
    ```
 
-**Related Errors:** E002, E010
+**Related Errors:** E002
 
 **Prevention:**
 
@@ -180,7 +177,7 @@ $ ./scripts/setup-protolab.sh /path/to/project
    ./scripts/setup-protolab.sh /path/to/project
    ```
 
-**Related Errors:** E010, E012, E019
+**Related Errors:** E012, E019
 
 **Prevention:**
 
@@ -269,7 +266,7 @@ $ ./scripts/setup-protolab.sh /path/to/project
    ./scripts/setup-protolab.sh /path/to/project
    ```
 
-**Related Errors:** E004, E005, E013, E014
+**Related Errors:** E005, E013, E014
 
 **Platform-Specific:**
 
@@ -296,114 +293,10 @@ choco install claude
 
 ```bash
 # Always install prerequisites first
-npm install -g @anthropic-ai/claude-cli @jlowin/beads
+npm install -g @anthropic-ai/claude-cli
 
 # Verify
 claude --version
-bd --version
-```
-
----
-
-### E004: Beads CLI not found
-
-**Full Message:**
-
-```
-✗ beads CLI (bd) is not installed
-  Install from: https://github.com/jlowin/beads
-```
-
-**Root Causes:**
-
-- Beads not installed
-- Beads not in PATH
-- Old/incompatible version
-- Installation corrupted
-- Wrong architecture (arm64 vs x86_64)
-
-**Example Scenario:**
-
-```bash
-$ which bd
-# (no output)
-
-$ ./scripts/setup-protolab.sh /path/to/project
-✗ beads CLI (bd) is not installed
-```
-
-**Step-by-Step Fix:**
-
-1. **Check if installed:**
-
-   ```bash
-   which bd
-   bd --version
-   ```
-
-2. **Install latest Beads:**
-
-   ```bash
-   # Official installer
-   curl -fsSL https://get.beads.sh | bash
-   ```
-
-3. **Or via Homebrew (macOS):**
-
-   ```bash
-   brew install jlowin/tap/beads
-   ```
-
-4. **Or via Cargo (if Rust installed):**
-
-   ```bash
-   cargo install beads
-   ```
-
-5. **Or build from source:**
-
-   ```bash
-   git clone https://github.com/jlowin/beads.git
-   cd beads
-   cargo install --path .
-   ```
-
-6. **Verify installation:**
-
-   ```bash
-   bd --version
-   # Output: beads X.X.X
-   ```
-
-7. **Add to PATH if needed:**
-
-   ```bash
-   # Find installation
-   which bd
-
-   # Add directory to PATH in ~/.bashrc or ~/.zshrc
-   export PATH="$PATH:$(dirname $(which bd))"
-   ```
-
-8. **Re-run setup:**
-   ```bash
-   ./scripts/setup-protolab.sh /path/to/project
-   ```
-
-**Related Errors:** E003, E005, E009
-
-**Prevention:**
-
-```bash
-# Install all CLIs upfront
-curl -fsSL https://get.beads.sh | bash
-npm install -g @anthropic-ai/claude-cli
-sudo apt-get install jq  # Or brew install jq on macOS
-
-# Verify all
-bd --version
-claude --version
-jq --version
 ```
 
 ---
@@ -495,7 +388,7 @@ $ ./scripts/setup-protolab.sh /path/to/project
    ./scripts/setup-protolab.sh /path/to/project
    ```
 
-**Related Errors:** E003, E004
+**Related Errors:** E003
 
 **Prevention:**
 
@@ -830,206 +723,6 @@ AUTOMAKER_URL=http://localhost:3008 ./scripts/setup-protolab.sh /path/to/project
 
 # For production - use proper HTTPS with valid cert
 AUTOMAKER_URL=https://automaker.example.com ./scripts/setup-protolab.sh /path/to/project
-```
-
----
-
-### E009: Beads initialization failed
-
-**Full Message:**
-
-```
-✗ Beads initialization failed
-  bd init exited with error code X
-```
-
-**Root Causes:**
-
-- Directory permissions
-- Beads daemon crashed
-- Corrupted beads configuration
-- Insufficient disk space
-- Incompatible Beads version
-- Port conflicts with daemon
-
-**Example Scenario:**
-
-```bash
-$ cd /path/to/project
-$ bd init --prefix myproject
-Error: Could not initialize beads database
-
-$ ./scripts/setup-protolab.sh /path/to/project
-✗ Beads initialization failed
-```
-
-**Step-by-Step Fix:**
-
-1. **Check Beads status:**
-
-   ```bash
-   bd status
-   bd daemon status
-   ```
-
-2. **Stop Beads daemon:**
-
-   ```bash
-   bd daemon stop
-   sleep 2
-   ```
-
-3. **Clear Beads cache:**
-
-   ```bash
-   rm -rf ~/.beads/cache
-   rm -rf ~/.beads/.lock*
-   ```
-
-4. **Check directory permissions:**
-
-   ```bash
-   ls -la /path/to/project
-   chmod u+w /path/to/project
-   ```
-
-5. **Check if .beads already exists:**
-
-   ```bash
-   rm -rf /path/to/project/.beads
-   ```
-
-6. **Try initialization manually:**
-
-   ```bash
-   cd /path/to/project
-   bd init --force --no-daemon
-   ```
-
-7. **Check logs:**
-
-   ```bash
-   bd logs
-   cat ~/.beads/logs/latest.log | tail -50
-   ```
-
-8. **If still failing - upgrade Beads:**
-
-   ```bash
-   curl -fsSL https://get.beads.sh | bash
-   bd --version
-   ```
-
-9. **Re-run setup:**
-   ```bash
-   ./scripts/setup-protolab.sh /path/to/project
-   ```
-
-**Related Errors:** E002, E004, E010
-
-**Prevention:**
-
-```bash
-# Verify Beads working before setup
-bd --version
-bd daemon start
-bd status
-
-# Then run setup
-./scripts/setup-protolab.sh /path/to/project
-```
-
----
-
-### E010: Bead permission error
-
-**Full Message:**
-
-```
-✗ Cannot read/write bead files
-  Permission denied: .beads/...
-```
-
-**Root Causes:**
-
-- .beads directory owned by different user
-- File permissions too restrictive
-- SELinux/AppArmor blocking access
-- Running as root vs regular user
-- Filesystem is read-only
-
-**Example Scenario:**
-
-```bash
-$ ls -la .beads
-drwxr-xr-x beads-owner .beads
-
-$ bd list
-Error: Permission denied
-
-$ ./scripts/setup-protolab.sh /path/to/project
-✗ Cannot read/write bead files
-```
-
-**Step-by-Step Fix:**
-
-1. **Check .beads ownership:**
-
-   ```bash
-   ls -la .beads/
-   stat .beads/
-   ```
-
-2. **Fix ownership:**
-
-   ```bash
-   cd /path/to/project
-   sudo chown -R $(whoami) .beads/
-   ```
-
-3. **Fix permissions:**
-
-   ```bash
-   chmod -R u+rw .beads/
-   chmod -R u+x .beads/*/  # Make dirs executable
-   ```
-
-4. **Verify permissions:**
-
-   ```bash
-   ls -la .beads/
-   ```
-
-5. **Test Beads access:**
-
-   ```bash
-   bd list
-   bd create "test"
-   ```
-
-6. **Remove and reinitialize if needed:**
-
-   ```bash
-   rm -rf .beads/
-   bd init --force
-   ```
-
-7. **Re-run setup:**
-   ```bash
-   ./scripts/setup-protolab.sh /path/to/project
-   ```
-
-**Related Errors:** E002, E009, E012
-
-**Prevention:**
-
-```bash
-# Use consistent user for all operations
-# Don't mix sudo and regular user commands
-./scripts/setup-protolab.sh /path/to/project  # Don't use sudo
-
-# If you must use sudo, ensure ownership matches
-sudo chown -R $(whoami) /path/to/project
 ```
 
 ---
@@ -1916,7 +1609,6 @@ Before running setup, verify:
 - [ ] Node.js ≥22.0: `node --version`
 - [ ] npm is installed: `npm --version`
 - [ ] Claude CLI installed: `claude --version`
-- [ ] Beads installed: `bd --version`
 - [ ] jq installed: `jq --version`
 - [ ] Project directory exists: `ls -la /path/to/project`
 - [ ] Project is writable: `touch /path/to/project/test && rm /path/to/project/test`

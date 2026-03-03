@@ -180,5 +180,5 @@ git worktree remove --force .worktrees/feature-foo             # force (uncommit
 | Starting agent without rebase | Mid-feature merge conflicts, wasted work | Always `fetch` + `rebase origin/dev` first |
 | `git worktree remove` with uncommitted work | Data loss | Check `git status --short` first |
 | `git checkout <branch>` in main repo | Modifies `.automaker/features/` on disk → data loss | Use worktrees or `git -C <wt> checkout` |
-| `git add -A` in main repo | Captures runtime files (.automaker/, .beads/) | Use `git add <specific-files>` |
+| `git add -A` in main repo | Captures runtime files (.automaker/) | Use `git add <specific-files>` |
 | Not `cd`-ing back after worktree commands | Next Bash call starts in wrong directory | Always return: `&& cd /Users/kj/dev/automaker` |

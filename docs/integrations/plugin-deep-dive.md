@@ -219,7 +219,7 @@ Silent if all checks pass -- no context noise on healthy sessions.
 
 #### session-context.sh
 
-Injects board state into Claude's context. Reads feature JSON files directly from `.automaker/features/*/feature.json`, counts by status, shows the current git branch, and flags active work. Also integrates with Beads CLI and restores pre-compaction context from `data/ava-session-state.json`.
+Injects board state into Claude's context. Reads feature JSON files directly from `.automaker/features/*/feature.json`, counts by status, shows the current git branch, and flags active work. Also restores pre-compaction context from `data/ava-session-state.json`.
 
 #### compaction-prime-directive.sh
 
@@ -347,7 +347,7 @@ Claude Code starts
 ```
 Context window approaching limit
   → PreCompact hook fires:
-    → pre-compact-save-state.sh (snapshots board, PRs, Beads to ava-session-state.json)
+    → pre-compact-save-state.sh (snapshots board, PRs to ava-session-state.json)
   → Claude Code compresses conversation
   → SessionStart (compact matcher) hooks fire:
     → compaction-prime-directive.sh (identity restoration, operational rules)

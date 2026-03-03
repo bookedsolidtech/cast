@@ -240,11 +240,6 @@ export type EventType =
   | 'decision:logged'
   | 'decision:superseded'
   | 'decision:reverted'
-  // Beads task management events
-  | 'beads:task-created'
-  | 'beads:task-updated'
-  | 'beads:task-closed'
-  | 'beads:dependency-added'
   // Ceremony events (milestone updates and project retrospectives)
   | 'ceremony:milestone-update'
   | 'ceremony:project-retro'

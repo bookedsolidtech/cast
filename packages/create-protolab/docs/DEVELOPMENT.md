@@ -27,7 +27,6 @@ The ProtoLab setup follows this pipeline:
 
 2. Initialization Phase
    - Initialize git repository (if needed)
-   - Initialize Beads issue tracker
    - Initialize Automaker structure
 
 3. Plugin Phase
@@ -44,14 +43,13 @@ The ProtoLab setup follows this pipeline:
 **Validation**
 
 - Location: scripts/setup-protolab.sh (lines ~60-130)
-- Checks: git, Claude CLI, Beads CLI, jq, Automaker server
+- Checks: git, Claude CLI, jq, Automaker server
 - Exit codes: E001-E008
 
 **Initialization**
 
-- Beads: scripts/setup-protolab.sh (lines ~150-200)
 - Automaker: via API call to /api/setup/project
-- Exit codes: E009-E012
+- Exit codes: E011-E012
 
 **Plugin Setup**
 
@@ -123,31 +121,9 @@ brew install docker  # or appropriate command
 
 ## Adding New Template Files
 
-Template files are created in .automaker/ and .beads/ directories during setup.
+Template files are created in .automaker/ directory during setup.
 
-### 1. Beads Templates
-
-Beads templates are initialized via bd init command - handled by Beads CLI itself.
-
-To customize Beads behavior:
-
-```bash
-# In project directory after setup
-cd /path/to/project
-
-# Create custom Beads configuration
-cat > .beads/config.json << 'CONFIG'
-{
-  "prefix": "project-name",
-  "database": ".beads/db.json"
-}
-CONFIG
-
-# Verify
-bd list
-```
-
-### 2. Automaker Templates
+### 1. Automaker Templates
 
 Automaker templates are created by the server API call. To add new templates:
 
@@ -171,7 +147,7 @@ const newTemplate = {
 filesCreated.push(newTemplate);
 ```
 
-### 3. Git Templates
+### 2. Git Templates
 
 To add Git hooks or workflow templates:
 
@@ -188,7 +164,7 @@ HOOK
 chmod +x /path/to/project/.git/hooks/pre-commit
 ```
 
-### 4. GitHub Actions Templates
+### 3. GitHub Actions Templates
 
 Add workflow files to .github/workflows/:
 
@@ -231,7 +207,6 @@ git config user.name "Test User"
 /path/to/automaker/scripts/setup-protolab.sh .
 
 # Verify setup
-ls -la .beads/
 ls -la .automaker/
 cd .automaker && ls -la
 ```
@@ -321,7 +296,6 @@ Create/update CHANGELOG.md:
 ### Added
 
 - New gap check for Docker
-- Support for custom Beads configuration
 
 ### Fixed
 
@@ -364,7 +338,6 @@ DEBUG=true ./scripts/setup-protolab.sh /path/to/project
 ### 2. Check Logs
 
 ```bash
-tail -f ~/.beads/logs/latest.log
 tail -f ~/.automaker/logs/*.log
 dmesg | tail -20
 ```
@@ -386,10 +359,10 @@ curl -X POST http://localhost:3008/api/setup/project \
 Only run if not already done:
 
 ```bash
-if [ ! -d "$PROJECT_PATH/.beads" ]; then
-  log_info "Initializing Beads..."
+if [ ! -d "$PROJECT_PATH/.automaker" ]; then
+  log_info "Initializing Automaker..."
   # initialization code
-  log_success "Beads initialized"
+  log_success "Automaker initialized"
 fi
 ```
 
@@ -499,4 +472,3 @@ Before submitting PR:
 - jq Documentation: https://stedolan.github.io/jq/manual/
 - curl Documentation: https://curl.se/docs/
 - gh CLI Documentation: https://cli.github.com/manual/
-- Beads Documentation: https://github.com/jlowin/beads

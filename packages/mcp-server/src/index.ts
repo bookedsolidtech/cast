@@ -991,11 +991,6 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
         guildId: args.guildId,
       });
 
-    case 'setup_beads':
-      return apiCall('/setup/beads', {
-        projectPath: args.projectPath,
-      });
-
     case 'run_full_setup': {
       // Step 1: Detect if projectPath is a git URL and clone if needed
       let projectPath = args.projectPath as string;

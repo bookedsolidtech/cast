@@ -8,12 +8,11 @@ This guide covers common errors and recovery steps for ProtoLab setup.
 2. [Git Issues](#git-issues)
 3. [CLI Tool Issues](#cli-tool-issues)
 4. [Server Connection Issues](#server-connection-issues)
-5. [Beads Issues](#beads-issues)
-6. [Automaker Issues](#automaker-issues)
-7. [Plugin Installation Issues](#plugin-installation-issues)
-8. [CI/CD Setup Issues](#cicd-setup-issues)
-9. [Platform-Specific Issues](#platform-specific-issues)
-10. [Recovery Procedures](#recovery-procedures)
+5. [Automaker Issues](#automaker-issues)
+6. [Plugin Installation Issues](#plugin-installation-issues)
+7. [CI/CD Setup Issues](#cicd-setup-issues)
+8. [Platform-Specific Issues](#platform-specific-issues)
+9. [Recovery Procedures](#recovery-procedures)
 
 ---
 
@@ -211,35 +210,6 @@ echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 source ~/.bashrc
 ```
 
-### Error: "beads CLI (bd) is not installed"
-
-**Symptoms:** E004 - bd command not found
-
-**Causes:**
-
-- Beads not installed
-- Beads not in PATH
-- Old/incompatible version
-
-**Fix:**
-
-```bash
-# Install latest Beads
-curl -fsSL https://get.beads.sh | bash
-
-# Or via Homebrew (macOS)
-brew install jlowin/tap/beads
-
-# Or from source
-git clone https://github.com/jlowin/beads.git
-cd beads
-cargo install --path .
-
-# Verify installation
-bd --version
-# Should output: beads X.X.X
-```
-
 ### Error: "jq is not installed"
 
 **Symptoms:** E005 - jq command not found or JSON parsing fails
@@ -396,91 +366,6 @@ AUTOMAKER_INSECURE=true ./scripts/setup-protolab.sh /path/to/project
 curl -k http://localhost:3008/api/health
 
 # For production, ensure valid certificates are installed
-```
-
----
-
-## Beads Issues
-
-### Error: "Beads already initialized in this project"
-
-**Symptoms:** .beads/ directory already exists
-
-**Causes:**
-
-- Beads was already initialized
-- Re-running setup on same project
-
-**Fix:**
-
-```bash
-# Option 1: Reinitialize (answer 'y' when prompted)
-./scripts/setup-protolab.sh /path/to/project
-
-# Option 2: Manually reset beads
-cd /path/to/project
-rm -rf .beads/
-bd init --prefix "$(basename $(pwd))" --no-daemon
-
-# Option 3: Skip reinitialization (answer 'n' when prompted)
-```
-
-### Error: "Beads initialization failed"
-
-**Symptoms:** E009 - bd init command exits with error
-
-**Causes:**
-
-- Beads version incompatible
-- Directory permission issues
-- Beads daemon crashed
-- Disk full
-
-**Fix:**
-
-```bash
-# Check beads status
-bd status
-
-# Kill any stray daemon processes
-bd daemon stop
-sleep 2
-
-# Clear beads cache
-rm -rf ~/.beads/cache
-
-# Try initialization again
-cd /path/to/project
-bd init --force --no-daemon
-
-# Check logs
-bd logs
-```
-
-### Error: "Cannot read/write bead files"
-
-**Symptoms:** E010 - Permission errors when accessing .beads/
-
-**Causes:**
-
-- Wrong file permissions
-- Owner mismatch
-- Mounted filesystem issues
-
-**Fix:**
-
-```bash
-cd /path/to/project
-
-# Fix permissions
-chmod -R u+rw .beads/
-
-# Or fix ownership
-sudo chown -R $(whoami) .beads/
-
-# Verify beads can write
-bd create "test task"
-bd list
 ```
 
 ---
@@ -753,7 +638,7 @@ gh repo view --web
 **Symptoms:**
 
 - Permission denied even as admin
-- "not permitted" errors on .beads or .automaker
+- "not permitted" errors on .automaker
 
 **Causes:**
 
@@ -870,7 +755,7 @@ sed -i 's/\r$//' ./scripts/setup-protolab.sh
 
 **Symptoms:**
 
-- Cannot write to ~/.beads or ~/.claude
+- Cannot write to ~/.claude
 
 **Causes:**
 
@@ -893,8 +778,6 @@ getenforce
 
 # If enforcing, may need policy changes
 # Or run as appropriate user
-sudo semanage fcontext -a -t user_home_t "~/.beads(/.*)?"
-restorecon -R ~/.beads
 ```
 
 ---
@@ -909,27 +792,13 @@ If setup is corrupted and you need to start fresh:
 cd /path/to/project
 
 # 1. Backup existing data
-cp -r .beads .beads.backup 2>/dev/null || true
 cp -r .automaker .automaker.backup 2>/dev/null || true
 
 # 2. Remove existing setup
-rm -rf .beads .automaker
+rm -rf .automaker
 
 # 3. Re-run setup
 ../../scripts/setup-protolab.sh .
-```
-
-### Partial Reset - Beads Only
-
-```bash
-cd /path/to/project
-
-# Backup data
-cp -r .beads .beads.backup
-
-# Remove and reinitialize
-rm -rf .beads
-bd init --prefix "$(basename $(pwd))" --no-daemon
 ```
 
 ### Partial Reset - Automaker Only
@@ -962,7 +831,6 @@ set -x  # In bash script
 VERBOSE=1 ./scripts/setup-protolab.sh /path/to/project
 
 # Check logs
-cat ~/.beads/logs/latest.log
 cat ~/.automaker/logs/setup.log
 ```
 
@@ -990,13 +858,12 @@ If you still can't resolve the issue:
    git --version
 
    # CLI status
-   which claude bd jq gh
+   which claude jq gh
 
    # Service status
    curl -v http://localhost:3008/api/health
 
    # File status
-   ls -la ~/.beads
    ls -la ~/.claude
    ls -la /path/to/project/.automaker
    ```

@@ -2,7 +2,7 @@
 
 ## setup-protolab.sh
 
-**Purpose**: Comprehensive setup script that initializes a project with Beads, Automaker, and the Claude Code plugin.
+**Purpose**: Comprehensive setup script that initializes a project with Automaker and the Claude Code plugin.
 
 ### Usage
 
@@ -17,16 +17,11 @@ npm run setup-lab -- /path/to/project
 ### What It Does
 
 1. **Validates Prerequisites**
-   - Checks for git, bd (beads CLI), and claude CLI
+   - Checks for git and claude CLI
    - Verifies Automaker server is running
    - Validates project path exists
 
-2. **Initializes Beads** (`.beads/`)
-   - Creates issue tracker with project prefix
-   - Sets up SQLite database
-   - Configures git integration
-
-3. **Initializes Automaker** (`.automaker/`)
+2. **Initializes Automaker** (`.automaker/`)
    - Creates directory structure:
      - `features/` - Feature definitions
      - `context/` - Context files for agents
@@ -35,7 +30,7 @@ npm run setup-lab -- /path/to/project
    - Creates initial `CLAUDE.md` template
    - Adds project to Automaker settings
 
-4. **Ensures Plugin Installation**
+3. **Ensures Plugin Installation**
    - Configures plugin marketplace
    - Installs Automaker plugin for Claude Code
    - Updates to latest version if already installed
@@ -44,7 +39,6 @@ npm run setup-lab -- /path/to/project
 
 - **Node.js**: >= 22.0.0
 - **git**: For version control
-- **bd (beads CLI)**: https://github.com/jlowin/beads
 - **claude CLI**: https://claude.ai/code
 - **jq**: JSON processor (for parsing API responses)
 - **curl**: For API calls
@@ -85,9 +79,8 @@ After running the script, you can:
 
 1. **Open Claude Code** in the project directory
 2. **Create features** with `/board`
-3. **Create tasks** with `bd create "task description"`
-4. **View board** with `/board`
-5. **Start auto-mode** with `/auto-mode start`
+3. **View board** with `/board`
+4. **Start auto-mode** with `/auto-mode start`
 
 ### Troubleshooting
 
@@ -95,11 +88,6 @@ After running the script, you can:
 
 - Start the server: `npm run dev` (in automaker repo)
 - Or continue without it (will skip Automaker initialization)
-
-**Script fails with "bd: command not found"**
-
-- Install beads: https://github.com/jlowin/beads
-- Or: `brew install jlowin/tap/bd`
 
 **Script fails with "claude: command not found"**
 
@@ -109,11 +97,6 @@ After running the script, you can:
 
 - Install jq: `brew install jq`
 
-**Beads setup warnings**
-
-- Run `bd doctor --fix` in the project directory to fix common issues
-- See beads documentation for details
-
 ### Script Structure
 
 ```
@@ -121,13 +104,8 @@ setup-protolab.sh
 ├── Prerequisites Check
 │   ├── Validate path
 │   ├── Check git
-│   ├── Check bd CLI
 │   ├── Check claude CLI
 │   └── Check Automaker server
-├── Beads Initialization
-│   ├── Detect existing setup
-│   ├── Run bd init
-│   └── Report status
 ├── Automaker Initialization
 │   ├── Call /api/setup/project
 │   ├── Create directory structure
@@ -147,7 +125,6 @@ setup-protolab.sh
 
 The script will prompt for confirmation in these cases:
 
-- Reinitializing beads if already initialized
 - Reinitializing Automaker if already initialized
 - Continuing if Automaker server is not running
 
