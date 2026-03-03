@@ -1,5 +1,27 @@
 # @protolabs-ai/model-resolver
 
+## 0.30.0
+
+### Minor Changes
+
+- ### Features
+  - remove file editor feature flag and fix tooltip provider
+  - add New Terminal button to empty terminal state
+  - add one-time scheduled jobs to calendar
+  - wire file editor to upstream parity — CodeMirror, tabs, tree context menu, diff, 30+ languages
+
+  ### Bug Fixes
+  - dark mode for date picker, sonner toasts, scrollbars, and sidebar overlay auto-close
+  - rename sidebar nav item from Kanban Board to Board
+  - bold date and add separator in clock hover popover
+  - use 24h format for ticker clock, keep 12h in hover popover
+  - clock updates every second, add hover popover with full date/time
+
+### Patch Changes
+
+- Updated dependencies
+  - @protolabs-ai/types@0.30.0
+
 ## 0.29.0
 
 ### Minor Changes
