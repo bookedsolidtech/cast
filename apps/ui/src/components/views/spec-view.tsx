@@ -84,7 +84,7 @@ export function SpecView() {
     handleRegenerate,
     handleGenerateFeatures,
     handleSync,
-  } = useSpecGeneration({ loadSpec });
+  } = useSpecGeneration({ loadSpec, isGenerationRunning });
 
   // Handle mode change - if parse is invalid, force source mode
   const handleModeChange = useCallback(

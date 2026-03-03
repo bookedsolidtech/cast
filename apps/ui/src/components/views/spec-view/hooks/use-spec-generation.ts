@@ -7,16 +7,17 @@ import { getElectronAPI } from '@/lib/electron';
 import { toast } from 'sonner';
 import { CheckCircle2 } from 'lucide-react';
 import { createElement } from 'react';
-import { SPEC_FILE_WRITE_DELAY, STATUS_CHECK_INTERVAL_MS } from '../constants';
+import { SPEC_FILE_WRITE_DELAY } from '../constants';
 import type { FeatureCount } from '../types';
 import type { SpecRegenerationEvent } from '@/types/electron';
 import { useCreateSpec, useRegenerateSpec, useGenerateFeatures } from '@/hooks/mutations';
 
 interface UseSpecGenerationOptions {
   loadSpec: () => Promise<void>;
+  isGenerationRunning: boolean;
 }
 
-export function useSpecGeneration({ loadSpec }: UseSpecGenerationOptions) {
+export function useSpecGeneration({ loadSpec, isGenerationRunning }: UseSpecGenerationOptions) {
   const { currentProject } = useAppStore();
 
   // React Query mutations
@@ -55,7 +56,6 @@ export function useSpecGeneration({ loadSpec }: UseSpecGenerationOptions) {
   // Phase tracking and status
   const [currentPhase, setCurrentPhase] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
-  const statusCheckRef = useRef<boolean>(false);
   const stateRestoredRef = useRef<boolean>(false);
   const pendingStatusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -70,7 +70,6 @@ export function useSpecGeneration({ loadSpec }: UseSpecGenerationOptions) {
     setLogs('');
     logsRef.current = '';
     stateRestoredRef.current = false;
-    statusCheckRef.current = false;
 
     if (pendingStatusTimeoutRef.current) {
       clearTimeout(pendingStatusTimeoutRef.current);
@@ -78,155 +77,18 @@ export function useSpecGeneration({ loadSpec }: UseSpecGenerationOptions) {
     }
   }, [currentProject?.path]);
 
-  // Check if spec regeneration is running when component mounts or project changes
+  // Sync local state from React Query's isGenerationRunning
   useEffect(() => {
-    const checkStatus = async () => {
-      if (!currentProject || statusCheckRef.current) return;
-      statusCheckRef.current = true;
-
-      try {
-        const api = getElectronAPI();
-        if (!api.specRegeneration) {
-          statusCheckRef.current = false;
-          return;
-        }
-
-        const status = await api.specRegeneration.status(currentProject.path);
-        logger.debug(
-          '[useSpecGeneration] Status check on mount:',
-          status,
-          'for project:',
-          currentProject.path
-        );
-
-        if (status.success && status.isRunning) {
-          logger.debug('[useSpecGeneration] Spec generation is running for this project.');
-
-          setIsCreating(true);
-          setIsRegenerating(true);
-          if (status.currentPhase) {
-            setCurrentPhase(status.currentPhase);
-          } else {
-            setCurrentPhase('initialization');
-          }
-
-          if (pendingStatusTimeoutRef.current) {
-            clearTimeout(pendingStatusTimeoutRef.current);
-          }
-          pendingStatusTimeoutRef.current = setTimeout(() => {
-            logger.debug(
-              '[useSpecGeneration] No events received for current project - clearing tentative state'
-            );
-            setIsCreating(false);
-            setIsRegenerating(false);
-            setCurrentPhase('');
-            pendingStatusTimeoutRef.current = null;
-          }, 3000);
-        } else if (status.success && !status.isRunning) {
-          setIsCreating(false);
-          setIsRegenerating(false);
-          setCurrentPhase('');
-          stateRestoredRef.current = false;
-        }
-      } catch (error) {
-        logger.error('[useSpecGeneration] Failed to check status:', error);
-      } finally {
-        statusCheckRef.current = false;
-      }
-    };
-
-    stateRestoredRef.current = false;
-    checkStatus();
-  }, [currentProject]);
-
-  // Sync state when tab becomes visible
-  useEffect(() => {
-    const handleVisibilityChange = async () => {
-      if (
-        !document.hidden &&
-        currentProject &&
-        (isCreating || isRegenerating || isGeneratingFeatures || isSyncing)
-      ) {
-        try {
-          const api = getElectronAPI();
-          if (!api.specRegeneration) return;
-
-          const status = await api.specRegeneration.status(currentProject.path);
-          logger.debug('[useSpecGeneration] Visibility change - status check:', status);
-
-          if (!status.isRunning) {
-            logger.debug(
-              '[useSpecGeneration] Visibility change: Backend indicates generation complete - clearing state'
-            );
-            setIsCreating(false);
-            setIsRegenerating(false);
-            setIsGeneratingFeatures(false);
-            setIsSyncing(false);
-            setCurrentPhase('');
-            stateRestoredRef.current = false;
-            loadSpec();
-          } else if (status.currentPhase) {
-            setCurrentPhase(status.currentPhase);
-          }
-        } catch (error) {
-          logger.error('[useSpecGeneration] Failed to check status on visibility change:', error);
-        }
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [currentProject, isCreating, isRegenerating, isGeneratingFeatures, isSyncing, loadSpec]);
-
-  // Periodic status check
-  useEffect(() => {
-    if (!currentProject || (!isCreating && !isRegenerating && !isGeneratingFeatures && !isSyncing))
-      return;
-
-    const intervalId = setInterval(async () => {
-      try {
-        const api = getElectronAPI();
-        if (!api.specRegeneration) return;
-
-        const status = await api.specRegeneration.status(currentProject.path);
-
-        if (!status.isRunning) {
-          logger.debug(
-            '[useSpecGeneration] Periodic check: Backend indicates generation complete - clearing state'
-          );
-          setIsCreating(false);
-          setIsRegenerating(false);
-          setIsGeneratingFeatures(false);
-          setIsSyncing(false);
-          setCurrentPhase('');
-          stateRestoredRef.current = false;
-          loadSpec();
-        } else if (status.currentPhase && status.currentPhase !== currentPhase) {
-          logger.debug('[useSpecGeneration] Periodic check: Phase updated from backend', {
-            old: currentPhase,
-            new: status.currentPhase,
-          });
-          setCurrentPhase(status.currentPhase);
-        }
-      } catch (error) {
-        logger.error('[useSpecGeneration] Periodic status check error:', error);
-      }
-    }, STATUS_CHECK_INTERVAL_MS);
-
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, [
-    currentProject,
-    isCreating,
-    isRegenerating,
-    isGeneratingFeatures,
-    isSyncing,
-    currentPhase,
-    loadSpec,
-  ]);
+    if (isGenerationRunning && !isCreating && !isRegenerating) {
+      setIsCreating(true);
+      setIsRegenerating(true);
+      setCurrentPhase('initialization');
+    } else if (!isGenerationRunning && !stateRestoredRef.current) {
+      setIsCreating(false);
+      setIsRegenerating(false);
+      setCurrentPhase('');
+    }
+  }, [isGenerationRunning]);
 
   // Subscribe to spec regeneration events
   useEffect(() => {

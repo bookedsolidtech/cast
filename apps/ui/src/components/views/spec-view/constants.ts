@@ -3,9 +3,6 @@ import type { FeatureCount } from './types';
 // Delay before reloading spec file to ensure it's written to disk
 export const SPEC_FILE_WRITE_DELAY = 500;
 
-// Interval for polling backend status during generation
-export const STATUS_CHECK_INTERVAL_MS = 2000;
-
 // Feature count options with labels and warnings
 export const FEATURE_COUNT_OPTIONS: {
   value: FeatureCount;
