@@ -29,9 +29,6 @@ mcp: get_auto_mode_status → running? should it be?
 
 # 4. Open PRs
 gh pr list --state open --json number,title,statusCheckRollup,autoMergeRequest
-
-# 5. Beads queue
-bd ready → what's unblocked?
 ```
 
 ## Decision Matrix
@@ -47,7 +44,6 @@ bd ready → what's unblocked?
 | PR behind main | Stale branch | Update branch |
 | Agent stuck > 30 min | Hung agent | Stop and reset feature |
 | Auto-mode stopped + backlog > 0 | Idle capacity | Start auto-mode |
-| Beads P0/P1 ready | High priority ops | Claim and execute immediately |
 | Types PR just merged | Stale dist risk | `npm run build:packages` |
 
 ## Deep Check (2 minutes, periodic)
@@ -77,7 +73,6 @@ mcp: get_capacity_metrics → utilization?
 | Quick check | Every activation | Always first |
 | Deep check | Every 30 min | During long sessions |
 | Full audit | Daily | Start of day / new session |
-| Beads sync | Before sign-off | Always last |
 
 ## Red Flags (Immediate Action)
 

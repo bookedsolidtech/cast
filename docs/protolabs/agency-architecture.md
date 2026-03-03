@@ -16,7 +16,6 @@ graph TB
         AVA_TRIAGE["Ava (CoS)<br/>Signal Classification"]
         AVA_TRIAGE -->|idea| IDEA_PROC
         AVA_TRIAGE -->|bug| BUG_FAST["Fast-track:<br/>Create feature → Agent"]
-        AVA_TRIAGE -->|ops improvement| BEADS_CREATE["Create Bead<br/>→ Self-improvement"]
         AVA_TRIAGE -->|gtm/content| JON_ROUTE["Route to Jon"]
     end
 
@@ -87,7 +86,6 @@ Signal triage, quality gates, team health, and external communication.
 - **Antagonistic review** — Challenges every PRD alongside Jon before approval
 - **Lead Engineer** — Event-driven orchestrator with fast-path rules, state machine
 - **Ceremonies** — Standup, retro, project-retro via Discord
-- **Beads** — Operational work queue for self-improvement tasks
 - **Discord comms** — Status updates, alerts, Josh coordination
 
 ### Engineering (Lead Engineer)
@@ -166,7 +164,6 @@ Ava is the hub. All strategic decisions flow through her. Communication channels
 | **Escalation pipeline**         | `apps/server/src/services/escalation-router.ts`             | 5 channels, SLA engine                                  |
 | **Signal accumulator**          | `apps/server/src/services/`                                 | Severity classification + briefing                      |
 | **Agent memory**                | `.automaker/memory/*.md`                                    | Per-agent learning files                                |
-| **Beads task tracking**         | `.beads/issues.jsonl`                                       | Operational task queue                                  |
 | **Discord MCP**                 | `packages/mcp-server/plugins/automaker/`                    | Send, read, channels, webhooks                          |
 | **Conflict resolution UI**      | `apps/ui/src/`                                              | Linear sync conflict handling                           |
 | **Idea processing service**     | `apps/server/src/services/idea-processing-service.ts`       | Session management for LangGraph idea flow              |

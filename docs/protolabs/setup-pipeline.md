@@ -25,7 +25,6 @@ The `/setuplab` command is the entry point for onboarding any repository to prot
     │  POST /api/setup/research     → Phase 1   │
     │  POST /api/setup/gap-analysis → Phase 2   │
     │  POST /api/setup/project      → Phase 3   │
-    │  POST /api/setup/beads        → Phase 3   │
     │  POST /api/setup/propose      → Phase 4   │
     │                                            │
     │  Services:                                 │
@@ -42,7 +41,6 @@ The `/setuplab` command is the entry point for onboarding any repository to prot
 | `research_repo`     | Scan repo structure, detect tech stack      | 1     |
 | `analyze_gaps`      | Compare against gold standard               | 2     |
 | `setup_lab`         | Initialize .automaker/ (existing, enhanced) | 3     |
-| `setup_beads`       | Initialize .beads/ task tracker             | 3     |
 | `provision_discord` | Create Discord channels                     | 3     |
 | `propose_alignment` | Convert gaps to board features              | 4     |
 | `run_full_setup`    | Chain all phases (convenience)              | 1-4   |
@@ -105,7 +103,6 @@ Templates use `{{variable}}` interpolation.
 - ESLint 9 flat config
 - Pre-commit hooks (Husky + lint-staged)
 - VitePress docs site (`docs/` directory with auto-generated sidebar)
-- Beads task tracker
 - Discord channels
 - CodeRabbit (strict profile — never use chill)
 - Umami analytics (privacy-friendly traffic tracking)
@@ -131,7 +128,6 @@ Templates use `{{variable}}` interpolation.
 | `apps/server/src/routes/setup/routes/gap-analysis.ts`      | Gap analysis route handler   |
 | `apps/server/src/routes/setup/routes/propose.ts`           | Proposal route handler       |
 | `apps/server/src/routes/setup/routes/discord-provision.ts` | Discord provisioning handler |
-| `apps/server/src/routes/setup/routes/beads.ts`             | Beads init handler           |
 | `apps/server/src/templates/cicd/**`                        | CI/CD workflow templates     |
 | `apps/server/src/templates/context/**`                     | Context file templates       |
 | `docs/protolabs/setup-pipeline.md`                         | This file                    |

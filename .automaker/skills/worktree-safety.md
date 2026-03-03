@@ -46,15 +46,15 @@ git -C /path/to/.worktrees/branch-name diff
 - Create branches with `git branch` + `git push` (no switch)
 - Only use `git checkout` inside worktree directories
 
-## NEVER Use `git add -A` with .automaker or .beads
+## NEVER Use `git add -A` with .automaker
 
-`git add -A` captures runtime files (feature.json, beads.db) that should not be committed.
+`git add -A` captures runtime files (feature.json) that should not be committed.
 
 ### Instead:
 ```bash
 git add <specific-files>
 # Or exclude automaker:
-git add -A -- ':!.automaker/' ':!.beads/'
+git add -A -- ':!.automaker/'
 ```
 
 ## CWD Persists Across Bash Calls

@@ -233,7 +233,7 @@ All flows above operate within a single protoLabs instance. Each instance starts
 | Layer              | Examples                                               | Scope          |
 | ------------------ | ------------------------------------------------------ | -------------- |
 | **Shared (git)**   | `.automaker/context/`, `memory/`, `skills/`, `spec.md` | All instances  |
-| **Instance-local** | `.automaker/features/`, `projects/`, `.beads/`         | Single machine |
+| **Instance-local** | `.automaker/features/`, `projects/`                    | Single machine |
 
 Knowledge compounds across all instances via git. Operations are ephemeral by design — when a new VM spins up, it runs setupLab to build context from research rather than inheriting another machine's state.
 

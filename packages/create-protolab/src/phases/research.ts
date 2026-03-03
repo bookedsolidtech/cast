@@ -410,7 +410,6 @@ export async function researchRepo(projectPath: string): Promise<RepoResearchRes
   // ---- Automation ----
   const automation: RepoResearchResult['automation'] = {
     hasAutomaker: await exists(path.join(absolutePath, '.automaker')),
-    hasBeads: await exists(path.join(absolutePath, '.beads')),
     hasDiscordIntegration: false, // Would need to check protolab.config
     hasProtolabConfig: await exists(path.join(absolutePath, 'protolab.config')),
     hasAnalytics: false,
@@ -564,7 +563,7 @@ export async function researchRepo(projectPath: string): Promise<RepoResearchRes
   for (const entry of topEntries) {
     if (entry.startsWith('.')) {
       // Track important dotfiles/dirs
-      if (['.github', '.automaker', '.beads', '.husky', '.storybook'].includes(entry)) {
+      if (['.github', '.automaker', '.husky', '.storybook'].includes(entry)) {
         topDirs.push(entry);
       }
       if (

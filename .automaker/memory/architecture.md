@@ -727,7 +727,7 @@ usageStats:
 
 #### [Pattern] State file (`.automaker/setup-state.json`) tracking completed phases for resumability rather than idempotency through command re-execution (2026-02-13)
 - **Problem solved:** Setup can be interrupted at any point. Re-running the CLI after interrupt should skip completed phases, not redo them.
-- **Why this works:** Re-running phases is dangerous (e.g., re-creating git repos overwrites history, re-initializing beads may corrupt state). State file allows granular skip logic: phase-by-phase resume without full re-execution.
+- **Why this works:** Re-running phases is dangerous (e.g., re-creating git repos overwrites history). State file allows granular skip logic: phase-by-phase resume without full re-execution.
 - **Trade-offs:** Easier: clear resume path, obvious state tracking. Harder: state file can go stale or be deleted (lost resume context). Mitigation: state file backed up in rollback system.
 
 #### [Gotcha] Rollback registration must happen BEFORE operation execution, not after success (2026-02-13)
@@ -735,29 +735,16 @@ usageStats:
 - **Root cause:** If operation succeeds but then system crashes before rollback registration, the operation won't be undone. Correct order: register rollback → execute operation → on error, walk rollback stack backwards.
 - **How to avoid:** Easier: rollback logic follows operation logic. Harder: must pre-declare undo action without knowing final outcome (requires careful design of undo operations).
 
-### Graceful degradation for optional tools (gh, gt, bd) - warnings instead of FATAL errors (2026-02-13)
+### Graceful degradation for optional tools (gh, gt) - warnings instead of FATAL errors (2026-02-13)
 - **Context:** CLI requires 7+ tools. Some are optional (improve DX but not required). Question: hard requirement or soft requirement?
-- **Why:** Users may have valid monorepos without gh/gt/bd installed. Blocking on missing optional tools prevents legitimate setups. However, certain tools (git, node, npm, jq) are truly required - these are FATAL.
-- **Rejected:** Hard requirement on all tools - would fail for users in monorepos without gh CLI or Beads installed
-- **Trade-offs:** Easier: broader compatibility. Harder: feature discovery becomes implicit (users don't know gh/gt/bd would improve setup). Mitigation: warning messages suggest tool installation.
+- **Why:** Users may have valid monorepos without gh/gt installed. Blocking on missing optional tools prevents legitimate setups. However, certain tools (git, node, npm, jq) are truly required - these are FATAL.
+- **Trade-offs:** Easier: broader compatibility. Harder: feature discovery becomes implicit (users don't know gh/gt would improve setup). Mitigation: warning messages suggest tool installation.
 - **Breaking if changed:** If optional tools become required (e.g., gh required for team collaboration), CI/CD setups without gh would fail. Conversely, if required tools become optional, setup skips critical validation.
 
 #### [Pattern] Monorepo detection via workspace configuration files (pnpm-workspace.yaml, lerna.json, .yarnrc) rather than heuristic analysis (2026-02-13)
 - **Problem solved:** Different package managers use different workspace formats. CLI needs to detect which one.
 - **Why this works:** File-based detection is reliable (definitive signal) vs heuristics (multiple package.json files could mean monorepo or just nested projects). Fails safely: if no workspace file found, assumes single-repo setup.
 - **Trade-offs:** Easier: deterministic detection. Harder: must know format for each package manager (pnpm, npm, yarn, lerna). Mitigation: list all known formats.
-
-#### [Pattern] Phase-based initialization pattern with status objects returning {success, alreadyInitialized, error} for idempotent operations (2026-02-13)
-- **Problem solved:** Beads initialization needs to be idempotent (safe to call multiple times), handle missing bd CLI gracefully, and integrate into a multi-phase setup workflow
-- **Why this works:** Phase functions are meant to be composable and rerunnable during setup. The status object pattern lets callers distinguish between 'already done', 'just did it', and 'failed' without exceptions for non-error cases (bd CLI missing)
-- **Trade-offs:** Callers must check the full status object rather than just success flag, but this is more informative and enables dry-run/idempotent behavior. Pattern is explicit but slightly verbose
-
-### Set no-daemon: true in .beads/config.yaml AFTER bd init completes, via post-processing YAML file manipulation rather than passing config as arguments to bd init (2026-02-13)
-- **Context:** bd init command doesn't have a CLI flag to set no-daemon mode, but the config must be set before beads is used in production
-- **Why:** bd init generates its own config.yaml with defaults. Only way to override no-daemon is post-processing. Matches Ava's documented requirement that 'no-daemon: true' prevents auto-start issues in server contexts
-- **Rejected:** Could shell escape quotes and pass config via --config flag, but bd doesn't support that pattern. Could also assume user would manually edit config.yaml (error-prone)
-- **Trade-offs:** Adds YAML parsing dependency and extra file I/O, but ensures no-daemon is always set correctly. Makes function fully self-contained for beads setup
-- **Breaking if changed:** If bd changes its config file format or location, the YAML mutation code breaks. Code assumes config.yaml exists after bd init (currently true)
 
 #### [Gotcha] ES modules require explicit __dirname polyfill using fileURLToPath(import.meta.url) + dirname(). This cannot be assumed to exist like in CommonJS. (2026-02-13)
 - **Situation:** Package uses ES modules (type: module in package.json). Template path resolution failed because __dirname was undefined at runtime.

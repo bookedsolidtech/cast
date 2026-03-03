@@ -53,7 +53,6 @@ const MILESTONE_DEFS: { title: string; gapIds: string[] }[] = [
     title: 'Automation & Agents',
     gapIds: [
       'automaker-init',
-      'beads',
       'discord',
       'coderabbit',
       'analytics',

@@ -91,7 +91,6 @@ export interface RepoResearchResult {
 
   automation: {
     hasAutomaker: boolean;
-    hasBeads: boolean;
     hasDiscordIntegration: boolean;
     hasProtolabConfig: boolean;
     hasAnalytics: boolean;
@@ -205,13 +204,6 @@ export interface DiscordProvisionResult {
   error?: string;
 }
 
-export interface BeadsSetupResult {
-  success: boolean;
-  initialized: boolean;
-  alreadyExists: boolean;
-  error?: string;
-}
-
 // ========== Phase 4: Alignment Proposal ==========
 
 export interface AlignmentFeature {
@@ -250,6 +242,5 @@ export interface SetupPipelineResult {
   proposal?: AlignmentProposal;
   initialized: boolean;
   discordProvisioned?: boolean;
-  beadsInitialized?: boolean;
   featuresCreated?: number;
 }

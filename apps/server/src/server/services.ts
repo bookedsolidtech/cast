@@ -59,7 +59,6 @@ import { PipelineCheckpointService } from '../services/pipeline-checkpoint-servi
 import { ProjectService } from '../services/project-service.js';
 import { getSpecGenerationMonitor } from '../services/spec-generation-monitor.js';
 import { FeatureHealthService } from '../services/feature-health-service.js';
-import { BeadsService } from '../services/beads-service.js';
 import { getAvaGatewayService } from '../services/ava-gateway-service.js';
 import { getDiscordService } from '../services/discord-service.js';
 import { LinearAgentService } from '../services/linear-agent-service.js';
@@ -162,8 +161,7 @@ export interface ServiceContainer {
   featureHealthService: FeatureHealthService;
   healthMonitorService: ReturnType<typeof getHealthMonitorService>;
 
-  // Beads & Discord
-  beadsService: BeadsService;
+  // Discord
   discordService: ReturnType<typeof getDiscordService>;
   discordBotService: DiscordBotService;
 
@@ -320,7 +318,6 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
   const claudeUsageService = new ClaudeUsageService();
   const mcpTestService = new MCPTestService(settingsService);
   const featureHealthService = new FeatureHealthService(featureLoader, autoModeService);
-  const beadsService = new BeadsService('bd', events);
   const discordService = getDiscordService();
 
   // Knowledge Store Service for chunked retrieval
@@ -338,7 +335,6 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
 
   const avaGatewayService = getAvaGatewayService(
     featureLoader,
-    beadsService,
     settingsService,
     healthMonitorService
   );
@@ -754,7 +750,6 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
     contextAggregator,
     featureHealthService,
     healthMonitorService,
-    beadsService,
     discordService,
     discordBotService,
     knowledgeStoreService,

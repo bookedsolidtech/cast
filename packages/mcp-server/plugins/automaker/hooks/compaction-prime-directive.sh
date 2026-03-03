@@ -30,11 +30,9 @@ if [ -f "$STATE_FILE" ]; then
   BOARD_SUMMARY=$(jq -r '"- **Board:** \(.board.total) features (\(.board.backlog) backlog, \(.board.in_progress) active, \(.board.review) review, \(.board.blocked) blocked, \(.board.done) done)"' "$STATE_FILE" 2>/dev/null)
   BRANCH=$(jq -r '"- **Branch:** \(.branch)"' "$STATE_FILE" 2>/dev/null)
   PR_COUNT=$(jq -r '"- **Open PRs:** \(.prPipeline.count)"' "$STATE_FILE" 2>/dev/null)
-  BEADS=$(jq -r '"- **Beads:** \(.beads.readyCount) ready (\(.beads.urgentCount) urgent)"' "$STATE_FILE" 2>/dev/null)
   echo "$BRANCH"
   echo "$BOARD_SUMMARY"
   echo "$PR_COUNT"
-  echo "$BEADS"
 fi
 
 cat << 'RULES'

@@ -144,9 +144,6 @@ packages/mcp-server/plugins/automaker/.env
 # Plugin metadata files
 **/.orphaned_at
 
-# Beads — instance-specific operational state, fresh per machine
-.beads/
-
 # Embedded git repos (should be submodules if needed)
 examples/
 # Ephemeral test directories

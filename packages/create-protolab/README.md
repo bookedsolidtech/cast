@@ -1,6 +1,6 @@
 # create-protolab
 
-A comprehensive CLI tool for setting up ProtoLab projects with Beads, Automaker, and Claude Code integration.
+A comprehensive CLI tool for setting up ProtoLab projects with Automaker and Claude Code integration.
 
 ## Quick Start
 
@@ -15,10 +15,9 @@ npm run setup-lab -- /path/to/project
 The setup wizard will:
 
 1. ✓ Validate prerequisites (git, CLI tools)
-2. ✓ Initialize Beads issue tracker
-3. ✓ Initialize Automaker structure
-4. ✓ Install Automaker Claude Code plugin
-5. ✓ Optionally configure CI/CD workflows
+2. ✓ Initialize Automaker structure
+3. ✓ Install Automaker Claude Code plugin
+4. ✓ Optionally configure CI/CD workflows
 
 ## Prerequisites
 
@@ -36,10 +35,6 @@ Before running the setup, ensure you have the following installed:
   - Install: https://claude.ai/code
   - Verify: `claude --version`
 
-- **Beads CLI** (`bd`) - Issue tracking and task management
-  - Install: https://github.com/jlowin/beads
-  - Verify: `bd --version`
-
 - **jq** - JSON processor
   - macOS: `brew install jq`
   - Linux: `apt-get install jq`
@@ -50,10 +45,6 @@ Before running the setup, ensure you have the following installed:
 - **gh CLI** - GitHub command-line interface
   - Install: https://cli.github.com
   - Verify: `gh --version`
-
-- **gt CLI** - Git tooling (for advanced workflows)
-  - Install: https://github.com/git-time-metric/gtm
-  - Verify: `gt --version`
 
 ### Running Automaker Server
 
@@ -78,15 +69,14 @@ If the server is not running, you can continue the setup but may not be able to 
 
 # The setup will:
 # - Initialize git (if not already a repo)
-# - Create .beads/ directory for issue tracking
 # - Create .automaker/ directory for feature management
 # - Install the Claude Code plugin
 # - Optionally setup CI/CD workflows
 ```
 
-### 2. Reinitialize Beads or Automaker
+### 2. Reinitialize Automaker
 
-If you need to reset Beads or Automaker:
+If you need to reset Automaker:
 
 ```bash
 # Answer 'y' when prompted during setup
@@ -96,7 +86,7 @@ If you need to reset Beads or Automaker:
 
 ### 3. Setup CI/CD Only
 
-To setup CI/CD workflows without reinitializing Beads/Automaker:
+To setup CI/CD workflows without reinitializing Automaker:
 
 ```bash
 ./scripts/setup-ci-cd.sh /path/to/project
@@ -107,7 +97,6 @@ To setup CI/CD workflows without reinitializing Beads/Automaker:
 ```bash
 # Check if all prerequisites are met
 which claude
-which bd
 which jq
 which gh
 
@@ -116,7 +105,6 @@ curl -s http://localhost:3008/api/health | jq '.'
 
 # Verify project setup
 cd /path/to/project
-ls -la .beads/
 ls -la .automaker/
 ```
 
@@ -133,8 +121,6 @@ cd /path/to/project
 # Create a new feature
 /feature create "My first feature"
 
-# Or use Beads for task tracking
-bd create "Task name"
 ```
 
 ## Flags and Options
@@ -246,11 +232,6 @@ For detailed error resolution, see:
 - Install: https://claude.ai/code
 - Or: `npm install -g @anthropic-ai/claude-cli`
 
-**Q: "Beads already initialized"**
-
-- The script will ask if you want to reinitialize
-- Or manually: `cd /path/to/project && bd init --force`
-
 **Q: "Automaker server is not running"**
 
 - Start the server: `cd ~/dev/automaker && npm run dev`
@@ -293,7 +274,6 @@ The setup process follows these phases:
 
 2. **Initialization Phase**
    - Initialize git repository (if needed)
-   - Initialize Beads issue tracker
    - Initialize Automaker structure
 
 3. **Plugin Phase**
@@ -353,6 +333,6 @@ MIT - See LICENSE file in root repository
 
 - Initial release
 - Full setup workflow for ProtoLab projects
-- Support for Beads and Automaker integration
+- Automaker integration
 - Claude Code plugin installation
 - CI/CD workflow setup

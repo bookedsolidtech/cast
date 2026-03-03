@@ -4,8 +4,6 @@ import { UINotificationChannel } from './ui-notification-channel.js';
 import { DiscordChannelEscalation } from './discord-channel-escalation.js';
 import { GitHubIssueChannel } from './github-issue-channel.js';
 import { LinearIssueChannel } from './linear-issue-channel.js';
-import { BeadsChannel } from './beads-channel.js';
-
 /**
  * Registers escalation channels with the router.
  *
@@ -13,15 +11,8 @@ import { BeadsChannel } from './beads-channel.js';
  * the Discord bot service to be initialized first.
  */
 export function register(container: ServiceContainer): void {
-  const {
-    events,
-    settingsService,
-    featureLoader,
-    repoRoot,
-    escalationRouter,
-    discordService,
-    beadsService,
-  } = container;
+  const { events, settingsService, featureLoader, repoRoot, escalationRouter, discordService } =
+    container;
 
   escalationRouter.setEventEmitter(events);
   escalationRouter.registerChannel(new UINotificationChannel(events));
@@ -39,5 +30,4 @@ export function register(container: ServiceContainer): void {
       escalationRouter
     )
   );
-  escalationRouter.registerChannel(new BeadsChannel(beadsService, repoRoot));
 }

@@ -70,7 +70,6 @@ function createMockResearch(overrides: Partial<RepoResearchResult> = {}): RepoRe
     },
     automation: {
       hasAutomaker: false,
-      hasBeads: false,
       hasDiscordIntegration: false,
       hasProtolabConfig: false,
       hasAnalytics: false,
@@ -106,7 +105,6 @@ describe('Gap Analysis', () => {
     const equipped = createMockResearch({
       automation: {
         hasAutomaker: true,
-        hasBeads: true,
         hasDiscordIntegration: true,
         hasProtolabConfig: true,
         hasAnalytics: true,

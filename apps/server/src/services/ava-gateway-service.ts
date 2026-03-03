@@ -13,7 +13,6 @@
 import { createLogger } from '@protolabs-ai/utils';
 import type { EventEmitter } from '../lib/events.js';
 import { FeatureLoader } from './feature-loader.js';
-import { BeadsService } from './beads-service.js';
 import type { DiscordBotService } from './discord-bot-service.js';
 import { ClaudeProvider } from '../providers/claude-provider.js';
 import type { SettingsService } from './settings-service.js';
@@ -86,13 +85,12 @@ interface BoardSummary {
  * Ava Gateway Service
  *
  * Runs periodic heartbeat checks on the Automaker board to identify
- * issues requiring immediate attention. Integrates with Discord and Beads
- * for notifications and task creation. Includes resilience features:
+ * issues requiring immediate attention. Integrates with Discord
+ * for notifications. Includes resilience features:
  * circuit breaker, timeout enforcement, and critical event routing.
  */
 export class AvaGatewayService {
   private featureLoader: FeatureLoader;
-  private beadsService: BeadsService;
   private discordBotService: DiscordBotService | null = null;
   private provider: ClaudeProvider | null = null;
   private events: EventEmitter | null = null;
@@ -122,12 +120,10 @@ export class AvaGatewayService {
 
   constructor(
     featureLoader: FeatureLoader,
-    beadsService: BeadsService,
     settingsService?: SettingsService,
     healthMonitor?: HealthMonitorService
   ) {
     this.featureLoader = featureLoader;
-    this.beadsService = beadsService;
     this.settingsService = settingsService ?? null;
     this.healthMonitor = healthMonitor ?? null;
 
@@ -353,7 +349,6 @@ export class AvaGatewayService {
       suggestedAction: 'Review error logs and retry or reassign feature',
     };
     void this.postToDiscord(alert);
-    if (this.projectPath) void this.createBeadsTask(this.projectPath, alert);
   }
 
   private handleAutoModeError(payload: Record<string, unknown>): void {
@@ -364,7 +359,6 @@ export class AvaGatewayService {
       suggestedAction: 'Check auto-mode status and restart if needed',
     };
     void this.postToDiscord(alert);
-    if (this.projectPath) void this.createBeadsTask(this.projectPath, alert);
   }
 
   private handleAwaitingApproval(payload: Record<string, unknown>): void {
@@ -389,9 +383,6 @@ export class AvaGatewayService {
       suggestedAction: 'Review health dashboard and remediate if needed',
     };
     void this.postToDiscord(alert);
-    if (this.projectPath && (alertSeverity === 'critical' || alertSeverity === 'high')) {
-      void this.createBeadsTask(this.projectPath, alert);
-    }
   }
 
   private handleFeatureBlocked(payload: Record<string, unknown>): void {
@@ -402,7 +393,6 @@ export class AvaGatewayService {
       suggestedAction: 'Unblock feature dependencies or resolve blockers',
     };
     void this.postToDiscord(alert);
-    if (this.projectPath) void this.createBeadsTask(this.projectPath, alert);
   }
 
   private handlePRFailure(payload: Record<string, unknown>): void {
@@ -413,7 +403,6 @@ export class AvaGatewayService {
       suggestedAction: 'Review CI logs and fix failing tests or checks',
     };
     void this.postToDiscord(alert);
-    if (this.projectPath) void this.createBeadsTask(this.projectPath, alert);
   }
 
   private handleNotificationCreated(payload: Record<string, unknown>): void {
@@ -608,39 +597,6 @@ export class AvaGatewayService {
   }
 
   /**
-   * Create Beads task for alert
-   */
-  private async createBeadsTask(projectPath: string, alert: HeartbeatAlert): Promise<void> {
-    if (!projectPath) {
-      return;
-    }
-
-    const beadsAvailable = await this.beadsService.checkCliAvailable();
-    if (!beadsAvailable) {
-      return;
-    }
-
-    const priorityMap: Record<HeartbeatAlert['severity'], number> = {
-      low: 1,
-      medium: 2,
-      high: 3,
-      critical: 4,
-    };
-
-    try {
-      await this.beadsService.createTask(projectPath, {
-        title: `[Ava Alert] ${alert.title}`,
-        description: `${alert.description}${alert.suggestedAction ? `\n\nSuggested Action: ${alert.suggestedAction}` : ''}`,
-        priority: priorityMap[alert.severity],
-        issueType: 'task',
-        labels: ['ava-alert', `severity-${alert.severity}`],
-      });
-    } catch (error) {
-      logger.error('Error creating Beads task', error);
-    }
-  }
-
-  /**
    * Calculate exponential backoff delay (Phase 9)
    */
   private calculateBackoffDelay(failureCount: number): number {
@@ -736,7 +692,6 @@ export class AvaGatewayService {
 
         for (const alert of result.alerts) {
           await this.postToDiscord(alert);
-          await this.createBeadsTask(this.projectPath, alert);
         }
 
         if (this.events) {
@@ -876,14 +831,12 @@ let avaGatewayServiceInstance: AvaGatewayService | null = null;
  */
 export function getAvaGatewayService(
   featureLoader: FeatureLoader,
-  beadsService: BeadsService,
   settingsService?: SettingsService,
   healthMonitor?: HealthMonitorService
 ): AvaGatewayService {
   if (!avaGatewayServiceInstance) {
     avaGatewayServiceInstance = new AvaGatewayService(
       featureLoader,
-      beadsService,
       settingsService,
       healthMonitor
     );

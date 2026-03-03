@@ -334,12 +334,6 @@ Manages calendar events across custom, feature, milestone, Google, and Linear so
 | `twitch_create_poll`      | Create a Twitch poll                     |
 | `sync_project_to_linear`  | Sync project milestones to Linear issues |
 
-## Setup & Beads (1 tool)
-
-| Tool          | Description                   |
-| ------------- | ----------------------------- |
-| `setup_beads` | Initialize Beads task tracker |
-
 ## Settings & Health (4 tools)
 
 | Tool                  | Description                        |

@@ -209,26 +209,16 @@ export function isAutomakerInitialized(projectPath: string): boolean {
 }
 
 /**
- * Check if .beads directory exists
- */
-export function isBeadsInitialized(projectPath: string): boolean {
-  const beadsDir = path.join(projectPath, '.beads');
-  return fs.existsSync(beadsDir);
-}
-
-/**
  * Check which phases are already completed
  */
 export function detectCompletedPhases(projectPath: string): {
   gitInitialized: boolean;
   automakerInitialized: boolean;
-  beadsInitialized: boolean;
   packageJsonExists: boolean;
 } {
   return {
     gitInitialized: isGitRepository(projectPath),
     automakerInitialized: isAutomakerInitialized(projectPath),
-    beadsInitialized: isBeadsInitialized(projectPath),
     packageJsonExists: hasPackageJson(projectPath),
   };
 }
@@ -269,13 +259,6 @@ export function checkEnvironment(): EnvironmentCheck[] {
       available: isCommandAvailable('gh'),
       version: getCommandVersion('gh'),
       installUrl: 'https://cli.github.com',
-    },
-    {
-      name: 'bd',
-      required: false,
-      available: isCommandAvailable('bd'),
-      version: getCommandVersion('bd', 'version'),
-      installUrl: 'https://github.com/jlowin/beads',
     },
     {
       name: 'jq',
@@ -345,10 +328,6 @@ export function validateOptionalTools(): Array<{ tool: string; error: ErrorCode 
 
   if (!isCommandAvailable('gh')) {
     warnings.push({ tool: 'gh', error: ErrorCode.GH_CLI_MISSING });
-  }
-
-  if (!isCommandAvailable('bd')) {
-    warnings.push({ tool: 'bd', error: ErrorCode.BD_CLI_MISSING });
   }
 
   return warnings;

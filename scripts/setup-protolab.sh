@@ -2,7 +2,7 @@
 set -e
 
 # ProtoLab Setup Script
-# Initializes a project with Beads, Automaker, and Claude Code plugin
+# Initializes a project with Automaker and Claude Code plugin
 #
 # Usage:
 #   npm run setup-lab -- /path/to/project
@@ -86,14 +86,6 @@ else
   log_success "Git repository detected"
 fi
 
-# Check beads CLI
-if ! command -v bd &> /dev/null; then
-  log_error "beads CLI (bd) is not installed"
-  log_info "Install from: https://github.com/jlowin/beads"
-  exit 1
-fi
-log_success "beads CLI (bd) is installed"
-
 # Check Claude CLI
 if ! command -v claude &> /dev/null; then
   log_error "claude CLI is not installed"
@@ -124,36 +116,8 @@ else
   log_success "Automaker server is running"
 fi
 
-# Step 2: Initialize Beads
-log_section "Step 2: Initializing Beads"
-
-if [ -d "$PROJECT_PATH/.beads" ]; then
-  log_warning "Beads already initialized in this project"
-  read -p "Reinitialize? (y/n) " -n 1 -r
-  echo
-  if [[ $REPLY =~ ^[Yy]$ ]]; then
-    log_info "Reinitializing beads..."
-    (cd "$PROJECT_PATH" && bd init --force)
-    log_success "Beads reinitialized"
-  else
-    log_info "Skipping beads initialization"
-  fi
-else
-  log_info "Initializing beads..."
-  # Get project name from path
-  PROJECT_NAME=$(basename "$PROJECT_PATH")
-
-  # Initialize beads with project name as prefix
-  (cd "$PROJECT_PATH" && bd init --prefix "$PROJECT_NAME" --no-daemon)
-  log_success "Beads initialized with prefix: $PROJECT_NAME"
-fi
-
-# Check beads status
-BEAD_COUNT=$(cd "$PROJECT_PATH" && bd list --json 2>/dev/null | jq length 2>/dev/null || echo "0")
-log_info "Current beads: $BEAD_COUNT"
-
-# Step 3: Initialize Automaker
-log_section "Step 3: Initializing Automaker"
+# Step 2: Initialize Automaker
+log_section "Step 2: Initializing Automaker"
 
 if [ -d "$PROJECT_PATH/.automaker" ]; then
   log_warning "Automaker already initialized in this project"
@@ -208,8 +172,8 @@ else
   fi
 fi
 
-# Step 4: Ensure Automaker plugin is installed
-log_section "Step 4: Ensuring Automaker Plugin is Installed"
+# Step 3: Ensure Automaker plugin is installed
+log_section "Step 3: Ensuring Automaker Plugin is Installed"
 
 # Get automaker repo root (parent of scripts/)
 AUTOMAKER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -244,7 +208,7 @@ else
   fi
 fi
 
-# Step 4b: Write plugin .env if not already present
+# Step 3b: Write plugin .env if not already present
 PLUGIN_ENV="$HOME/.claude/plugins/protolabs/.env"
 PLUGIN_ENV_EXAMPLE="$HOME/.claude/plugins/protolabs/.env.example"
 
@@ -271,8 +235,8 @@ else
   log_info "Plugin .env already exists — skipping"
 fi
 
-# Step 5: Optional CI/CD Setup
-log_section "Step 5: CI/CD Setup (Optional)"
+# Step 4: Optional CI/CD Setup
+log_section "Step 4: CI/CD Setup (Optional)"
 
 echo ""
 echo "Would you like to set up CI/CD workflows and branch protection?"
@@ -293,19 +257,18 @@ else
   log_info "You can run it later with: npm run setup-ci -- $PROJECT_PATH"
 fi
 
-# Step 6: Summary
-log_section "Setup Complete! 🎉"
+# Step 5: Summary
+log_section "Setup Complete!"
 
 echo ""
 echo -e "${GREEN}Your ProtoLab is ready:${NC}"
 echo ""
-echo "  📁 Project: $PROJECT_PATH"
+echo "  Project: $PROJECT_PATH"
 echo ""
 echo -e "${BLUE}What was set up:${NC}"
-echo "  ✓ Git repository"
-echo "  ✓ Beads issue tracker (.beads/)"
-echo "  ✓ Automaker structure (.automaker/)"
-echo "  ✓ Automaker plugin for Claude Code"
+echo "  Git repository"
+echo "  Automaker structure (.automaker/)"
+echo "  Automaker plugin for Claude Code"
 echo ""
 echo -e "${BLUE}Next steps:${NC}"
 echo ""
@@ -315,14 +278,9 @@ echo ""
 echo "  2. Create your first feature:"
 echo -e "     ${YELLOW}/board${NC} then create a feature"
 echo ""
-echo "  3. Create your first bead (task):"
-echo -e "     ${YELLOW}cd $PROJECT_PATH && bd create \"My first task\"${NC}"
-echo ""
-echo "  4. View the board:"
+echo "  3. View the board:"
 echo -e "     ${YELLOW}/board${NC}"
 echo ""
-echo "  5. Start auto-mode:"
+echo "  4. Start auto-mode:"
 echo -e "     ${YELLOW}/auto-mode start${NC}"
-echo ""
-echo -e "${GREEN}Happy building! 🚀${NC}"
 echo ""

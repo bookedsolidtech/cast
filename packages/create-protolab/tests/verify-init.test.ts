@@ -92,7 +92,6 @@ test('init phase scaffolds .automaker directory structure', async () => {
       },
       automation: {
         hasAutomaker: false,
-        hasBeads: false,
         hasDiscordIntegration: false,
         hasProtolabConfig: false,
         hasAnalytics: false,

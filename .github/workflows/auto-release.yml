@@ -205,27 +205,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Post release notes to Discord
+      - name: Rewrite and post release notes to Discord
         if: ${{ env.DISCORD_DEV_WEBHOOK != '' }}
         run: |
           VERSION="v${{ steps.version.outputs.version }}"
-          RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/${VERSION}"
-
-          # Fetch the auto-generated release notes (truncate to 3900 chars — Discord embed limit is 4096)
-          NOTES=$(gh release view "$VERSION" --json body --jq '.body' | head -c 3900)
-
-          # Escape JSON special characters
-          NOTES_JSON=$(printf '%s' "$NOTES" | python3 -c "import json,sys; print(json.dumps(sys.stdin.read()))")
-
-          curl -sf -H "Content-Type: application/json" \
-            -d "{
-              \"embeds\": [{
-                \"title\": \"${VERSION} Alpha released\",
-                \"url\": \"${RELEASE_URL}\",
-                \"description\": ${NOTES_JSON},
-                \"color\": 5763719
-              }]
-            }" \
-            "$DISCORD_DEV_WEBHOOK" || true
+          PREV_TAG=$(git tag --sort=-v:refname | grep -v "^${VERSION}$" | head -1)
+          node scripts/rewrite-release-notes.mjs "$VERSION" "$PREV_TAG" --post-discord
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

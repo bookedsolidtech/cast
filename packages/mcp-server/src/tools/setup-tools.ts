@@ -92,21 +92,6 @@ export const setupTools: Tool[] = [
     },
   },
   {
-    name: 'setup_beads',
-    description:
-      'Initialize Beads task tracker for a project. Runs bd init and configures no-daemon mode. Idempotent - safe to call on already-initialized projects.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        projectPath: {
-          type: 'string',
-          description: 'Absolute path to the project directory',
-        },
-      },
-      required: ['projectPath'],
-    },
-  },
-  {
     name: 'generate_report',
     description:
       'Generate a self-contained HTML report from gap analysis and research results. Saves to {projectPath}/protoLabs.report.html and automatically opens in browser.',

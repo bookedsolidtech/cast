@@ -15,7 +15,6 @@ allowed-tools:
   - mcp__plugin_protolabs_studio__analyze_gaps
   - mcp__plugin_protolabs_studio__propose_alignment
   - mcp__plugin_protolabs_studio__provision_discord
-  - mcp__plugin_protolabs_studio__setup_beads
   - mcp__plugin_protolabs_studio__run_full_setup
   - mcp__plugin_protolabs_studio__clone_repo
   - mcp__plugin_protolabs_studio__generate_report
@@ -47,7 +46,6 @@ setuplab onboards projects into the protoLabs Studio ecosystem. Each project get
 - `{projectPath}/.automaker/context/` — AI agent coding rules and conventions (tailored to detected stack)
 - `{projectPath}/.automaker/settings.json` — Workflow config (git settings, model preferences)
 - `{projectPath}/.automaker/spec.md` — Project specification
-- `{projectPath}/.beads/` — Operational task tracker (optional)
 
 Once initialized, the project is ready for `/ava <projectPath>` to manage it.
 
@@ -64,7 +62,7 @@ Once initialized, the project is ready for `/ava <projectPath>` to manage it.
 | **Formatting**   | Prettier                                                                   |
 | **Type Safety**  | TypeScript 5.5+ strict, composite tsconfig per package                     |
 | **CI/CD**        | GitHub Actions (build, test, format, audit, CodeRabbit), branch protection |
-| **Automation**   | `.automaker/` + `.beads/` + Discord project channels                       |
+| **Automation**   | `.automaker/` + Discord project channels                                   |
 | **Git workflow** | Squash-only, branch protection, three-branch flow                          |
 
 ## Pipeline Flow
@@ -117,7 +115,7 @@ mcp__plugin_protolabs_studio__research_repo({ projectPath })
 - **Testing:** {hasVitest ? "Vitest" : ""} {hasPlaywright ? "Playwright" : ""} {hasJest ? "Jest (legacy)" : ""}
 - **CI/CD:** {hasCI ? provider + " (" + workflows.length + " workflows)" : "None"}
 - **Quality:** {hasTypeScript ? "TS " + tsVersion + (tsStrict ? " strict" : "") : "No TS"} | {hasESLint ? "ESLint " + eslintVersion : "No ESLint"} | {hasPrettier ? "Prettier" : "No Prettier"}
-- **Automation:** {hasAutomaker ? ".automaker (already initialized)" : "No .automaker"} | {hasBeads ? ".beads" : "No .beads"}
+- **Automation:** {hasAutomaker ? ".automaker (already initialized)" : "No .automaker"}
 ```
 
 ### Phase 3: Gap Analysis & Report Generation
@@ -180,7 +178,7 @@ AskUserQuestion:
   question: "How would you like to proceed with alignment?"
   options:
     - label: "Full alignment"
-      description: "Initialize .automaker, set up Beads, create all alignment features"
+      description: "Initialize .automaker, create all alignment features"
     - label: "Critical only"
       description: "Initialize automation and create features for critical gaps only"
     - label: "Report only"
@@ -225,12 +223,6 @@ If yes, use the Discord MCP tools to create channels:
 1. `mcp__plugin_protolabs_discord__discord_create_category({ guildId, name: projectName })`
 2. Create channels: general, updates, dev under the category
 3. Create webhook on updates channel
-
-**5c. Beads Init:**
-
-```
-mcp__plugin_protolabs_studio__setup_beads({ projectPath })
-```
 
 ### Phase 6: Propose Alignment Work
 
@@ -304,7 +296,6 @@ If approved, create features on the board:
 - Analyzed {gaps.length} gaps against protoLabs standard
 - Generated HTML gap report (opened in browser)
 - Initialized .automaker/ with tailored context files
-  {if beads initialized:}- Initialized .beads/ task tracker
   {if discord provisioned:}- Created Discord channels
   {if features created:}- Created {featuresCreated} alignment features on the board
 
@@ -321,7 +312,7 @@ If approved, create features on the board:
 ## Important Notes
 
 - **Phases 1-4 are non-destructive.** They scan, report, and propose. No code changes.
-- **Phase 5 creates files** (.automaker/, .beads/) but doesn't modify existing code.
+- **Phase 5 creates files** (.automaker/) but doesn't modify existing code.
 - **Phase 6 creates board features** but doesn't execute them.
 - **Actual code changes** only happen when agents are started (Phase 7 next steps).
 - Always present results between phases so the user stays informed.
