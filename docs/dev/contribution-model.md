@@ -347,7 +347,7 @@ If rejected, revise and resubmit without the flagged content.
 
 ### Q: How do I report a security vulnerability?
 
-**A**: Don't use public issues for security vulnerabilities. Follow the [SECURITY.md](../../SECURITY.md) process:
+**A**: Don't use public issues for security vulnerabilities. Follow the SECURITY.md process:
 
 1. Email security contact (listed in SECURITY.md)
 2. Include detailed reproduction steps
@@ -423,6 +423,6 @@ Exception: If you spot a typo, you can submit an issue and the agent will fix it
 
 - [Quarantine pipeline](/server/quarantine-pipeline) — How external submissions are validated
 - [Feature lifecycle](/dev/idea-to-production) — What happens after your idea is approved
-- [SECURITY.md](../../SECURITY.md) — Security vulnerability reporting process
+- [SECURITY.md](https://github.com/proto-labs-ai/protoMaker/blob/main/SECURITY.md) — Security vulnerability reporting process
 - [GitHub Issues](https://github.com/proto-labs-ai/protomaker/issues) — Submit your ideas here
 - [GitHub Discussions](https://github.com/proto-labs-ai/protomaker/discussions) — Ask questions and discuss

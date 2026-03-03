@@ -600,5 +600,5 @@ console.log('Review completed:', result.reviewResult);
 ## Next Steps
 
 - **[Content Pipeline](./content-pipeline.md)** — Multi-phase content generation with HITL gates
-- **[Flows Package](./flows.md)** — LangGraph flow primitives and utilities
-- **[Observability Package](./observability-package.md)** — Langfuse tracing and prompt management
+- **[Flows Package](../dev/flows.md)** — LangGraph flow primitives and utilities
+- **[Observability Package](../dev/observability-package.md)** — Langfuse tracing and prompt management

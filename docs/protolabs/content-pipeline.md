@@ -374,5 +374,5 @@ LANGFUSE_BASE_URL=https://cloud.langfuse.com  # optional, this is the default
 
 ## Related Documentation
 
-- [Flows Package](./flows.md) — LangGraph flow architecture and patterns
-- [Observability Package](./observability-package.md) — Langfuse tracing and cost tracking
+- [Flows Package](../dev/flows.md) — LangGraph flow architecture and patterns
+- [Observability Package](../dev/observability-package.md) — Langfuse tracing and cost tracking

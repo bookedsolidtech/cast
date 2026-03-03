@@ -404,7 +404,7 @@ Add a section near the top of README.md, after the project description:
 >
 > protoLabs Studio is open source under the MIT license. We share our code openly because we believe in transparency, but our development workflow is AI-native -- our team of AI agents implements all features internally.
 >
-> **Want to contribute?** We welcome ideas, bug reports, and feedback through [Issues](link), [Discussions](link), and [Discord](link). See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+> **Want to contribute?** We welcome ideas, bug reports, and feedback through Issues, Discussions, and Discord. See CONTRIBUTING.md for details.
 
 ### Blog post
 

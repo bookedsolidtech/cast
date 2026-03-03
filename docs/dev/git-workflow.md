@@ -471,5 +471,5 @@ If recovery fails, the feature is marked `blocked` with a `statusChangeReason` p
 ## Learn More
 
 - [Monorepo Architecture](./monorepo-architecture.md) - Package structure and dependencies
-- [CONTRIBUTING.md](../../CONTRIBUTING.md) - Complete contribution guide
+- [CONTRIBUTING.md](https://github.com/proto-labs-ai/protoMaker/blob/main/CONTRIBUTING.md) - Complete contribution guide
 - [Conventional Commits](https://www.conventionalcommits.org/) - Commit message format
