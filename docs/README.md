@@ -11,18 +11,19 @@
 
 Comprehensive agent documentation in [`docs/agents/`](./agents/):
 
-| Document                                                   | Description                                             |
-| ---------------------------------------------------------- | ------------------------------------------------------- |
-| [Agent Philosophy](./agents/philosophy.md)                 | Why named personas, model tiers, worktree isolation     |
-| [Architecture Overview](./agents/architecture.md)          | Agent types, execution model, architecture layers       |
-| [Reliability & Recovery](./agents/reliability.md)          | Failure handling, escalation, health sweeps             |
-| [Prompt Engineering](./agents/prompt-engineering.md)       | Prompt composition, registry, writing effective prompts |
-| [Dynamic Role Registry](./agents/dynamic-role-registry.md) | Template-based agent creation, factory, execution       |
-| [Context System](./agents/context-system.md)               | Context loading, memory files, smart selection          |
-| [Agile Ceremonies](./agents/ceremonies.md)                 | Automated standups, retros, project retrospectives      |
-| [Adding Teammates](./agents/adding-teammates.md)           | How to create new authority agents (PM, EM, etc.)       |
-| [Creating Agent Teams](./agents/creating-agent-teams.md)   | Multi-agent coordination and event-driven systems       |
-| [MCP Integration](./agents/mcp-integration.md)             | How MCP tools interact with agents                      |
+| Document                                                   | Description                                               |
+| ---------------------------------------------------------- | --------------------------------------------------------- |
+| [Agent Philosophy](./agents/philosophy.md)                 | Why named personas, model tiers, worktree isolation       |
+| [Architecture Overview](./agents/architecture.md)          | Agent types, execution model, architecture layers         |
+| [Reliability & Recovery](./agents/reliability.md)          | Failure handling, escalation, health sweeps               |
+| [Prompt Engineering](./agents/prompt-engineering.md)       | Prompt composition, registry, writing effective prompts   |
+| [Dynamic Role Registry](./agents/dynamic-role-registry.md) | Template-based agent creation, factory, execution         |
+| [Context System](./agents/context-system.md)               | Context loading, memory files, smart selection            |
+| [Agile Ceremonies](./agents/ceremonies.md)                 | Automated standups, retros, project retrospectives        |
+| [Escalation Routing](./agents/escalation-routing.md)       | Escalation channels, dedup, rate limiting, acknowledgment |
+| [Adding Teammates](./agents/adding-teammates.md)           | How to create new authority agents (PM, EM, etc.)         |
+| [Creating Agent Teams](./agents/creating-agent-teams.md)   | Multi-agent coordination and event-driven systems         |
+| [MCP Integration](./agents/mcp-integration.md)             | How MCP tools interact with agents                        |
 
 ## Infrastructure
 
@@ -56,7 +57,7 @@ DevOps documentation in [`docs/infra/`](./infra/):
 | [Plugin Commands](./integrations/plugin-commands.md)         | Commands reference, subagents, step-by-step examples           |
 | [MCP Tools Reference](./integrations/mcp-tools-reference.md) | Full MCP tool catalog (120+ tools)                             |
 | [Discord](./integrations/discord.md)                         | Discord channels, bot integration, event routing               |
-| [Linear](./integrations/linear-sync.md)                      | Agent interaction, project planning, bidirectional sync        |
+| [Linear](./integrations/linear.md)                           | MCP-tool-only Linear integration                               |
 | [API Key Profiles](./integrations/api-key-profiles.md)       | Unified API key and provider profile system                    |
 
 ## Server Reference
@@ -82,7 +83,8 @@ DevOps documentation in [`docs/infra/`](./infra/):
 | ------------------------------------------------------- | ---------------------------------------------------- |
 | [Overview](./dev/index.md)                              | Development guide overview                           |
 | [Idea to Production](./dev/idea-to-production.md)       | The canonical 9-phase pipeline reference             |
-| [Project Lifecycle](./dev/project-lifecycle.md)         | Linear-driven project state machine                  |
+| [Inbox System](./dev/inbox-system.md)                   | Unified actionable items inbox                       |
+| [Project Lifecycle](./dev/project-lifecycle.md)         | Project state machine                                |
 | [PR Remediation Loop](./dev/pr-remediation-loop.md)     | Autonomous PR review feedback handling               |
 | [Feature Status System](./dev/feature-status-system.md) | 6-status feature lifecycle                           |
 | [Issue Management](./dev/issue-management.md)           | Automated failure-to-issue pipeline                  |
@@ -136,9 +138,10 @@ DevOps documentation in [`docs/infra/`](./infra/):
 
 ## Archived
 
-| Document                                                 | Description                                        |
-| -------------------------------------------------------- | -------------------------------------------------- |
-| [Engine Architecture](./archived/engine-architecture.md) | Lead Engineer state machine ADR (content migrated) |
+| Document                                                 | Description                                            |
+| -------------------------------------------------------- | ------------------------------------------------------ |
+| [Engine Architecture](./archived/engine-architecture.md) | Lead Engineer state machine ADR (content migrated)     |
+| [Linear Sync](./archived/linear-sync.md)                 | Bidirectional Linear sync (removed, MCP-tool-only now) |
 
 ## Legal
 
