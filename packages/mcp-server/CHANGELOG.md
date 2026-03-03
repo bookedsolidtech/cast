@@ -1,5 +1,14 @@
 # @protolabs-ai/mcp-server
 
+## 0.30.1
+
+### Patch Changes
+
+- ### Bug Fixes
+  - capture thinking blocks in simpleQuery for Opus plan generation
+- Updated dependencies
+  - @protolabs-ai/tools@0.30.1
+
 ## 0.30.0
 
 ### Minor Changes
