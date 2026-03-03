@@ -130,6 +130,18 @@ export class PRFeedbackService {
         ) {
           void this.trackFeatureInReview(data);
         }
+        // Clean up tracking when feature reaches done (non-merge path)
+        if (data.newStatus === 'done' && data.featureId) {
+          this.cleanupFeature(data.featureId as string);
+        }
+      }
+
+      if (type === 'feature:deleted') {
+        const data = payload as Record<string, unknown>;
+        const featureId = (data.featureId as string) || (data.id as string);
+        if (featureId) {
+          this.cleanupFeature(featureId);
+        }
       }
 
       if (type === 'pr:ci-failure') {
@@ -159,7 +171,42 @@ export class PRFeedbackService {
       clearInterval(this.pollTimer);
       this.pollTimer = null;
     }
+    this.trackedPRs.clear();
+    this.remediatingFeatures.clear();
+    this.collectedDecisions.clear();
     this.initialized = false;
+  }
+
+  /**
+   * Clean up all tracking state for a single feature.
+   * Called when a feature is deleted or reaches done status.
+   */
+  private cleanupFeature(featureId: string): void {
+    if (this.trackedPRs.has(featureId)) {
+      logger.info(`Cleaning up tracked PR for feature ${featureId}`);
+      this.trackedPRs.delete(featureId);
+    }
+    this.remediatingFeatures.delete(featureId);
+    this.collectedDecisions.delete(featureId);
+  }
+
+  /**
+   * Remove all tracked PRs for a given project path.
+   * Called when a project is deleted or its path changes.
+   */
+  removeTrackedPRsForProject(projectPath: string): void {
+    const toRemove: string[] = [];
+    for (const [featureId, pr] of this.trackedPRs) {
+      if (pr.projectPath === projectPath) {
+        toRemove.push(featureId);
+      }
+    }
+    for (const featureId of toRemove) {
+      this.cleanupFeature(featureId);
+    }
+    if (toRemove.length > 0) {
+      logger.info(`Removed ${toRemove.length} tracked PRs for project ${projectPath}`);
+    }
   }
 
   async restoreTrackedPRsForProject(projectPath: string): Promise<void> {

@@ -26,6 +26,7 @@ export function createProvidersHandler() {
         anthropic: {
           available: statuses.claude?.installed || false,
           hasApiKey: !!process.env.ANTHROPIC_API_KEY,
+          authenticated: statuses.claude?.authenticated || false,
         },
         cursor: {
           available: statuses.cursor?.installed || false,
