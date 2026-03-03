@@ -12,6 +12,8 @@ interface SidebarNavigationProps {
   navSections: NavSection[];
   isActiveRoute: (id: string) => boolean;
   navigate: (opts: NavigateOptions) => void;
+  /** Called after a nav item is clicked (used to close sidebar in overlay mode) */
+  onNavItemClick?: () => void;
 }
 
 export function SidebarNavigation({
@@ -21,6 +23,7 @@ export function SidebarNavigation({
   navSections,
   isActiveRoute,
   navigate,
+  onNavItemClick,
 }: SidebarNavigationProps) {
   return (
     <nav
@@ -69,6 +72,7 @@ export function SidebarNavigation({
                     onClick={() => {
                       // Cast to the router's path type; item.id is constrained to known routes
                       navigate({ to: `/${item.id}` as unknown as '/' });
+                      onNavItemClick?.();
                     }}
                     className={cn(
                       'group flex items-center w-full px-2.5 py-1.5 rounded-lg relative overflow-hidden titlebar-no-drag',

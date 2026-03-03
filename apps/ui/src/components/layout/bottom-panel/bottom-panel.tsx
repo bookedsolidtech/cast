@@ -41,7 +41,7 @@ export function BottomPanel() {
 
   const [time, setTime] = useState(() => new Date());
   useEffect(() => {
-    const id = setInterval(() => setTime(new Date()), 60_000);
+    const id = setInterval(() => setTime(new Date()), 1_000);
     return () => clearInterval(id);
   }, []);
 
@@ -156,8 +156,22 @@ export function BottomPanel() {
         <div className="flex-1" />
 
         {/* Clock */}
-        <span className="text-xs tabular-nums text-muted-foreground">
-          {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        <span
+          className="relative group text-xs tabular-nums text-muted-foreground cursor-default"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+          <span className="absolute bottom-full right-0 mb-2 px-2.5 py-1.5 rounded-lg bg-popover text-popover-foreground text-xs font-medium border border-border shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap pointer-events-none tabular-nums">
+            <span className="font-semibold">
+              {time.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
+            </span>
+            <span className="mx-1 text-muted-foreground/50">|</span>
+            {time.toLocaleTimeString([], {
+              hour: 'numeric',
+              minute: '2-digit',
+              second: '2-digit',
+            })}
+          </span>
         </span>
 
         {/* Ava Chat toggle */}
