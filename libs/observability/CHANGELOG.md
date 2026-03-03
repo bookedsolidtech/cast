@@ -1,5 +1,29 @@
 # @protolabs-ai/observability
 
+## 0.32.0
+
+### Minor Changes
+
+- ### Features
+  - add ongoing ProjectStatus for persistent projects
+  - pipeline cohesion — remove Linear sync, fix escalation/ceremony wiring, consolidate inbox
+  - build out Ava settings panel + fix model precedence (#1667)
+
+  ### Bug Fixes
+  - git-track .automaker/projects/ for cross-instance sync
+  - escape Vue template syntax in linear-deeplink.md
+  - resolve 17 dead links breaking VitePress build
+  - delete stale Linear test files referencing removed services
+  - add auth headers to file-editor browse and settings health endpoints
+  - route staging deploy failures to #alerts, add release failure notification
+  - make release notes Discord step non-fatal
+
+### Patch Changes
+
+- Updated dependencies
+  - @protolabs-ai/types@0.32.0
+  - @protolabs-ai/utils@0.32.0
+
 ## 0.31.0
 
 ### Minor Changes
