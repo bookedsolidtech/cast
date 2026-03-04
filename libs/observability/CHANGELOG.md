@@ -1,5 +1,14 @@
 # @protolabs-ai/observability
 
+## 0.33.1
+
+### Patch Changes
+
+- Maintenance release.
+- Updated dependencies
+  - @protolabs-ai/types@0.33.1
+  - @protolabs-ai/utils@0.33.1
+
 ## 0.33.0
 
 ### Minor Changes

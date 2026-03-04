@@ -1,5 +1,11 @@
 # @protolabs-ai/types
 
+## 0.33.1
+
+### Patch Changes
+
+- Maintenance release.
+
 ## 0.33.0
 
 ### Minor Changes
