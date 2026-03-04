@@ -494,14 +494,17 @@ export const hitlFormResponse: LeadFastPathRule = {
       }
 
       case 'provide_context': {
-        const context = step0.context as string | undefined;
+        // Context input is in step 2 (response[1]), not step 1
+        const step1 = response[1] as Record<string, unknown> | undefined;
+        const context = (step1?.context as string | undefined)?.trim();
         ruleActions.push({
           type: 'update_feature',
           featureId,
           updates: {
-            ...(context ? { description: context } : {}),
             failureCount: 0,
-            statusChangeReason: 'Retried with additional context via HITL form',
+            statusChangeReason: context
+              ? `Retried with additional context via HITL form: ${context}`
+              : 'Retried with additional context via HITL form',
           },
         });
         ruleActions.push({ type: 'move_feature', featureId, toStatus: 'backlog' });

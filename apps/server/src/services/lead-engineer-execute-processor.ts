@@ -270,8 +270,36 @@ export class ExecuteProcessor implements StateProcessor {
         };
       }
 
+      // Classify failure: infrastructure errors should escalate immediately
+      // rather than burning agent retries on unrecoverable issues
+      const errorMsg = (result.error || '').toLowerCase();
+      const isInfraFailure =
+        errorMsg.includes('permission denied') ||
+        errorMsg.includes('lock file') ||
+        errorMsg.includes('enospc') ||
+        errorMsg.includes('no space left') ||
+        errorMsg.includes('worktree') ||
+        errorMsg.includes('git push failed') ||
+        errorMsg.includes('authentication failed') ||
+        errorMsg.includes('could not resolve host') ||
+        errorMsg.includes('connection refused') ||
+        errorMsg.includes('timed out');
+
+      if (isInfraFailure) {
+        ctx.escalationReason = `Infrastructure failure (not retryable): ${result.error}`;
+        logger.warn('[EXECUTE] Infrastructure failure detected, escalating immediately', {
+          featureId: ctx.feature.id,
+          error: result.error,
+        });
+        return {
+          nextState: 'ESCALATE',
+          shouldContinue: false,
+          reason: ctx.escalationReason,
+        };
+      }
+
       ctx.retryCount++;
-      logger.warn('[EXECUTE] Execution failed, will retry', {
+      logger.warn('[EXECUTE] Agent execution failed, will retry', {
         retryCount: ctx.retryCount,
         error: result.error,
       });
