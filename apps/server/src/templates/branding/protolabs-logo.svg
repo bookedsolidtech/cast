@@ -5,9 +5,13 @@
   <!-- Outer circle -->
   <circle cx="256" cy="256" r="240" stroke="currentColor" stroke-width="16" fill="none"/>
 
-  <!-- Lightning bolt representing speed and innovation -->
-  <path d="M280 96L160 256H256L232 416L352 256H256L280 96Z" fill="currentColor"/>
-
-  <!-- Inner accent circle -->
-  <circle cx="256" cy="256" r="80" stroke="currentColor" stroke-width="12" fill="none" opacity="0.3"/>
+  <!-- Bot icon -->
+  <g transform="translate(64, 64) scale(16)" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 8V4H8" />
+    <rect width="16" height="12" x="4" y="8" rx="2" />
+    <path d="M2 14h2" />
+    <path d="M20 14h2" />
+    <path d="M15 13v2" />
+    <path d="M9 13v2" />
+  </g>
 </svg>

@@ -74,7 +74,7 @@ mkdir -p site/[page-name]
 Start from an existing page (`site/index.html` or `site/consulting/index.html`). Every page needs:
 
 - **Meta tags**: `<title>`, `<meta description>`, OG tags, Twitter card tags
-- **Favicon**: Inline SVG diamond favicon
+- **Favicon**: Inline SVG bot icon favicon
 - **Fonts**: Geist + Geist Mono via Google Fonts with `preconnect`
 - **Umami**: Analytics script with unique `data-website-id` (Josh configures in Umami dashboard)
 - **Tailwind CDN**: With inline config matching brand tokens
@@ -89,7 +89,7 @@ Start from an existing page (`site/index.html` or `site/consulting/index.html`).
 - [ ] Violet accent (#a78bfa) for interactive elements
 - [ ] Dark theme (#09090b background)
 - [ ] `proto<span class="text-accent">Labs</span>` wordmark in nav
-- [ ] Diamond icon (`&#9670;`) as logo
+- [ ] Bot icon (Lucide `Bot`) as logo
 - [ ] Footer links to Product, Docs, X/Twitter, GitHub
 - [ ] No SaaS language ("subscribe", "plans", "tiers")
 - [ ] Voice matches brand.md (technical, direct, pragmatic)

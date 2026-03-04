@@ -26,11 +26,13 @@ import {
   stepCountIs,
   createUIMessageStream,
   pipeUIMessageStreamToResponse,
-  type ModelMessage,
+  convertToModelMessages,
+  type UIMessage,
   type UIMessageChunk,
 } from 'ai';
 import fs from 'fs/promises';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { anthropic } from '@ai-sdk/anthropic';
 import { createLogger } from '@protolabs-ai/utils';
 import { resolveModelString } from '@protolabs-ai/model-resolver';
@@ -40,8 +42,11 @@ import { getSitrep } from './sitrep.js';
 import { buildAvaTools } from './ava-tools.js';
 import type { PlanData } from './ava-tools.js';
 import { ToolProgressEmitter } from './tool-progress.js';
+import { buildCanUseToolCallback } from '../../lib/agent-trust.js';
+import type { ToolApprovalResponse } from '../../lib/agent-trust.js';
 import type { ServiceContainer } from '../../server/services.js';
 import type { FeatureLoader } from '../../services/feature-loader.js';
+import type { EventType } from '@protolabs-ai/types';
 
 export type { AvaConfig };
 
@@ -76,21 +81,38 @@ export async function loadAvaContext(projectPath: string): Promise<string | unde
     // No CLAUDE.md at project root — that's fine
   }
 
-  // 2. Ava skill prompt (strip frontmatter)
+  // 2. Ava UI prompt — prefer the UI-specific ava-prompt.md (co-located with this module),
+  //    fall back to the CLI skill file for backward compatibility.
   try {
-    const avaSkillPath = path.resolve(
-      projectPath,
-      'packages/mcp-server/plugins/automaker/commands/ava.md'
-    );
-    const avaSkillRaw = await fs.readFile(avaSkillPath, 'utf-8');
-    // Strip YAML frontmatter (--- ... ---)
-    const fmEnd = avaSkillRaw.indexOf('\n---', 4);
-    const body = fmEnd !== -1 ? avaSkillRaw.slice(fmEnd + 4).trim() : avaSkillRaw.trim();
-    if (body) {
-      contextParts.push(body);
+    // Resolve relative to the compiled module so this works in both src and dist.
+    // dist/routes/chat → ../../.. → apps/server → src/routes/chat/ava-prompt.md
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    const uiPromptPath = path.join(__dirname, '../../../src/routes/chat/ava-prompt.md');
+
+    let avaPromptRaw: string | null = null;
+
+    try {
+      avaPromptRaw = await fs.readFile(uiPromptPath, 'utf-8');
+    } catch {
+      // ava-prompt.md not found — fall back to CLI skill file
+    }
+
+    if (avaPromptRaw === null) {
+      // Fallback: CLI skill file (strips YAML frontmatter)
+      const cliSkillPath = path.resolve(
+        projectPath,
+        'packages/mcp-server/plugins/automaker/commands/ava.md'
+      );
+      const cliSkillRaw = await fs.readFile(cliSkillPath, 'utf-8');
+      const fmEnd = cliSkillRaw.indexOf('\n---', 4);
+      avaPromptRaw = fmEnd !== -1 ? cliSkillRaw.slice(fmEnd + 4).trim() : cliSkillRaw.trim();
+    }
+
+    if (avaPromptRaw?.trim()) {
+      contextParts.push(avaPromptRaw.trim());
     }
   } catch {
-    // Ava skill file not found — continue without it
+    // Ava prompt not found — continue without it
   }
 
   return contextParts.length > 0 ? contextParts.join('\n\n---\n\n') : undefined;
@@ -111,33 +133,6 @@ export function stripFrontmatter(raw: string): string {
  */
 function modelSupportsExtendedThinking(resolvedModelId: string): boolean {
   return resolvedModelId.includes('opus') || resolvedModelId.includes('sonnet');
-}
-
-/**
- * Convert UIMessage format (from useChat) to ModelMessage format (for streamText).
- * useChat sends: { role, parts: [{ type: "text", text: "..." }] }
- * streamText expects: { role, content: "..." }
- */
-function toModelMessages(
-  messages: Array<{
-    role: string;
-    content?: string;
-    parts?: Array<{ type: string; text?: string }>;
-  }>
-): ModelMessage[] {
-  return messages.map((msg) => {
-    // If content already exists, use it directly (standard format)
-    if (typeof msg.content === 'string') {
-      return { role: msg.role, content: msg.content } as ModelMessage;
-    }
-    // Convert parts format to content string
-    const text =
-      msg.parts
-        ?.filter((p) => p.type === 'text' && p.text)
-        .map((p) => p.text)
-        .join('') || '';
-    return { role: msg.role, content: text } as ModelMessage;
-  });
 }
 
 // ── Citation extraction ───────────────────────────────────────────────────────
@@ -254,11 +249,7 @@ export function createChatRoutes(services: ServiceContainer): Router {
         context,
         projectPath,
       } = req.body as {
-        messages: Array<{
-          role: string;
-          content?: string;
-          parts?: Array<{ type: string; text?: string }>;
-        }>;
+        messages: UIMessage[];
         model?: string;
         system?: string;
         context?: NotesContext;
@@ -270,12 +261,17 @@ export function createChatRoutes(services: ServiceContainer): Router {
         return;
       }
 
-      const messages = toModelMessages(rawMessages);
-
       // Load AvaConfig when a projectPath is available; fall back to defaults
       const avaConfig: AvaConfig = projectPath
         ? await loadAvaConfig(projectPath)
         : { ...DEFAULT_AVA_CONFIG, toolGroups: { ...DEFAULT_AVA_CONFIG.toolGroups } };
+
+      // Build canUseTool callback for gated subagent trust.
+      // Full trust (default) returns undefined — subagents run with bypassPermissions.
+      const canUseTool =
+        avaConfig.subagentTrust === 'gated'
+          ? buildCanUseToolCallback('gated', services.events)
+          : undefined;
 
       // Model selection: session picker (header/body) > AvaConfig.model > default (sonnet)
       // The inline ChatModelSelect sends x-model-alias; config model is the fallback for new chats.
@@ -331,6 +327,22 @@ export function createChatRoutes(services: ServiceContainer): Router {
       } catch {
         // Settings unavailable — safe default (flag disabled)
       }
+      // Convert ava-specific mcpServers to the agent SDK format and merge with
+      // project-level MCP servers configured in global settings.  The converted
+      // list is passed down to execute_dynamic_agent so inner agents delegated
+      // from Ava chat can access the same additional MCP servers.
+      const avaMcpServers = (avaConfig.mcpServers ?? [])
+        .filter((s) => s.enabled !== false)
+        .map((s) => ({
+          name: s.name,
+          ...(s.type !== undefined && { type: s.type }),
+          ...(s.command !== undefined && { command: s.command }),
+          ...(s.args !== undefined && { args: s.args }),
+          ...(s.env !== undefined && { env: s.env }),
+          ...(s.url !== undefined && { url: s.url }),
+          ...(s.headers !== undefined && { headers: s.headers }),
+        }));
+
       const tools = projectPath
         ? buildAvaTools(
             projectPath,
@@ -348,12 +360,14 @@ export function createChatRoutes(services: ServiceContainer): Router {
               sensorRegistryService: userPresenceDetection
                 ? services.sensorRegistryService
                 : undefined,
+              canUseTool,
             },
             {
               ...avaConfig.toolGroups,
               userPresenceDetection,
               autoApproveTools: avaConfig.autoApproveTools,
-            }
+            },
+            avaMcpServers.length > 0 ? avaMcpServers : undefined
           )
         : {};
 
@@ -361,6 +375,11 @@ export function createChatRoutes(services: ServiceContainer): Router {
       // The thinking budget caps how many tokens the model may use for internal
       // reasoning before producing its visible response.
       const extendedThinking = modelSupportsExtendedThinking(resolvedModelId);
+
+      // Convert UIMessages (with tool-invocation, reasoning, approval parts) to
+      // ModelMessages that streamText understands. This preserves tool call/result
+      // pairs required for HITL approval continuation and multi-turn tool use.
+      const messages = await convertToModelMessages(rawMessages, { tools });
 
       logger.info(
         `Chat request: ${messages.length} messages, model=${modelAlias}, projectPath=${projectPath ?? 'none'}, contextInjection=${avaConfig.contextInjection}, sitrepInjection=${avaConfig.sitrepInjection}, extendedThinking=${extendedThinking}`
@@ -463,6 +482,43 @@ export function createChatRoutes(services: ServiceContainer): Router {
 
       res.status(500).json({ error: message });
     }
+  });
+
+  /**
+   * POST /api/chat/tool-approval
+   *
+   * Resolves a pending subagent tool-approval request for the gated trust model.
+   * Accepts { approvalId, approved, message? } and emits
+   * `subagent:tool-approval-response` on the shared event bus so the waiting
+   * `canUseTool` promise in agent-trust.ts resolves immediately.
+   *
+   * Body: { approvalId: string, approved: boolean, message?: string }
+   */
+  router.post('/tool-approval', (req: Request, res: Response) => {
+    const { approvalId, approved, message } = req.body as {
+      approvalId: string;
+      approved: boolean;
+      message?: string;
+    };
+
+    if (!approvalId || typeof approved !== 'boolean') {
+      res.status(400).json({ error: 'approvalId and approved (boolean) are required' });
+      return;
+    }
+
+    const response: ToolApprovalResponse = {
+      approvalId,
+      approved,
+      ...(message !== undefined && { message }),
+    };
+
+    // Use EventType cast — subagent approval event types are defined in
+    // libs/types/src/event.ts but the shared dist may be ahead of the published package.
+    services.events.emit('subagent:tool-approval-response' as EventType, response);
+
+    logger.info(`Tool approval response emitted: approvalId=${approvalId}, approved=${approved}`);
+
+    res.json({ ok: true });
   });
 
   return router;

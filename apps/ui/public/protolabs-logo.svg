@@ -5,9 +5,16 @@
       <stop offset="100%" stop-color="#7c3aed" />
     </linearGradient>
   </defs>
-  <!-- Diamond on rounded-square background -->
+  <!-- Bot icon on rounded-square background -->
   <rect x="4" y="12" width="56" height="56" rx="14" fill="url(#diamond-gradient)" />
-  <path d="M32 22 L52 40 L32 58 L12 40 Z" fill="#FFFFFF" />
+  <g transform="translate(8, 16) scale(2)" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 8V4H8" />
+    <rect width="16" height="12" x="4" y="8" rx="2" />
+    <path d="M2 14h2" />
+    <path d="M20 14h2" />
+    <path d="M15 13v2" />
+    <path d="M9 13v2" />
+  </g>
   <!-- proto text -->
   <text x="72" y="52" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-weight="700" font-size="36" fill="#FFFFFF" letter-spacing="-0.02em">proto</text>
   <!-- Labs text -->

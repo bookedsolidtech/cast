@@ -5,7 +5,14 @@
  * with the provider architecture.
  */
 
-import { query, type Options, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
+import {
+  query,
+  type Options,
+  type SDKUserMessage,
+  type HookCallback,
+  type HookCallbackMatcher,
+  type CanUseTool,
+} from '@anthropic-ai/claude-agent-sdk';
 import {
   getThinkingTokenBudget,
   validateBareModelId,
@@ -248,9 +255,11 @@ export class ClaudeProvider extends BaseProvider {
       env: buildEnv(providerConfig, credentials),
       // Pass through allowedTools if provided by caller (decided by sdk-options.ts)
       ...(allowedTools && { allowedTools }),
-      // AUTONOMOUS MODE: Always bypass permissions for fully autonomous operation
-      permissionMode: 'bypassPermissions',
-      allowDangerouslySkipPermissions: true,
+      // Permission mode: use 'default' when a canUseTool gating callback is active
+      // so the SDK respects the callback's decisions. Fall back to 'bypassPermissions'
+      // for fully autonomous (full-trust) operation when no callback is provided.
+      permissionMode: options.canUseTool ? 'default' : 'bypassPermissions',
+      allowDangerouslySkipPermissions: !options.canUseTool,
       abortController,
       // Resume existing SDK session if we have a session ID
       ...(sdkSessionId && conversationHistory && conversationHistory.length > 0
@@ -264,6 +273,12 @@ export class ClaudeProvider extends BaseProvider {
       ...(maxThinkingTokens && { maxThinkingTokens }),
       // Subagents configuration for specialized task delegation
       ...(options.agents && { agents: options.agents }),
+      // Lifecycle hooks for the Claude Agent SDK
+      ...(options.hooks && { hooks: options.hooks as Options['hooks'] }),
+      // Tool permission callback
+      ...(options.canUseTool && { canUseTool: options.canUseTool as CanUseTool }),
+      // Explicitly disallowed tools
+      ...(options.disallowedTools && { disallowedTools: options.disallowedTools }),
       // Pass through outputFormat for structured JSON outputs
       ...(options.outputFormat && { outputFormat: options.outputFormat }),
     };

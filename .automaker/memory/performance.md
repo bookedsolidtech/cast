@@ -234,3 +234,10 @@ usageStats:
 - **Rejected:** Array with .includes() - adequate but degrades with many groups; Record - more verbose with no performance gain
 - **Trade-offs:** Better render performance and cleaner code vs. Set is less familiar and less serializable if state persistence added later
 - **Breaking if changed:** Switching to array search would degrade UX responsiveness with large component libraries; Set choice matters for performance-critical render path
+
+### Only check for missing CI if PR is in `reviewState === 'pending'`. Early return guards against checking PRs where review flow already started (changes requested, approved, etc). (2026-03-04)
+- **Context:** PR review state machine: pending → (changes_requested | approved | dismissed). If not pending, CI failure is no longer the blocker.
+- **Why:** Logical correctness: CI checks are run-to-completion gate at start of review. Once review progresses, missing CI is either (a) not a problem, or (b) reviewer's concern, not maintainer's. Avoids false diagnostics.
+- **Rejected:** Alternative: check all review states (false positives in merged/dismissed PRs); check only pending (misses edge case where reviewer approved despite missing CI, but that's a review process issue, not our concern).
+- **Trade-offs:** One extra state check per PR per poll. Eliminates false positives in completed review flows.
+- **Breaking if changed:** Removing guard means alerting on dismissed/merged/approved PRs (noise, incorrect diagnosis of root cause).

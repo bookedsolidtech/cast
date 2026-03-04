@@ -9,6 +9,7 @@
 import * as fsp from 'fs/promises';
 import * as path from 'path';
 import { createLogger, classifyError, listSkills, type SkillsFsModule } from '@protolabs-ai/utils';
+import type { HookCallbackMatcher, CanUseTool } from '@protolabs-ai/types';
 import {
   simpleQuery,
   streamingQuery,
@@ -16,6 +17,7 @@ import {
 } from '../providers/simple-query-service.js';
 import type { AgentConfig } from './agent-factory-service.js';
 import type { EventEmitter } from '../lib/events.js';
+import { buildDefaultHooks } from '../lib/agent-hooks.js';
 
 const fsModule: SkillsFsModule = {
   readFile: (p, enc) => fsp.readFile(p, enc as BufferEncoding) as Promise<string>,
@@ -30,6 +32,24 @@ const fsModule: SkillsFsModule = {
 };
 
 const logger = createLogger('DynamicAgentExecutor');
+
+/**
+ * Merge two hooks records, concatenating arrays for shared keys.
+ * Base hooks are listed first; override hooks are appended.
+ */
+function mergeHooks(
+  base: Record<string, HookCallbackMatcher[]>,
+  override?: Partial<Record<string, HookCallbackMatcher[]>>
+): Record<string, HookCallbackMatcher[]> {
+  if (!override) return base;
+  const merged: Record<string, HookCallbackMatcher[]> = { ...base };
+  for (const [key, matchers] of Object.entries(override)) {
+    if (matchers) {
+      merged[key] = [...(merged[key] ?? []), ...matchers];
+    }
+  }
+  return merged;
+}
 
 /** Result of an agent execution */
 export interface ExecutionResult {
@@ -67,6 +87,21 @@ export interface ExecuteOptions {
     featureName?: string;
     agentRole?: string;
   };
+  /**
+   * Lifecycle hooks for the Claude Agent SDK.
+   * Maps hook event names (e.g. 'PreToolUse', 'PostToolUse') to arrays of callback matchers.
+   */
+  hooks?: Partial<Record<string, HookCallbackMatcher[]>>;
+  /**
+   * Permission callback invoked before each tool execution.
+   * Return value controls whether the tool is allowed to run.
+   */
+  canUseTool?: CanUseTool;
+  /**
+   * MCP server configurations to make available for this execution.
+   * Enables per-execution MCP server assignment for future use.
+   */
+  mcpServers?: AgentConfig['mcpServers'];
 }
 
 export class DynamicAgentExecutor {
@@ -106,6 +141,19 @@ export class DynamicAgentExecutor {
         agentRole: config.templateName,
       };
 
+      // Build default hooks (lifecycle + notification) and merge with caller-provided hooks
+      const defaultHooks = buildDefaultHooks({
+        agentLabel: config.templateName,
+        logger,
+        events: this.events,
+        config: {
+          name: config.templateName,
+          role: config.role,
+          projectPath: config.projectPath,
+        },
+      });
+      const mergedHooks = mergeHooks(defaultHooks, options.hooks);
+
       if (options.onText || options.onToolUse) {
         // Streaming execution
         const result = await streamingQuery({
@@ -118,6 +166,8 @@ export class DynamicAgentExecutor {
           abortController: options.abortController,
           onText: options.onText,
           onToolUse: options.onToolUse,
+          hooks: mergedHooks,
+          canUseTool: options.canUseTool,
           traceContext,
         });
         output = result.text;
@@ -131,6 +181,8 @@ export class DynamicAgentExecutor {
           maxTurns: config.maxTurns,
           allowedTools,
           abortController: options.abortController,
+          hooks: mergedHooks,
+          canUseTool: options.canUseTool,
           traceContext,
         });
         output = result.text;

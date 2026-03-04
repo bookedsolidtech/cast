@@ -144,3 +144,16 @@ usageStats:
 - **Trade-offs:** feature.json includes error metadata (slightly larger JSON); error state travels with feature across systems; simplified debugging but feature.json schema now has optional error fields
 - **Breaking if changed:** Code that assumes feature.json only contains production-happy paths; serialization/deserialization must handle optional gitWorkflowError; migrations needed if schema versioning was strict
 >>>>>>> Stashed changes
+
+
+### Added `trackedSince?: number` timestamp to TrackedPR interface to record when PR tracking started. Used to compute elapsed time for MISSING_CI_CHECK_THRESHOLD_MS comparison. (2026-03-04)
+- **Context:** Need to know if PR has been in pending state long enough (default 30 min) to distinguish between 'CI still initializing' and 'CI workflow misconfigured and will never run'.
+- **Why:** Timestamp on the tracked entity is the source of truth; avoids external time tracking or separate tables. Settable at tracking start, immutable after.
+- **Rejected:** Alternative: track in separate Map<prNumber, timestamp> (duplication); compute from PR creation date (ignores when tracking starts); poll duration metric (loose coupling, harder to test).
+- **Trade-offs:** One extra field per PR, set once at tracking init. Clearer intent than computed time. No extra queries.
+- **Breaking if changed:** Removing trackedSince means threshold check always uses PR creation date (wrong baseline, triggers false positives for old-but-recently-tracked PRs).
+
+#### [Pattern] DEFAULT_AVA_CONFIG uses concrete empty array `mcpServers: []` for the new field, not undefined. Field type is optional `mcpServers?: MCPServerConfig[]` but initialization is required and empty. (2026-03-04)
+- **Problem solved:** DEFAULT_AVA_CONFIG already had concrete defaults for model, temperature, systemPrompt, etc. New mcpServers field needed to follow same pattern.
+- **Why this works:** Concrete empty array allows downstream code to call `.filter()` and `.map()` without null checks. Optional type in interface allows ava-config.json to omit the field entirely (schema evolution). Both design goals met simultaneously.
+- **Trade-offs:** More memory for empty array vs undefined, but eliminates defensive checks throughout the codebase. Clearer code at cost of one extra object allocation per load.

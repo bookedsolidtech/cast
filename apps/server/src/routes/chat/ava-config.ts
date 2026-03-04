@@ -14,6 +14,7 @@ import path from 'path';
 import { createLogger } from '@protolabs-ai/utils';
 import { getAutomakerDir, ensureAutomakerDir } from '@protolabs-ai/platform';
 import * as secureFs from '../../lib/secure-fs.js';
+import type { MCPServerConfig } from '@protolabs-ai/types';
 import type { AvaToolsConfig } from './ava-tools.js';
 
 export type { AvaToolsConfig };
@@ -43,6 +44,15 @@ export interface AvaConfig {
   systemPromptExtension: string;
   /** When true, destructive tools execute immediately without HITL confirmation */
   autoApproveTools: boolean;
+  /** MCP servers available to Ava and delegated inner agents */
+  mcpServers?: MCPServerConfig[];
+  /**
+   * Trust level for subagent tool execution.
+   * - 'full': Subagents run with bypassPermissions (fully autonomous).
+   * - 'gated': Each tool call requires approval via the event-based approval flow.
+   * Defaults to 'full'.
+   */
+  subagentTrust: 'full' | 'gated';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -75,6 +85,8 @@ export const DEFAULT_AVA_CONFIG: AvaConfig = {
   contextInjection: true,
   systemPromptExtension: '',
   autoApproveTools: false,
+  mcpServers: [],
+  subagentTrust: 'full',
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

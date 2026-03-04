@@ -16,7 +16,7 @@ import { z } from 'zod';
 import fs from 'fs/promises';
 import path from 'path';
 import type { EventEmitter } from 'events';
-import type { NotesWorkspace } from '@protolabs-ai/types';
+import type { NotesWorkspace, CanUseTool } from '@protolabs-ai/types';
 import {
   getNotesWorkspacePath,
   ensureNotesDir,
@@ -28,12 +28,13 @@ import type { AutoModeService } from '../../services/auto-mode-service.js';
 import type { AgentService } from '../../services/agent-service.js';
 import type { SensorRegistryService } from '../../services/sensor-registry-service.js';
 import type { RoleRegistryService } from '../../services/role-registry-service.js';
-import type { AgentFactoryService } from '../../services/agent-factory-service.js';
+import type { AgentFactoryService, AgentConfig } from '../../services/agent-factory-service.js';
 import type { DynamicAgentExecutor } from '../../services/dynamic-agent-executor.js';
 import type { MetricsService } from '../../services/metrics-service.js';
 import type { ProjectService } from '../../services/project-service.js';
 import type { SettingsService } from '../../services/settings-service.js';
 import type { ToolProgressEmitter } from './tool-progress.js';
+import { buildProgressHooks } from '../../lib/agent-hooks.js';
 import { githubMergeService } from '../../services/github-merge-service.js';
 import { getEventHistoryService } from '../../services/event-history-service.js';
 import { getBriefingCursorService } from '../../services/briefing-cursor-service.js';
@@ -82,6 +83,12 @@ export interface AvaToolsServices {
   projectService?: ProjectService;
   /** Tool progress emitter — optional, enables real-time progress labels in chat */
   toolProgressEmitter?: ToolProgressEmitter;
+  /**
+   * Permission callback for subagent tool execution (gated trust model).
+   * When set, each tool call made by inner agents must be explicitly approved.
+   * Undefined means full trust (bypassPermissions).
+   */
+  canUseTool?: CanUseTool;
 }
 
 export interface AvaToolsConfig {
@@ -190,7 +197,8 @@ function formatToolLabel(toolName: string): string {
 export function buildAvaTools(
   projectPath: string,
   services: AvaToolsServices,
-  config: AvaToolsConfig
+  config: AvaToolsConfig,
+  avaMcpServers?: AgentConfig['mcpServers']
 ): Record<string, Tool> {
   const tools: Record<string, Tool> = {};
 
@@ -628,14 +636,15 @@ export function buildAvaTools(
       description:
         'Execute a dynamic agent with a specific role and prompt. The agent runs in the project worktree and returns its output. Use for delegating specialized tasks to domain-expert agents.',
       inputSchema: z.object({
-        role: z.string().describe('Agent role/template name (e.g. "researcher", "kai", "matt")'),
+        role: z
+          .string()
+          .describe('Agent role/template name. Use list_agent_templates to see available roles.'),
         prompt: z.string().describe('Task prompt for the agent'),
         model: z
           .string()
           .optional()
           .describe('Model override (haiku, sonnet, opus). Defaults to template setting.'),
       }),
-      needsApproval: destructiveNeedsApproval,
       execute: async ({ role, prompt, model }, { toolCallId }) => {
         if (
           !services.roleRegistryService ||
@@ -658,21 +667,25 @@ export function buildAvaTools(
         const emitter = services.toolProgressEmitter;
         const agentLabel = role;
 
+        // Build PostToolUse progress hooks to replace manual onToolUse progress emission.
+        // The hook fires natively after each tool execution; onText remains for text generation.
+        const progressHooks =
+          emitter && toolCallId
+            ? { PostToolUse: buildProgressHooks({ emitter, toolCallId, agentLabel }) }
+            : undefined;
+
         const result = await services.dynamicAgentExecutor.execute(agentConfig, {
           prompt,
+          hooks: progressHooks,
+          ...(avaMcpServers && avaMcpServers.length > 0 && { mcpServers: avaMcpServers }),
           ...(emitter &&
             toolCallId && {
-              onToolUse: (innerTool: string) => {
-                emitter.emitProgress(
-                  toolCallId,
-                  `${agentLabel} -- ${formatToolLabel(innerTool)}`,
-                  innerTool
-                );
-              },
               onText: () => {
                 emitter.emitProgress(toolCallId, `${agentLabel} -- Composing response`);
               },
             }),
+          // Gated trust: pass canUseTool callback so inner agent tool calls require approval
+          ...(services.canUseTool && { canUseTool: services.canUseTool }),
         });
 
         // Cleanup rate-limit tracking

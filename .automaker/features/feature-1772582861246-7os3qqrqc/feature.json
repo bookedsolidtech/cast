@@ -2,7 +2,7 @@
   "category": "Storybook Coverage",
   "description": "**Milestone:** Storybook Coverage\n\nAdd Chromatic to the CI pipeline. Install chromatic package. Add a chromatic.yml GitHub Actions workflow that runs on PRs targeting dev/staging: build Storybook, publish to Chromatic for visual diffing. Use CHROMATIC_PROJECT_TOKEN secret. Configure to run only when libs/ui or apps/ui files change (path filter). Do not block PRs on Chromatic — set as informational check only initially.\n\n**Files to Modify:**\n- package.json\n- .github/workflows/chromatic.yml\n\n**Acceptance Criteria:**\n- [ ] chromatic package installed in apps/ui or root\n- [ ] .github/workflows/chromatic.yml created with correct path filters\n- [ ] Workflow references CHROMATIC_PROJECT_TOKEN secret\n- [ ] Workflow is non-blocking (continue-on-error: true or separate status check)\n\n**Complexity:** medium\n\n**Guardrails:** If this phase involves new or changed behavior, include tests that verify correctness. If this phase adds, removes, or changes a user-facing feature, API endpoint, configuration option, or service, update the relevant documentation in `docs/` to reflect those changes.",
   "title": "Set up Chromatic CI integration",
-  "status": "review",
+  "status": "done",
   "isEpic": false,
   "epicId": "feature-1772582861242-wfa73u0bf",
   "branchName": "feature/storybook-coverage-set-up-chromatic-ci",
@@ -43,6 +43,11 @@
       "from": "blocked",
       "to": "review",
       "timestamp": "2026-03-04T00:40:19.730Z"
+    },
+    {
+      "from": "review",
+      "to": "done",
+      "timestamp": "2026-03-04T22:08:05.885Z"
     }
   ],
   "featureType": "code",
@@ -60,5 +65,6 @@
   "prCreatedAt": "2026-03-04T00:30:54.379Z",
   "reviewStartedAt": "2026-03-04T00:30:54.380Z",
   "prTrackedSince": "2026-03-04T00:30:54.381Z",
-  "prLastPolledAt": "2026-03-04T01:46:13.946Z"
+  "prLastPolledAt": "2026-03-04T01:46:13.946Z",
+  "completedAt": "2026-03-04T22:08:05.885Z"
 }

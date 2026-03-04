@@ -79,10 +79,17 @@ async function generateOGImages() {
           <!-- Background gradient accent -->
           <rect width="1200" height="630" fill="url(#accent-gradient)" />
 
-          <!-- Diamond logo (centered top) -->
+          <!-- Bot logo (centered top) -->
           <g transform="translate(550, 120)">
             <rect width="100" height="100" rx="25" fill="url(#text-gradient)" />
-            <path d="M50 20 L90 60 L50 100 L10 60 Z" fill="#FFFFFF" />
+            <g transform="translate(12, 12) scale(3.2)" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 8V4H8" />
+              <rect width="16" height="12" x="4" y="8" rx="2" />
+              <path d="M2 14h2" />
+              <path d="M20 14h2" />
+              <path d="M15 13v2" />
+              <path d="M9 13v2" />
+            </g>
           </g>
 
           <!-- Title text -->

@@ -1,66 +1,29 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { createLogger } from '@protolabs-ai/utils/logger';
-import {
-  X,
-  SplitSquareHorizontal,
-  SplitSquareVertical,
-  GripHorizontal,
-  Terminal,
-  ZoomIn,
-  ZoomOut,
-  Copy,
-  ClipboardPaste,
-  CheckSquare,
-  Trash2,
-  ImageIcon,
-  Settings,
-  RotateCcw,
-  Search,
-  ChevronUp,
-  ChevronDown,
-  Maximize2,
-  Minimize2,
-  ArrowDown,
-  GitBranch,
-} from 'lucide-react';
+import { ImageIcon, ArrowDown } from 'lucide-react';
 import { Button } from '@protolabs-ai/ui/atoms';
 import { Spinner } from '@protolabs-ai/ui/atoms';
 import { cn } from '@/lib/utils';
-import { Popover, PopoverContent, PopoverTrigger } from '@protolabs-ai/ui/atoms';
-import { Slider } from '@protolabs-ai/ui/atoms';
-import { Label } from '@protolabs-ai/ui/atoms';
-import { Input } from '@protolabs-ai/ui/atoms';
-import { Switch } from '@protolabs-ai/ui/atoms';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@protolabs-ai/ui/atoms';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { useAppStore } from '@/store/app-store';
 import { useTerminalStore } from '@/store/terminal-store';
 import { DEFAULT_KEYBOARD_SHORTCUTS, type KeyboardShortcuts } from '@/store/types';
 import { useShallow } from 'zustand/react/shallow';
 import { matchesShortcutWithCode } from '@/hooks/use-keyboard-shortcuts';
-import {
-  getTerminalTheme,
-  TERMINAL_FONT_OPTIONS,
-  getTerminalFontFamily,
-} from '@/config/terminal-themes';
-import { DEFAULT_FONT_VALUE } from '@/config/ui-font-options';
+import { getTerminalTheme, getTerminalFontFamily } from '@/config/terminal-themes';
 import { toast } from 'sonner';
 import { getElectronAPI } from '@/lib/electron';
 import { getApiKey, getSessionToken, getServerUrlSync } from '@/lib/http-api-client';
+import {
+  TerminalToolbar,
+  MIN_FONT_SIZE,
+  MAX_FONT_SIZE,
+  DEFAULT_FONT_SIZE,
+} from './terminal-toolbar';
+import { TerminalContextMenu } from './terminal-keyboard-map';
 
 const logger = createLogger('Terminal');
 const NO_STORE_CACHE_MODE: RequestCache = 'no-store';
-
-// Font size constraints
-const MIN_FONT_SIZE = 8;
-const MAX_FONT_SIZE = 32;
-const DEFAULT_FONT_SIZE = 14;
 
 // Resize constraints
 const RESIZE_DEBOUNCE_MS = 100; // Short debounce for responsive feel
@@ -143,9 +106,6 @@ export function TerminalPanel({
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [isMac, setIsMac] = useState(false);
   const isMacRef = useRef(false);
-  const contextMenuRef = useRef<HTMLDivElement>(null);
-  const [focusedMenuIndex, setFocusedMenuIndex] = useState(0);
-  const focusedMenuIndexRef = useRef(0);
   const [isImageDragOver, setIsImageDragOver] = useState(false);
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const hasRunInitialCommandRef = useRef(false);
@@ -167,28 +127,16 @@ export function TerminalPanel({
   // Get current project for image saving
   const currentProject = useAppStore((state) => state.currentProject);
 
-  // Get terminal settings from store - grouped with shallow comparison to reduce re-renders
-  const { defaultRunScript, screenReaderMode, fontFamily, scrollbackLines, lineHeight } =
-    useTerminalStore(
-      useShallow((state) => ({
-        defaultRunScript: state.terminalState.defaultRunScript,
-        screenReaderMode: state.terminalState.screenReaderMode,
-        fontFamily: state.terminalState.fontFamily,
-        scrollbackLines: state.terminalState.scrollbackLines,
-        lineHeight: state.terminalState.lineHeight,
-      }))
-    );
-
-  // Action setters are stable references, can use individual selectors
-  const setTerminalDefaultRunScript = useTerminalStore(
-    (state) => state.setTerminalDefaultRunScript
+  // Get terminal settings from store that are needed to drive xterm directly
+  // (font family and line height must be applied to the xterm instance reactively)
+  // Other settings (defaultRunScript, scrollbackLines, screenReaderMode, fontFamily for display)
+  // are now managed inside TerminalSettingsPopover which accesses the store on its own.
+  const { fontFamily, lineHeight } = useTerminalStore(
+    useShallow((state) => ({
+      fontFamily: state.terminalState.fontFamily,
+      lineHeight: state.terminalState.lineHeight,
+    }))
   );
-  const setTerminalScreenReaderMode = useTerminalStore(
-    (state) => state.setTerminalScreenReaderMode
-  );
-  const setTerminalFontFamily = useTerminalStore((state) => state.setTerminalFontFamily);
-  const setTerminalScrollbackLines = useTerminalStore((state) => state.setTerminalScrollbackLines);
-  const setTerminalLineHeight = useTerminalStore((state) => state.setTerminalLineHeight);
 
   // Detect platform on mount
   useEffect(() => {
@@ -438,6 +386,19 @@ export function TerminalPanel({
     xtermRef.current?.focus();
   }, []);
 
+  // Handle search query changes from the toolbar — updates state and triggers live search
+  const handleSearchQueryChange = useCallback(
+    (query: string) => {
+      setSearchQuery(query);
+      if (searchAddonRef.current && query) {
+        searchAddonRef.current.findNext(query, searchOptions);
+      } else if (searchAddonRef.current) {
+        searchAddonRef.current.clearDecorations();
+      }
+    },
+    [searchOptions]
+  );
+
   // Handle pane navigation keyboard shortcuts at container level (capture phase)
   // This ensures we intercept before xterm can process the event
   const handleContainerKeyDownCapture = useCallback(
@@ -478,6 +439,11 @@ export function TerminalPanel({
   // Close context menu
   const closeContextMenu = useCallback(() => {
     setContextMenu(null);
+  }, []);
+
+  // Focus the xterm instance (passed to TerminalContextMenu for Escape-key restore)
+  const focusXterm = useCallback(() => {
+    xtermRef.current?.focus();
   }, []);
 
   // Handle context menu action
@@ -1434,86 +1400,6 @@ export function TerminalPanel({
     return () => container.removeEventListener('wheel', handleWheel);
   }, [zoomIn, zoomOut]);
 
-  // Context menu actions for keyboard navigation
-  const menuActions = ['copy', 'paste', 'selectAll', 'clear'] as const;
-
-  // Keep ref in sync with state for use in event handlers
-  useEffect(() => {
-    focusedMenuIndexRef.current = focusedMenuIndex;
-  }, [focusedMenuIndex]);
-
-  // Close context menu on click outside or scroll, handle keyboard navigation
-  useEffect(() => {
-    if (!contextMenu) return;
-
-    // Reset focus index and focus menu when opened
-    setFocusedMenuIndex(0);
-    focusedMenuIndexRef.current = 0;
-    requestAnimationFrame(() => {
-      const firstButton =
-        contextMenuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]');
-      firstButton?.focus();
-    });
-
-    const handleClick = () => closeContextMenu();
-    const handleScroll = () => closeContextMenu();
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const updateFocusIndex = (newIndex: number) => {
-        focusedMenuIndexRef.current = newIndex;
-        setFocusedMenuIndex(newIndex);
-      };
-
-      switch (e.key) {
-        case 'Escape':
-          e.preventDefault();
-          e.stopPropagation();
-          closeContextMenu();
-          xtermRef.current?.focus();
-          break;
-        case 'ArrowDown':
-          e.preventDefault();
-          e.stopPropagation();
-          updateFocusIndex((focusedMenuIndexRef.current + 1) % menuActions.length);
-          break;
-        case 'ArrowUp':
-          e.preventDefault();
-          e.stopPropagation();
-          updateFocusIndex(
-            (focusedMenuIndexRef.current - 1 + menuActions.length) % menuActions.length
-          );
-          break;
-        case 'Enter':
-        case ' ':
-          e.preventDefault();
-          e.stopPropagation();
-          handleContextMenuAction(menuActions[focusedMenuIndexRef.current]);
-          break;
-        case 'Tab':
-          e.preventDefault();
-          e.stopPropagation();
-          closeContextMenu();
-          break;
-      }
-    };
-
-    document.addEventListener('click', handleClick);
-    document.addEventListener('scroll', handleScroll, true);
-    document.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.removeEventListener('click', handleClick);
-      document.removeEventListener('scroll', handleScroll, true);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [contextMenu, closeContextMenu, handleContextMenuAction]);
-
-  // Focus the correct menu item when navigation changes
-  useEffect(() => {
-    if (!contextMenu || !contextMenuRef.current) return;
-    const buttons = contextMenuRef.current.querySelectorAll<HTMLButtonElement>('[role="menuitem"]');
-    buttons[focusedMenuIndex]?.focus();
-  }, [focusedMenuIndex, contextMenu]);
-
   // Handle right-click context menu with boundary checking
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -1763,388 +1649,33 @@ export function TerminalPanel({
         </div>
       )}
 
-      {/* Header bar with drag handle - uses app theme CSS variables */}
-      <div className="flex items-center h-7 px-1 shrink-0 bg-card border-b border-border">
-        {/* Drag handle */}
-        <button
-          ref={setDragRef}
-          {...dragAttributes}
-          {...dragListeners}
-          className={cn(
-            'p-1 rounded cursor-grab active:cursor-grabbing mr-1 transition-colors text-muted-foreground hover:text-foreground hover:bg-accent',
-            isDragging && 'cursor-grabbing'
-          )}
-          title="Drag to swap terminals"
-        >
-          <GripHorizontal className="h-3 w-3" />
-        </button>
-
-        {/* Terminal icon and label */}
-        <div className="flex items-center gap-1.5 flex-1 min-w-0">
-          <Terminal className="h-3 w-3 shrink-0 text-muted-foreground" />
-          <span className="text-xs truncate text-foreground">{shellName}</span>
-          {/* Branch name indicator - show when terminal was opened from worktree */}
-          {branchName && (
-            <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-brand-500/10 text-brand-500 shrink-0">
-              <GitBranch className="h-2.5 w-2.5 shrink-0" />
-              <span>{branchName}</span>
-            </span>
-          )}
-          {/* Font size indicator - only show when not default */}
-          {fontSize !== DEFAULT_FONT_SIZE && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                resetZoom();
-              }}
-              className="text-[10px] px-1 rounded transition-colors text-muted-foreground hover:text-foreground hover:bg-accent"
-              title="Click to reset zoom (Ctrl+0)"
-            >
-              {fontSize}px
-            </button>
-          )}
-          {connectionStatus === 'reconnecting' && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-status-warning/20 text-yellow-500 flex items-center gap-1">
-              <Spinner size="xs" />
-              Reconnecting...
-            </span>
-          )}
-          {connectionStatus === 'disconnected' && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/20 text-destructive">
-              Disconnected
-            </span>
-          )}
-          {connectionStatus === 'auth_failed' && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/20 text-destructive">
-              Auth Failed
-            </span>
-          )}
-          {processExitCode !== null && (
-            <span
-              className={cn(
-                'text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1',
-                processExitCode === 0
-                  ? 'bg-status-success/20 text-green-500'
-                  : 'bg-status-warning/20 text-yellow-500'
-              )}
-            >
-              Exited ({processExitCode})
-            </span>
-          )}
-        </div>
-
-        {/* Zoom and action buttons */}
-        <div className="flex items-center gap-0.5">
-          {/* Zoom controls */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-5 w-5 text-muted-foreground hover:text-foreground"
-            onClick={(e) => {
-              e.stopPropagation();
-              zoomOut();
-            }}
-            title="Zoom Out (Ctrl+-)"
-            disabled={fontSize <= MIN_FONT_SIZE}
-          >
-            <ZoomOut className="h-3 w-3" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-5 w-5 text-muted-foreground hover:text-foreground"
-            onClick={(e) => {
-              e.stopPropagation();
-              zoomIn();
-            }}
-            title="Zoom In (Ctrl++)"
-            disabled={fontSize >= MAX_FONT_SIZE}
-          >
-            <ZoomIn className="h-3 w-3" />
-          </Button>
-
-          {/* Settings popover */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-5 w-5 text-muted-foreground hover:text-foreground"
-                onClick={(e) => e.stopPropagation()}
-                title="Terminal Settings"
-              >
-                <Settings className="h-3 w-3" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              className="w-64 p-3"
-              align="end"
-              side="bottom"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-medium">Font Size</Label>
-                    <span className="text-xs text-muted-foreground">{fontSize}px</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Slider
-                      value={[fontSize]}
-                      min={MIN_FONT_SIZE}
-                      max={MAX_FONT_SIZE}
-                      step={1}
-                      onValueChange={([value]) => onFontSizeChange(value)}
-                      className="flex-1"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 shrink-0"
-                      onClick={() => resetZoom()}
-                      disabled={fontSize === DEFAULT_FONT_SIZE}
-                      title="Reset to default"
-                    >
-                      <RotateCcw className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium">Run on New Terminal</Label>
-                  <Input
-                    value={defaultRunScript}
-                    onChange={(e) => setTerminalDefaultRunScript(e.target.value)}
-                    placeholder="e.g., claude"
-                    className="h-7 text-xs"
-                  />
-                  <p className="text-[10px] text-muted-foreground">
-                    Command to run when creating a new terminal
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium">Font Family</Label>
-                  <Select
-                    value={fontFamily || DEFAULT_FONT_VALUE}
-                    onValueChange={(value) => {
-                      setTerminalFontFamily(value);
-                      toast.info('Font family changed', {
-                        description: 'Restart terminal for changes to take effect',
-                      });
-                    }}
-                  >
-                    <SelectTrigger className="w-full h-8 text-xs">
-                      <SelectValue placeholder="Default (Menlo / Monaco)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TERMINAL_FONT_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          <span
-                            style={{
-                              fontFamily:
-                                option.value === DEFAULT_FONT_VALUE ? undefined : option.value,
-                            }}
-                          >
-                            {option.label}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-medium">Scrollback</Label>
-                    <span className="text-xs text-muted-foreground">
-                      {(scrollbackLines / 1000).toFixed(0)}k lines
-                    </span>
-                  </div>
-                  <Slider
-                    value={[scrollbackLines]}
-                    min={1000}
-                    max={100000}
-                    step={1000}
-                    onValueChange={([value]) => {
-                      setTerminalScrollbackLines(value);
-                    }}
-                    onValueCommit={() => {
-                      toast.info('Scrollback changed', {
-                        description: 'Restart terminal for changes to take effect',
-                      });
-                    }}
-                    className="flex-1"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-medium">Line Height</Label>
-                    <span className="text-xs text-muted-foreground">{lineHeight.toFixed(1)}</span>
-                  </div>
-                  <Slider
-                    value={[lineHeight]}
-                    min={1.0}
-                    max={2.0}
-                    step={0.1}
-                    onValueChange={([value]) => {
-                      setTerminalLineHeight(value);
-                    }}
-                    onValueCommit={() => {
-                      toast.info('Line height changed', {
-                        description: 'Restart terminal for changes to take effect',
-                      });
-                    }}
-                    className="flex-1"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-xs font-medium">Screen Reader</Label>
-                    <p className="text-[10px] text-muted-foreground">Enable accessibility mode</p>
-                  </div>
-                  <Switch
-                    checked={screenReaderMode}
-                    onCheckedChange={(checked) => {
-                      setTerminalScreenReaderMode(checked);
-                      toast.info(checked ? 'Screen reader enabled' : 'Screen reader disabled', {
-                        description: 'Restart terminal for changes to take effect',
-                      });
-                    }}
-                  />
-                </div>
-
-                <div className="text-[10px] text-muted-foreground border-t pt-2">
-                  <p>Zoom: Ctrl++ / Ctrl+- / Ctrl+0</p>
-                  <p>Or use Ctrl+scroll wheel</p>
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
-
-          <div className="w-px h-3 mx-0.5 bg-border" />
-
-          {/* Split/close buttons */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-5 w-5 text-muted-foreground hover:text-foreground"
-            onClick={(e) => {
-              e.stopPropagation();
-              onSplitHorizontal();
-            }}
-            title="Split Right (Alt+D)"
-          >
-            <SplitSquareHorizontal className="h-3 w-3" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-5 w-5 text-muted-foreground hover:text-foreground"
-            onClick={(e) => {
-              e.stopPropagation();
-              onSplitVertical();
-            }}
-            title="Split Down (Alt+S)"
-          >
-            <SplitSquareVertical className="h-3 w-3" />
-          </Button>
-          {onToggleMaximize && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-5 w-5 text-muted-foreground hover:text-foreground"
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleMaximize();
-              }}
-              title={isMaximized ? 'Restore' : 'Maximize'}
-            >
-              {isMaximized ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-5 w-5 text-muted-foreground hover:text-destructive"
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose();
-            }}
-            title="Close Terminal (Alt+W)"
-          >
-            <X className="h-3 w-3" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Search bar */}
-      {showSearch && (
-        <div className="flex items-center gap-1 px-2 py-1 bg-card border-b border-border shrink-0">
-          <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-          <input
-            ref={searchInputRef}
-            type="text"
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              // Auto-search as user types
-              if (searchAddonRef.current && e.target.value) {
-                searchAddonRef.current.findNext(e.target.value, searchOptions);
-              } else if (searchAddonRef.current) {
-                searchAddonRef.current.clearDecorations();
-              }
-            }}
-            onKeyDown={(e) => {
-              e.stopPropagation();
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                if (e.shiftKey) {
-                  searchPrevious();
-                } else {
-                  searchNext();
-                }
-              } else if (e.key === 'Escape') {
-                e.preventDefault();
-                closeSearch();
-              }
-            }}
-            placeholder="Search..."
-            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none min-w-0"
-          />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-5 w-5 text-muted-foreground hover:text-foreground shrink-0"
-            onClick={searchPrevious}
-            disabled={!searchQuery}
-            title="Previous Match (Shift+Enter)"
-          >
-            <ChevronUp className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-5 w-5 text-muted-foreground hover:text-foreground shrink-0"
-            onClick={searchNext}
-            disabled={!searchQuery}
-            title="Next Match (Enter)"
-          >
-            <ChevronDown className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-5 w-5 text-muted-foreground hover:text-foreground shrink-0"
-            onClick={closeSearch}
-            title="Close (Escape)"
-          >
-            <X className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      )}
+      <TerminalToolbar
+        shellName={shellName}
+        branchName={branchName}
+        fontSize={fontSize}
+        connectionStatus={connectionStatus}
+        processExitCode={processExitCode}
+        isMaximized={isMaximized}
+        isDragging={isDragging}
+        showSearch={showSearch}
+        searchQuery={searchQuery}
+        searchInputRef={searchInputRef}
+        dragRef={setDragRef}
+        dragAttributes={dragAttributes}
+        dragListeners={dragListeners}
+        onClose={onClose}
+        onSplitHorizontal={onSplitHorizontal}
+        onSplitVertical={onSplitVertical}
+        onToggleMaximize={onToggleMaximize}
+        onFontSizeChange={onFontSizeChange}
+        onZoomIn={zoomIn}
+        onZoomOut={zoomOut}
+        onResetZoom={resetZoom}
+        onSearchQueryChange={handleSearchQueryChange}
+        onSearchNext={searchNext}
+        onSearchPrevious={searchPrevious}
+        onCloseSearch={closeSearch}
+      />
 
       {/* Terminal container - uses terminal theme */}
       <div
@@ -2174,78 +1705,14 @@ export function TerminalPanel({
         </Button>
       )}
 
-      {/* Context menu */}
-      {contextMenu && (
-        <div
-          ref={contextMenuRef}
-          role="menu"
-          aria-label="Terminal context menu"
-          className="fixed z-50 min-w-[160px] rounded-md border border-border bg-popover p-1 shadow-md animate-in fade-in-0 zoom-in-95"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            role="menuitem"
-            tabIndex={focusedMenuIndex === 0 ? 0 : -1}
-            className={cn(
-              'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-popover-foreground cursor-default outline-none',
-              focusedMenuIndex === 0
-                ? 'bg-accent text-accent-foreground'
-                : 'hover:bg-accent hover:text-accent-foreground'
-            )}
-            onClick={() => handleContextMenuAction('copy')}
-          >
-            <Copy className="h-4 w-4" />
-            <span className="flex-1 text-left">Copy</span>
-            <span className="text-xs text-muted-foreground">{isMac ? '⌘C' : 'Ctrl+C'}</span>
-          </button>
-          <button
-            role="menuitem"
-            tabIndex={focusedMenuIndex === 1 ? 0 : -1}
-            className={cn(
-              'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-popover-foreground cursor-default outline-none',
-              focusedMenuIndex === 1
-                ? 'bg-accent text-accent-foreground'
-                : 'hover:bg-accent hover:text-accent-foreground'
-            )}
-            onClick={() => handleContextMenuAction('paste')}
-          >
-            <ClipboardPaste className="h-4 w-4" />
-            <span className="flex-1 text-left">Paste</span>
-            <span className="text-xs text-muted-foreground">{isMac ? '⌘V' : 'Ctrl+V'}</span>
-          </button>
-          <div role="separator" className="my-1 h-px bg-border" />
-          <button
-            role="menuitem"
-            tabIndex={focusedMenuIndex === 2 ? 0 : -1}
-            className={cn(
-              'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-popover-foreground cursor-default outline-none',
-              focusedMenuIndex === 2
-                ? 'bg-accent text-accent-foreground'
-                : 'hover:bg-accent hover:text-accent-foreground'
-            )}
-            onClick={() => handleContextMenuAction('selectAll')}
-          >
-            <CheckSquare className="h-4 w-4" />
-            <span className="flex-1 text-left">Select All</span>
-            <span className="text-xs text-muted-foreground">{isMac ? '⌘A' : 'Ctrl+A'}</span>
-          </button>
-          <button
-            role="menuitem"
-            tabIndex={focusedMenuIndex === 3 ? 0 : -1}
-            className={cn(
-              'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-popover-foreground cursor-default outline-none',
-              focusedMenuIndex === 3
-                ? 'bg-accent text-accent-foreground'
-                : 'hover:bg-accent hover:text-accent-foreground'
-            )}
-            onClick={() => handleContextMenuAction('clear')}
-          >
-            <Trash2 className="h-4 w-4" />
-            <span className="flex-1 text-left">Clear</span>
-          </button>
-        </div>
-      )}
+      {/* Context menu — keyboard shortcut map display */}
+      <TerminalContextMenu
+        contextMenu={contextMenu}
+        isMac={isMac}
+        onClose={closeContextMenu}
+        onAction={handleContextMenuAction}
+        focusXterm={focusXterm}
+      />
     </div>
   );
 }

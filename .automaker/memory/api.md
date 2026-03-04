@@ -5,9 +5,9 @@ relevantTo: [api]
 importance: 0.7
 relatedFiles: []
 usageStats:
-  loaded: 285
-  referenced: 75
-  successfulFeatures: 75
+  loaded: 302
+  referenced: 76
+  successfulFeatures: 76
 ---
 # api
 
@@ -708,3 +708,8 @@ usageStats:
 - **Problem solved:** HealthIssueType is a union of issue kinds. Downstream code pattern-matches on type to route issues (log, alert, auto-fix)
 - **Why this works:** Discriminated unions allow type-safe exhaustiveness checking. Adding a new issue type forces all pattern-match sites to handle it (or TypeScript errors)
 - **Trade-offs:** Type safety + discoverability vs. verbosity. Every new issue type requires updating HealthIssueType and all consumers that pattern-match
+
+#### [Gotcha] Vercel AI SDK (streamText) does not accept mcpServers parameter. Ava-configured MCP servers are only available to inner agents via execute_dynamic_agent (which uses Claude Agent SDK). Ava itself cannot directly access these servers. (2026-03-04)
+- **Situation:** Initial feature description implied 'pass them to streamText as additional mcpServers', but streamText is a streaming text generation API, not an agentic SDK. Only execute_dynamic_agent has the Agent SDK underneath.
+- **Root cause:** Vercel AI SDK is designed for chat/completion flows, not agentic control flow. MCP servers require bidirectional agent-server semantics that streamText doesn't expose. Claude Agent SDK has that built-in.
+- **How to avoid:** Simpler integration — no need to thread mcpServers through streamText's internal routing. Trade-off: Ava's direct tools (AI functions at Ava's level) can't invoke ava-level MCP servers; only nested execute_dynamic_agent calls can.

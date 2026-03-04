@@ -20,8 +20,15 @@
     <!-- Rounded square background -->
     <rect width="200" height="200" rx="50" fill="url(#bg)" />
 
-    <!-- Diamond shape -->
-    <path d="M100 25 L175 100 L100 175 L25 100 Z" fill="#FFFFFF" filter="url(#shadow)" />
+    <!-- Bot icon -->
+    <g transform="translate(28, 28) scale(6)" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" filter="url(#shadow)">
+      <path d="M12 8V4H8" />
+      <rect width="16" height="12" x="4" y="8" rx="2" />
+      <path d="M2 14h2" />
+      <path d="M20 14h2" />
+      <path d="M15 13v2" />
+      <path d="M9 13v2" />
+    </g>
   </g>
 
   <!-- Text: proto (white) + Labs (brand violet) -->

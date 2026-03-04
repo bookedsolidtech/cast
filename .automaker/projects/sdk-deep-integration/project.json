@@ -1,0 +1,246 @@
+{
+  "slug": "sdk-deep-integration",
+  "title": "SDK Deep Integration",
+  "goal": "Wire the full Claude Agent SDK surface — native hooks, per-surface custom MCP servers, and a configurable canUseTool trust model — through the entire agent execution stack. Default is full trust (bypassPermissions). Users opt into gated review mode.",
+  "status": "active",
+  "milestones": [
+    {
+      "number": 1,
+      "slug": "01-stack-plumbing",
+      "title": "Stack Plumbing",
+      "description": "Add hooks, canUseTool, and disallowedTools to all type interfaces and wire them through ClaudeProvider. This is the foundational layer everything else depends on.",
+      "phases": [
+        {
+          "number": 1,
+          "name": "provider-types-and-claudeprovider-wiring",
+          "title": "Provider types and ClaudeProvider wiring",
+          "description": "Add hooks, canUseTool, and disallowedTools to ExecuteOptions in libs/types/src/provider.ts. Add the same fields to SimpleQueryOptions and StreamingQueryOptions in apps/server/src/providers/simple-query-service.ts and wire them into the providerOptions object passed to ClaudeProvider. In apps/server/src/providers/claude-provider.ts, spread hooks, canUseTool, and disallowedTools into sdkOptions (following the existing pattern for agents at line 266). Import SDK types HookCallback, HookCallbackMatcher, and CanUseTool from @anthropic-ai/claude-agent-sdk for type safety. Do NOT add mcpServers here — it is already plumbed.",
+          "filesToModify": [
+            "libs/types/src/provider.ts",
+            "apps/server/src/providers/simple-query-service.ts",
+            "apps/server/src/providers/claude-provider.ts"
+          ],
+          "acceptanceCriteria": [
+            "ExecuteOptions has optional hooks, canUseTool, and disallowedTools fields",
+            "SimpleQueryOptions and StreamingQueryOptions have the same fields",
+            "ClaudeProvider.executeQuery() passes hooks/canUseTool/disallowedTools to sdkOptions when provided",
+            "npm run typecheck passes with zero errors",
+            "Existing behavior unchanged when fields are omitted (undefined)"
+          ],
+          "complexity": "medium",
+          "featureId": "feature-1772652272064-v87pfu31e"
+        },
+        {
+          "number": 2,
+          "name": "dynamicagentexecutor-and-agenttemplate-wiring",
+          "title": "DynamicAgentExecutor and AgentTemplate wiring",
+          "description": "Add hooks, canUseTool, and mcpServers to DynamicAgentExecutor.ExecuteOptions (apps/server/src/services/dynamic-agent-executor.ts). Forward them to the simpleQuery/streamingQuery calls in the execute() method. Add an optional mcpServers field to AgentTemplateSchema in libs/types/src/agent-templates.ts using z.array(MCPServerConfigSchema).optional(). Add mcpServers to AgentConfig in agent-factory-service.ts and flow it through resolveConfig(). This enables per-template MCP server assignment for future use.",
+          "filesToModify": [
+            "apps/server/src/services/dynamic-agent-executor.ts",
+            "libs/types/src/agent-templates.ts",
+            "apps/server/src/services/agent-factory-service.ts"
+          ],
+          "acceptanceCriteria": [
+            "DynamicAgentExecutor.ExecuteOptions accepts optional hooks, canUseTool, mcpServers",
+            "execute() forwards those fields to simpleQuery/streamingQuery",
+            "AgentTemplateSchema has optional mcpServers field (Zod validated)",
+            "AgentConfig has mcpServers field, set from template or empty array",
+            "npm run typecheck passes"
+          ],
+          "complexity": "medium",
+          "featureId": "feature-1772652272066-mvmm9iglz"
+        }
+      ],
+      "status": "pending",
+      "epicId": "feature-1772652272062-skhpugyku"
+    },
+    {
+      "number": 2,
+      "slug": "02-sdk-hooks-integration",
+      "title": "SDK Hooks Integration",
+      "description": "Build SDK hook factories and wire PostToolUse, Notification, and SubagentStop hooks into DynamicAgentExecutor, replacing the fragile onText/onToolUse callback approach.",
+      "phases": [
+        {
+          "number": 1,
+          "name": "agent-hook-factory-utilities",
+          "title": "Agent hook factory utilities",
+          "description": "Create apps/server/src/lib/agent-hooks.ts with factory functions for building standard hook sets. Implement: buildProgressHooks(emitter, toolCallId, agentLabel) — returns a PostToolUse HookCallbackMatcher that calls emitter.emitProgress() with native tool name, more reliable than onToolUse. buildNotificationHooks(logger, agentLabel) — returns a Notification HookCallbackMatcher that logs agent status messages (permission_prompt, idle_prompt, auth_success). buildLifecycleHooks(events, config) — returns SubagentStart/SubagentStop HookCallbackMatchers that emit authority:agent-registered events. All hooks return {} (no behavior modification) except when explicitly blocking. Export buildDefaultHooks(options) that assembles all three into a hooks Record.",
+          "filesToModify": [
+            "apps/server/src/lib/agent-hooks.ts"
+          ],
+          "acceptanceCriteria": [
+            "agent-hooks.ts exports buildProgressHooks, buildNotificationHooks, buildLifecycleHooks, buildDefaultHooks",
+            "Each factory returns properly typed HookCallbackMatcher arrays",
+            "PostToolUse hook correctly calls emitter.emitProgress() with tool name and label",
+            "Notification hook logs to the provided logger without throwing",
+            "SubagentStop hook emits authority:agent-registered event",
+            "npm run build:packages passes"
+          ],
+          "complexity": "medium",
+          "featureId": "feature-1772652272068-k6rmrrj1m"
+        },
+        {
+          "number": 2,
+          "name": "wire-hooks-into-dynamicagentexecutor-and-update-progress-tracking",
+          "title": "Wire hooks into DynamicAgentExecutor and update progress tracking",
+          "description": "Update DynamicAgentExecutor.execute() to call buildDefaultHooks() and merge with any caller-provided hooks. Pass the merged hooks object to simpleQuery/streamingQuery. When hooks are active, the PostToolUse hook handles progress tracking — retain onText/onToolUse for backward compatibility but they become secondary. Update execute_dynamic_agent in apps/server/src/routes/chat/ava-tools.ts to let hook-based progress replace the manual emitter.emitProgress() in the onToolUse callback (the hook fires natively). The onText callback for 'Composing response' can remain as-is since PostToolUse does not cover text generation.",
+          "filesToModify": [
+            "apps/server/src/services/dynamic-agent-executor.ts",
+            "apps/server/src/routes/chat/ava-tools.ts"
+          ],
+          "acceptanceCriteria": [
+            "DynamicAgentExecutor builds and passes hooks to the query",
+            "PostToolUse hook fires for every tool call the inner agent makes",
+            "Tool progress labels appear in Ava chat UI during inner agent execution",
+            "SubagentStop lifecycle events are emitted",
+            "Notification messages from inner agents are logged",
+            "Backward-compatible: behavior unchanged when no hooks are provided by caller"
+          ],
+          "complexity": "medium",
+          "featureId": "feature-1772652272069-m8ddqlxg9"
+        }
+      ],
+      "status": "pending",
+      "epicId": "feature-1772652272067-05vzi73gz"
+    },
+    {
+      "number": 3,
+      "slug": "03-ava-custom-mcp-servers",
+      "title": "Ava Custom MCP Servers",
+      "description": "Separate MCP server configuration for Ava's chat surface vs dev agent surface. AvaConfig gets its own mcpServers field. Wire through the chat route so Ava and her delegated agents can use custom external tools.",
+      "phases": [
+        {
+          "number": 1,
+          "name": "avaconfig-mcp-field-and-chat-route-wiring",
+          "title": "AvaConfig MCP field and chat route wiring",
+          "description": "Add mcpServers?: MCPServerConfig[] to AvaConfig in apps/server/src/routes/chat/ava-config.ts and the DEFAULT_AVA_CONFIG. In apps/server/src/routes/chat/index.ts, after loading avaConfig, convert ava-specific mcpServers using the existing getMCPServersFromSettings pattern (or inline conversion) and pass them to streamText as additional mcpServers. In apps/server/src/routes/chat/ava-tools.ts, update the options passed to execute_dynamic_agent so inner agents can also access ava-configured MCP servers when delegated from Ava chat. Import MCPServerConfig from @protolabs-ai/types.",
+          "filesToModify": [
+            "apps/server/src/routes/chat/ava-config.ts",
+            "apps/server/src/routes/chat/index.ts",
+            "apps/server/src/routes/chat/ava-tools.ts"
+          ],
+          "acceptanceCriteria": [
+            "AvaConfig type has optional mcpServers field",
+            "DEFAULT_AVA_CONFIG initializes mcpServers as empty array",
+            "ava-config.json can include mcpServers without breaking schema",
+            "streamText in index.ts merges ava mcpServers with any project-level MCP servers",
+            "execute_dynamic_agent passes ava mcpServers to DynamicAgentExecutor",
+            "Existing behavior unchanged when mcpServers is empty/undefined"
+          ],
+          "complexity": "medium",
+          "featureId": "feature-1772652272071-rembp88mr"
+        },
+        {
+          "number": 2,
+          "name": "ava-settings-mcp-servers-ui",
+          "title": "Ava settings MCP servers UI",
+          "description": "Add an MCP servers section to the Ava settings panel (apps/ui/src/components/views/chat-overlay/ava-settings-panel.tsx). Show the list of configured Ava MCP servers with name, description, tool count, and enabled/disabled toggle. Use the same compact chip style established for tool groups. The settings panel already has a save/update flow — wire MCP server enable/disable through the same avaConfig mutation. Read server list from avaConfig.mcpServers. This is display + toggle only; adding new servers is done via ava-config.json directly (CLI-first for now).",
+          "filesToModify": [
+            "apps/ui/src/components/views/chat-overlay/ava-settings-panel.tsx"
+          ],
+          "acceptanceCriteria": [
+            "MCP servers section visible in Ava settings when mcpServers is non-empty",
+            "Each server shows name and enabled toggle",
+            "Toggle changes save to ava-config.json",
+            "Empty state shown gracefully when no servers configured",
+            "Section hidden (not rendered) when mcpServers array is empty"
+          ],
+          "complexity": "medium",
+          "featureId": "feature-1772652272072-laoem1nwh"
+        }
+      ],
+      "status": "pending",
+      "epicId": "feature-1772652272070-z7qf2eqkv"
+    },
+    {
+      "number": 4,
+      "slug": "04-canusetool-trust-model",
+      "title": "canUseTool Trust Model",
+      "description": "Add subagentTrust config (default: full) with opt-in gated mode that surfaces inner-agent tool approvals to the Ava chat via WebSocket. Full trust = bypassPermissions (current behavior). Gated = permissionMode default + canUseTool callback.",
+      "phases": [
+        {
+          "number": 1,
+          "name": "trust-config-types-and-canusetool-factory",
+          "title": "Trust config types and canUseTool factory",
+          "description": "Add subagentTrust: 'full' | 'gated' to AvaConfig in apps/server/src/routes/chat/ava-config.ts (default: 'full'). Create apps/server/src/lib/agent-trust.ts: export buildCanUseToolCallback(trust, approvalEmitter?) that returns undefined when trust is 'full' (preserving bypassPermissions), and a canUseTool async function when trust is 'gated'. The gated canUseTool: emits a subagent:tool-approval-request event via EventEmitter with { toolCallId, toolName, toolInput, approvalId }, then awaits a Promise that resolves when a corresponding subagent:tool-approval-response event fires with matching approvalId. Timeout after 5 minutes → auto-deny. Also update DynamicAgentExecutor to conditionally NOT set permissionMode bypassPermissions when canUseTool is provided (pass permissionMode: 'default' instead).",
+          "filesToModify": [
+            "apps/server/src/routes/chat/ava-config.ts",
+            "apps/server/src/lib/agent-trust.ts",
+            "apps/server/src/services/dynamic-agent-executor.ts",
+            "apps/server/src/providers/simple-query-service.ts",
+            "apps/server/src/providers/claude-provider.ts"
+          ],
+          "acceptanceCriteria": [
+            "AvaConfig.subagentTrust defaults to 'full' in DEFAULT_AVA_CONFIG",
+            "buildCanUseToolCallback returns undefined for 'full' trust",
+            "buildCanUseToolCallback returns async function for 'gated' trust",
+            "Gated callback emits approval request event with unique approvalId",
+            "Gated callback awaits response event or auto-denies after 5 min timeout",
+            "DynamicAgentExecutor passes permissionMode: 'default' when canUseTool is set",
+            "permissionMode: 'bypassPermissions' preserved when no canUseTool (full trust)"
+          ],
+          "complexity": "medium",
+          "featureId": "feature-1772652272073-sy27b6spg"
+        },
+        {
+          "number": 2,
+          "name": "gated-approval-websocket-flow-and-inline-ui",
+          "title": "Gated approval WebSocket flow and inline UI",
+          "description": "Wire the approval event loop through the server and client. Server: in apps/server/src/routes/chat/index.ts, after loading avaConfig, if subagentTrust is 'gated' call buildCanUseToolCallback and pass approvalEmitter (the events bus). Add a POST /api/chat/tool-approval endpoint that accepts { approvalId, approved: boolean } and emits subagent:tool-approval-response to resolve the waiting canUseTool promise. Client: in apps/ui/src/hooks/use-chat-session.ts, subscribe to the subagent:tool-approval-request WebSocket event and surface it as a pending approval in the chat state. Add a SubagentApprovalCard component in libs/ui/src/ai/ that renders inline in the chat with tool name, input details, Approve/Deny buttons. Wire button clicks to POST /api/chat/tool-approval.",
+          "filesToModify": [
+            "apps/server/src/routes/chat/index.ts",
+            "apps/server/src/routes/chat/ava-config.ts",
+            "apps/ui/src/hooks/use-chat-session.ts",
+            "libs/ui/src/ai/subagent-approval-card.tsx",
+            "libs/ui/src/ai/chat-message-list.tsx"
+          ],
+          "acceptanceCriteria": [
+            "POST /api/chat/tool-approval resolves the waiting canUseTool promise",
+            "SubagentApprovalCard renders tool name, abbreviated input, Approve/Deny buttons",
+            "Approving triggers the inner agent to continue with the tool",
+            "Denying blocks the tool and sends denial reason to inner agent",
+            "5-minute timeout auto-denies and shows expired state in UI",
+            "Full trust mode (default) shows no approval UI — behavior unchanged"
+          ],
+          "complexity": "large",
+          "featureId": "feature-1772652272074-lkzsv6naz"
+        },
+        {
+          "number": 3,
+          "name": "trust-level-toggle-in-ava-settings",
+          "title": "Trust level toggle in Ava settings",
+          "description": "Add a trust level toggle to ava-settings-panel.tsx. Show a single row: 'Subagent Trust' with two options — 'Full (autonomous)' and 'Gated (review)'. Wire to avaConfig.subagentTrust via the existing save mechanism. Include a brief description of what each mode does. Show a warning badge on the panel header when gated mode is enabled.",
+          "filesToModify": [
+            "apps/ui/src/components/views/chat-overlay/ava-settings-panel.tsx"
+          ],
+          "acceptanceCriteria": [
+            "Trust level row visible in Ava settings panel",
+            "Toggle between Full and Gated saves correctly to ava-config.json",
+            "Warning indicator visible on settings panel when gated mode is active",
+            "Description text explains what each mode does"
+          ],
+          "complexity": "small",
+          "featureId": "feature-1772652272074-tbffnjijb"
+        }
+      ],
+      "status": "pending",
+      "epicId": "feature-1772652272072-urs6sfl7u"
+    }
+  ],
+  "prd": {
+    "situation": "The Claude Agent SDK supports hooks (PreToolUse, PostToolUse, Notification, SubagentStop, etc.), per-agent canUseTool callbacks, and in-process custom MCP servers. Automaker uses the SDK for all agent execution but exposes only ~30% of its capabilities. Tool progress currently relies on fragile regex/callback output parsing via onText/onToolUse. There is no separation between Ava's external tool surface and dev agent tools. The architecture has no plumbing for hooks or canUseTool anywhere in the stack: ExecuteOptions, SimpleQueryOptions, DynamicAgentExecutor, and AgentConfig all lack these fields.",
+    "problem": "1. Progress tracking uses onText/onToolUse regex parsing instead of SDK-native PostToolUse hooks — brittle and misses inner-agent tool calls. 2. No way to give Ava access to custom MCP tools (Slack, Calendar, GitHub Search) without polluting dev agent tool surfaces. 3. canUseTool is completely absent from the stack — no infrastructure exists to support per-subagent approval flows even for teams that want them. 4. The trust model is uninverted: full autonomy requires config; gated review is the accidental default for anything not explicitly bypassed.",
+    "approach": "Four-milestone delivery: (1) Plumb hooks/canUseTool/disallowedTools through the full type chain from ExecuteOptions down through SimpleQueryOptions, ClaudeProvider, and DynamicAgentExecutor. (2) Build SDK hook factories (PostToolUse for progress, Notification for status, SubagentStop for lifecycle) and wire them into DynamicAgentExecutor replacing the fragile callback approach. (3) Add AvaConfig.mcpServers for Ava-specific external integrations and wire through the chat route — separate from dev agent MCP. (4) Add subagentTrust config (default: full) with gated mode that conditionally sets permissionMode and provides a WebSocket-based canUseTool approval flow.",
+    "results": "SDK-native tool progress tracking that captures inner-agent events reliably. Ava can connect to Slack, Calendar, and other external services without those tools bleeding into dev agent context. The canUseTool infrastructure exists and can be enabled per-project. Trust defaults to full autonomy — no configuration needed for the common case.",
+    "constraints": [
+      "canUseTool may be silently ignored when permissionMode is bypassPermissions — gated mode must conditionally omit bypassPermissions and set permissionMode to default",
+      "The approval WebSocket flow must be async-compatible: canUseTool is an async callback that resolves when the user responds",
+      "All changes must be backward-compatible — existing behavior is unchanged for default (full trust) config",
+      "SimpleQueryOptions is a subset of ExecuteOptions maintained in simple-query-service.ts — both must be updated together",
+      "AgentTemplate Zod schema is validated at runtime — new optional fields must use .optional() to avoid breaking existing templates",
+      "The agents option is already plumbed through ClaudeProvider (line 266) — use that exact pattern for hooks and canUseTool"
+    ]
+  },
+  "createdAt": "2026-03-04T19:24:24.033Z",
+  "updatedAt": "2026-03-04T19:24:32.101Z"
+}
