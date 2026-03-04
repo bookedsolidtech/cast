@@ -118,77 +118,8 @@ export interface AvaToolsConfig {
    * Only meaningful when the userPresenceDetection feature flag is enabled.
    */
   userPresenceDetection?: boolean;
-  /**
-   * Pre-approved destructive tool calls (HITL flow).
-   * Each entry contains the tool name and a stable JSON hash of the input args.
-   * When a destructive tool's args match an entry here, it executes immediately
-   * rather than returning a confirmation-required sentinel.
-   */
-  approvedActions?: Array<{ toolName: string; inputHash: string }>;
-  /** When true, all destructive tools are auto-approved without HITL confirmation */
+  /** When true, all destructive tools skip HITL confirmation (needsApproval: false) */
   autoApproveTools?: boolean;
-}
-
-// ---------------------------------------------------------------------------
-// Destructive-tool helpers (HITL)
-// ---------------------------------------------------------------------------
-
-/**
- * The set of tool names that require human-in-the-loop confirmation before
- * executing. `start_auto_mode` is only gated when maxConcurrency > 1.
- */
-export const DESTRUCTIVE_TOOLS = new Set([
-  'delete_feature',
-  'stop_agent',
-  'update_project_spec',
-  'merge_pr',
-  'promote_to_staging',
-  'execute_dynamic_agent',
-]);
-
-/**
- * Produce a stable JSON string for an input object so that two calls with the
- * same arguments generate identical hashes regardless of key insertion order.
- */
-function stableJson(obj: unknown): string {
-  if (typeof obj !== 'object' || obj === null) return JSON.stringify(obj);
-  const sorted = Object.fromEntries(
-    Object.entries(obj as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b))
-  );
-  return JSON.stringify(sorted);
-}
-
-/**
- * Returns true when the given (toolName, input) pair has been pre-approved by
- * the user in this request.
- */
-function isApproved(
-  toolName: string,
-  input: unknown,
-  approvedActions: AvaToolsConfig['approvedActions'],
-  autoApproveTools?: boolean
-): boolean {
-  if (autoApproveTools) return true;
-  if (!approvedActions || approvedActions.length === 0) return false;
-  const hash = stableJson(input);
-  return approvedActions.some(
-    (a) => a.toolName === toolName && (a.inputHash === '*' || a.inputHash === hash)
-  );
-}
-
-/**
- * Build the HITL sentinel object returned when a destructive tool needs
- * user confirmation before executing.
- */
-function hitlSentinel(action: string, summary: string, input: unknown): Record<string, unknown> {
-  return {
-    __hitl: true,
-    action,
-    summary,
-    input,
-    message:
-      'This action requires user confirmation. Please confirm to proceed or reject to cancel.',
-  };
 }
 
 // Re-use the same status literals that the Feature type exposes
@@ -210,12 +141,16 @@ const FEATURE_STATUS_ENUM = [
  * Uses 'inputSchema' (the ai v6 field name) rather than 'parameters' (ai v4/v5).
  * The double cast is intentional: ai v6 uses complex conditional types on INPUT/OUTPUT
  * generics that make direct assignment fragile without explicit type parameters.
+ *
+ * Supports `needsApproval` for the native AI SDK HITL flow and passes
+ * `ToolExecutionOptions` (with `toolCallId`) as the second execute parameter.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function makeTool<TSchema extends z.ZodType<any>>(config: {
   description: string;
   inputSchema: TSchema;
-  execute: (input: z.infer<TSchema>) => Promise<unknown>;
+  needsApproval?: boolean | ((input: z.infer<TSchema>) => boolean | Promise<boolean>);
+  execute: (input: z.infer<TSchema>, options: { toolCallId: string }) => Promise<unknown>;
 }): Tool {
   return config as unknown as Tool;
 }
@@ -258,6 +193,10 @@ export function buildAvaTools(
   config: AvaToolsConfig
 ): Record<string, Tool> {
   const tools: Record<string, Tool> = {};
+
+  // When autoApproveTools is true, destructive tools run without HITL confirmation.
+  // Otherwise the AI SDK pauses execution and the client shows an approval card.
+  const destructiveNeedsApproval = !config.autoApproveTools;
 
   // -----------------------------------------------------------------------
   // boardRead – read-only access to the feature board
@@ -470,11 +409,8 @@ export function buildAvaTools(
       inputSchema: z.object({
         featureId: z.string().describe('The feature ID to delete'),
       }),
+      needsApproval: destructiveNeedsApproval,
       execute: async ({ featureId }) => {
-        const input = { featureId };
-        if (!isApproved('delete_feature', input, config.approvedActions, config.autoApproveTools)) {
-          return hitlSentinel('delete_feature', `Delete feature "${featureId}"`, input);
-        }
         const success = await services.featureLoader.delete(projectPath, featureId);
         if (success) {
           services.events?.emit('feature:deleted', { projectPath, featureId });
@@ -485,51 +421,41 @@ export function buildAvaTools(
   }
 
   // -----------------------------------------------------------------------
-  // agentControl – manage agent sessions and retrieve their output
+  // agentControl – manage running feature agents and retrieve their output
   // -----------------------------------------------------------------------
   if (config.agentControl) {
     tools['list_running_agents'] = makeTool({
-      description: 'List all active (non-archived) agent sessions.',
+      description:
+        'List all running feature agents across all projects. Returns featureId, title, model, startTime, branchName, and cost.',
       inputSchema: z.object({}),
       execute: async () => {
-        const sessions = await services.agentService.listSessions(false);
-        return sessions;
+        const agents = await services.autoModeService.getRunningAgents();
+        return agents;
       },
     });
 
     tools['start_agent'] = makeTool({
-      description: 'Create and start a new agent session.',
+      description:
+        'Start an agent to work on a feature. The agent runs in an isolated git worktree.',
       inputSchema: z.object({
-        name: z.string().describe('Human-readable name for this agent session'),
-        workingDirectory: z
-          .string()
-          .optional()
-          .describe('Working directory the agent should operate in'),
-        model: z.string().optional().describe('Model identifier to use for this agent'),
+        featureId: z.string().describe('The feature ID to start an agent on'),
       }),
-      execute: async ({ name, workingDirectory, model }) => {
-        const session = await services.agentService.createSession(
-          name,
-          projectPath,
-          workingDirectory,
-          model
-        );
-        return session;
+      needsApproval: destructiveNeedsApproval,
+      execute: async ({ featureId }) => {
+        await services.autoModeService.executeFeature(projectPath, featureId, true);
+        return { success: true, featureId };
       },
     });
 
     tools['stop_agent'] = makeTool({
-      description: 'Stop and remove an agent session.',
+      description: 'Stop a running feature agent by its feature ID.',
       inputSchema: z.object({
-        sessionId: z.string().describe('ID of the session to stop'),
+        featureId: z.string().describe('The feature ID of the running agent to stop'),
       }),
-      execute: async ({ sessionId }) => {
-        const input = { sessionId };
-        if (!isApproved('stop_agent', input, config.approvedActions, config.autoApproveTools)) {
-          return hitlSentinel('stop_agent', `Stop agent session "${sessionId}"`, input);
-        }
-        const deleted = await services.agentService.deleteSession(sessionId);
-        return { success: deleted, sessionId };
+      needsApproval: destructiveNeedsApproval,
+      execute: async ({ featureId }) => {
+        const stopped = await services.autoModeService.stopFeature(featureId);
+        return { success: stopped, featureId };
       },
     });
 
@@ -572,21 +498,11 @@ export function buildAvaTools(
           .optional()
           .describe('Restrict auto-mode to features belonging to this branch'),
       }),
+      // Require confirmation only when running more than one worker in parallel
+      needsApproval: destructiveNeedsApproval
+        ? ({ maxConcurrency }) => (maxConcurrency ?? 1) > 1
+        : false,
       execute: async ({ maxConcurrency, branchName }) => {
-        // Require confirmation when running more than one worker in parallel
-        const isConcurrent = (maxConcurrency ?? 1) > 1;
-        if (isConcurrent) {
-          const input = { maxConcurrency, branchName };
-          if (
-            !isApproved('start_auto_mode', input, config.approvedActions, config.autoApproveTools)
-          ) {
-            return hitlSentinel(
-              'start_auto_mode',
-              `Start auto mode with ${maxConcurrency} parallel workers`,
-              input
-            );
-          }
-        }
         const count = await services.autoModeService.startAutoLoopForProject(
           projectPath,
           branchName ?? null,
@@ -638,13 +554,8 @@ export function buildAvaTools(
       inputSchema: z.object({
         content: z.string().describe('Markdown content to write to spec.md'),
       }),
+      needsApproval: destructiveNeedsApproval,
       execute: async ({ content }) => {
-        const input = { content };
-        if (
-          !isApproved('update_project_spec', input, config.approvedActions, config.autoApproveTools)
-        ) {
-          return hitlSentinel('update_project_spec', 'Update project specification', input);
-        }
         const specDir = path.join(projectPath, '.automaker');
         const specPath = path.join(specDir, 'spec.md');
         await fs.mkdir(specDir, { recursive: true });
@@ -724,22 +635,8 @@ export function buildAvaTools(
           .optional()
           .describe('Model override (haiku, sonnet, opus). Defaults to template setting.'),
       }),
-      execute: async ({ role, prompt, model }) => {
-        const input = { role, prompt, model };
-        if (
-          !isApproved(
-            'execute_dynamic_agent',
-            input,
-            config.approvedActions,
-            config.autoApproveTools
-          )
-        ) {
-          return hitlSentinel(
-            'execute_dynamic_agent',
-            `Execute ${role} agent: "${prompt.slice(0, 80)}${prompt.length > 80 ? '...' : ''}"`,
-            input
-          );
-        }
+      needsApproval: destructiveNeedsApproval,
+      execute: async ({ role, prompt, model }, { toolCallId }) => {
         if (
           !services.roleRegistryService ||
           !services.agentFactoryService ||
@@ -759,9 +656,6 @@ export function buildAvaTools(
 
         // Wire tool progress emitter — stream inner-agent activity to the chat UI
         const emitter = services.toolProgressEmitter;
-        const toolCallId =
-          // AI SDK passes toolCallId at runtime via ToolExecutionOptions
-          (arguments[1] as { toolCallId?: string } | undefined)?.toolCallId ?? '';
         const agentLabel = role;
 
         const result = await services.dynamicAgentExecutor.execute(agentConfig, {
@@ -971,11 +865,8 @@ export function buildAvaTools(
           .optional()
           .describe('Wait for CI checks to pass before merging (default: true)'),
       }),
+      needsApproval: destructiveNeedsApproval,
       execute: async ({ prNumber, strategy, waitForCI }) => {
-        const input = { prNumber, strategy, waitForCI };
-        if (!isApproved('merge_pr', input, config.approvedActions, config.autoApproveTools)) {
-          return hitlSentinel('merge_pr', `Merge PR #${prNumber} (${strategy ?? 'squash'})`, input);
-        }
         return githubMergeService.mergePR(
           projectPath,
           prNumber,
@@ -1071,13 +962,8 @@ export function buildAvaTools(
       description:
         'Promote dev to staging by creating a merge PR from dev into staging. Requires user confirmation.',
       inputSchema: z.object({}),
+      needsApproval: destructiveNeedsApproval,
       execute: async () => {
-        const input = {};
-        if (
-          !isApproved('promote_to_staging', input, config.approvedActions, config.autoApproveTools)
-        ) {
-          return hitlSentinel('promote_to_staging', 'Promote dev to staging', input);
-        }
         try {
           const { exec: execCb } = await import('child_process');
           const { promisify } = await import('util');

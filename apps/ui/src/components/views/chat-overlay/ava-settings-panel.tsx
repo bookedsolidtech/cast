@@ -13,12 +13,22 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Settings, Loader2 } from 'lucide-react';
+import { Settings, Loader2, ChevronRight } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Switch } from '@protolabs-ai/ui/atoms';
 import { toast } from 'sonner';
 import { getHttpApiClient } from '@/lib/http-api-client';
 import { cn } from '@/lib/utils';
+import {
+  Switch,
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@protolabs-ai/ui/atoms';
 import type { AvaConfig, AvaToolGroups } from '@/lib/clients/ava-client';
 
 export interface AvaSettingsPanelProps {
@@ -206,42 +216,64 @@ export function AvaSettingsPanel({ projectPath }: AvaSettingsPanelProps) {
       </div>
 
       {/* Default Model */}
-      <div className="space-y-2">
+      <div className="flex items-center justify-between">
         <p className="text-xs font-medium text-foreground">Default Model</p>
-        <div className="flex gap-1">
-          {MODEL_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => handleModelChange(opt.value)}
-              className={cn(
-                'flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-                data.model === opt.value
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-        <p className="text-[11px] text-muted-foreground">Sets the model for new conversations.</p>
+        <Select
+          value={data.model}
+          onValueChange={(v) => handleModelChange(v as AvaConfig['model'])}
+        >
+          <SelectTrigger className="h-7 w-24 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {MODEL_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <hr className="border-border" />
 
-      {/* Capabilities */}
-      <div className="space-y-3">
-        <p className="text-xs font-medium text-foreground">Capabilities</p>
-        {TOOL_GROUP_ENTRIES.map((entry) => (
-          <ToggleRow
-            key={entry.key}
-            label={entry.label}
-            checked={data.toolGroups[entry.key]}
-            onChange={(checked) => handleToolGroupToggle(entry.key, checked)}
-          />
-        ))}
-      </div>
+      {/* Capabilities — collapsible chip grid */}
+      <Collapsible>
+        <CollapsibleTrigger className="flex w-full items-center gap-1.5 text-xs font-medium text-foreground group">
+          <ChevronRight className="size-3 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />
+          Capabilities
+          <span className="ml-auto text-[10px] font-normal text-muted-foreground">
+            {TOOL_GROUP_ENTRIES.filter((e) => data.toolGroups[e.key]).length}/
+            {TOOL_GROUP_ENTRIES.length}
+          </span>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="grid grid-cols-2 gap-1.5 pt-2">
+            {TOOL_GROUP_ENTRIES.map((entry) => (
+              <button
+                key={entry.key}
+                type="button"
+                onClick={() => handleToolGroupToggle(entry.key, !data.toolGroups[entry.key])}
+                title={entry.description}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-[11px] transition-colors',
+                  data.toolGroups[entry.key]
+                    ? 'border-primary/30 bg-primary/10 text-foreground'
+                    : 'border-border bg-muted/30 text-muted-foreground'
+                )}
+              >
+                <span
+                  className={cn(
+                    'size-1.5 shrink-0 rounded-full',
+                    data.toolGroups[entry.key] ? 'bg-green-500' : 'bg-muted-foreground/30'
+                  )}
+                />
+                {entry.label}
+              </button>
+            ))}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       <hr className="border-border" />
 
@@ -275,18 +307,26 @@ export function AvaSettingsPanel({ projectPath }: AvaSettingsPanelProps) {
 
       <hr className="border-border" />
 
-      {/* System Prompt Extension */}
-      <div className="space-y-2">
-        <p className="text-xs font-medium text-foreground">System Prompt Extension</p>
-        <textarea
-          value={localPrompt}
-          onChange={(e) => handlePromptChange(e.target.value)}
-          onBlur={handlePromptBlur}
-          placeholder="Custom instructions appended to Ava's base prompt..."
-          rows={3}
-          className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y min-h-[60px]"
-        />
-      </div>
+      {/* System Prompt Extension — collapsible */}
+      <Collapsible>
+        <CollapsibleTrigger className="flex w-full items-center gap-1.5 text-xs font-medium text-foreground group">
+          <ChevronRight className="size-3 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />
+          System Prompt Extension
+          {localPrompt && (
+            <span className="ml-auto size-1.5 rounded-full bg-primary" title="Custom prompt set" />
+          )}
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <textarea
+            value={localPrompt}
+            onChange={(e) => handlePromptChange(e.target.value)}
+            onBlur={handlePromptBlur}
+            placeholder="Custom instructions appended to Ava's base prompt..."
+            rows={3}
+            className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y min-h-[60px]"
+          />
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* Project path footer */}
       <div className="pt-1 border-t border-border">

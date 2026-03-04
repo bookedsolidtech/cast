@@ -24,7 +24,7 @@ export interface ConfirmationCardProps {
   toolName: string;
   /** The input arguments passed to the tool */
   input?: unknown;
-  /** Optional human-readable summary of the action (from the __hitl sentinel) */
+  /** Optional human-readable summary of the action */
   summary?: string;
   /**
    * External state:
@@ -62,6 +62,23 @@ function buildSummary(toolName: string, input: unknown): string {
     }
     case 'update_project_spec':
       return 'Update project specification';
+    case 'merge_pr': {
+      const pr = args.prNumber as number | undefined;
+      const strat = (args.strategy as string) ?? 'squash';
+      return pr ? `Merge PR #${pr} (${strat})` : 'Merge pull request';
+    }
+    case 'promote_to_staging':
+      return 'Promote dev to staging';
+    case 'execute_dynamic_agent': {
+      const agentRole = args.role as string | undefined;
+      const agentPrompt = args.prompt as string | undefined;
+      const snippet = agentPrompt
+        ? `"${agentPrompt.slice(0, 60)}${agentPrompt.length > 60 ? '...' : ''}"`
+        : '';
+      return agentRole
+        ? `Execute ${agentRole} agent${snippet ? `: ${snippet}` : ''}`
+        : 'Execute agent';
+    }
     default:
       return formatToolName(toolName);
   }

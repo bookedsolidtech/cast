@@ -274,7 +274,10 @@ export class GitWorkflowService {
         DEFAULT_GIT_WORKFLOW_SETTINGS.prMergeStrategy,
       waitForCI:
         featureOverride.waitForCI ?? global.waitForCI ?? DEFAULT_GIT_WORKFLOW_SETTINGS.waitForCI,
-      prBaseBranch: global.prBaseBranch ?? DEFAULT_GIT_WORKFLOW_SETTINGS.prBaseBranch,
+      prBaseBranch:
+        featureOverride.prBaseBranch ??
+        global.prBaseBranch ??
+        DEFAULT_GIT_WORKFLOW_SETTINGS.prBaseBranch,
     };
   }
 

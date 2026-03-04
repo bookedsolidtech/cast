@@ -687,7 +687,22 @@ export class ExecutionService {
       // so that stranded work is committed and a PR is created if the agent
       // completed implementation but failed to run its own git workflow step.
       if (worktreePath) {
-        const recoveryResult = await checkAndRecoverUncommittedWork(feature, workDir, projectPath);
+        // Resolve prBaseBranch from settings for recovery PR target
+        let recoveryBaseBranch: string | undefined;
+        if (this.settingsService) {
+          try {
+            const settings = await this.settingsService.getGlobalSettings();
+            recoveryBaseBranch = settings.gitWorkflow?.prBaseBranch;
+          } catch {
+            /* use default */
+          }
+        }
+        const recoveryResult = await checkAndRecoverUncommittedWork(
+          feature,
+          workDir,
+          projectPath,
+          recoveryBaseBranch
+        );
         if (recoveryResult.detected) {
           if (recoveryResult.recovered) {
             // Recovery committed, pushed, and created a PR.

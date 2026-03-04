@@ -1,0 +1,25 @@
+{
+  "category": "Bug Reports",
+  "description": "Bug 3: Maintenance Tasks Only Check main/master for Merged Branches\nFile: maintenance-tasks.ts\n\nThe stale worktree cleanup checks if branches are merged using git merge-base --is-ancestor against main or master:\n\nlet defaultBranch = 'main';\ntry {\n  await execFileAsync('git', ['rev-parse', '--verify', 'main'], ...);\n} catch {\n  defaultBranch = 'master';\n}\nIf your workflow uses dev as the integration branch (which ours does), branches merged into dev will NOT be detected as merged by the cleanup service. Worktrees accumulate.\n\nImpact on us: 25 worktrees currently active, many for already-merged features.\n\nSeverity: Medium — causes worktree accumulation but doesn't block features.",
+  "title": "Bug 3: Maintenance Tasks Only Check main/master for Merged Branches\nFile: maintenance-tasks.ts\n\nThe ",
+  "status": "backlog",
+  "projectSlug": "bugs",
+  "id": "feature-1772643815761-yx4ekolwo",
+  "branchName": "feature/bug-3-maintenance-tasks-only-check",
+  "descriptionHistory": [
+    {
+      "description": "Bug 3: Maintenance Tasks Only Check main/master for Merged Branches\nFile: maintenance-tasks.ts\n\nThe stale worktree cleanup checks if branches are merged using git merge-base --is-ancestor against main or master:\n\nlet defaultBranch = 'main';\ntry {\n  await execFileAsync('git', ['rev-parse', '--verify', 'main'], ...);\n} catch {\n  defaultBranch = 'master';\n}\nIf your workflow uses dev as the integration branch (which ours does), branches merged into dev will NOT be detected as merged by the cleanup service. Worktrees accumulate.\n\nImpact on us: 25 worktrees currently active, many for already-merged features.\n\nSeverity: Medium — causes worktree accumulation but doesn't block features.",
+      "timestamp": "2026-03-04T17:03:35.762Z",
+      "source": "initial"
+    }
+  ],
+  "createdAt": "2026-03-04T17:03:35.762Z",
+  "statusHistory": [
+    {
+      "from": null,
+      "to": "backlog",
+      "timestamp": "2026-03-04T17:03:35.762Z",
+      "reason": "Feature created"
+    }
+  ]
+}

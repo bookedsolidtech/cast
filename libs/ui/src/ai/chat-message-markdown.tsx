@@ -101,13 +101,33 @@ export function ChatMessageMarkdown({ content, className, citations }: ChatMessa
       data-slot="chat-message-markdown"
       className={cn(
         'prose prose-sm dark:prose-invert max-w-none',
-        // Tighten default prose spacing to match chat density
-        'prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5',
-        'prose-headings:mb-2 prose-headings:mt-3',
-        // Table prose overrides removed — handled by component overrides below
+
+        // Paragraphs: 12px bottom, no top (prevents double-stack after headings/lists)
+        'prose-p:mt-0 prose-p:mb-3',
+
+        // Headings: compact label-style sizes for chat context
+        'prose-h1:text-base prose-h1:font-semibold prose-h1:mt-4 prose-h1:mb-2',
+        'prose-h2:text-sm prose-h2:font-semibold prose-h2:mt-3 prose-h2:mb-1.5',
+        'prose-h3:text-sm prose-h3:font-medium prose-h3:mt-2.5 prose-h3:mb-1',
+        'prose-h4:text-xs prose-h4:font-medium prose-h4:uppercase prose-h4:tracking-wide prose-h4:text-muted-foreground prose-h4:mt-2 prose-h4:mb-1',
+
+        // Lists: 8px around block, 4px between items, tighter indent
+        'prose-ul:my-2 prose-ol:my-2 prose-ul:pl-5 prose-ol:pl-5',
+        'prose-li:my-1',
+        '[&_li_ul]:my-0.5 [&_li_ol]:my-0.5 [&_li_li]:my-0.5',
+
+        // Blockquotes: accent border, no italic, muted text
+        'prose-blockquote:border-l-2 prose-blockquote:border-primary/30',
+        'prose-blockquote:pl-3 prose-blockquote:py-0.5 prose-blockquote:my-2',
+        'prose-blockquote:not-italic prose-blockquote:text-muted-foreground',
+
+        // HRs: subtle, compact spacing
+        'prose-hr:my-3 prose-hr:border-border/40',
+
         // Task lists — remove default bullet so the checkbox aligns cleanly
         '[&_li:has(>input[type=checkbox])]:list-none [&_li:has(>input[type=checkbox])]:pl-0',
         '[&_input[type=checkbox]]:mr-1.5 [&_input[type=checkbox]]:accent-primary',
+
         className
       )}
     >

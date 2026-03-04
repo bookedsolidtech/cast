@@ -11,6 +11,7 @@ import path from 'path';
 import { promisify } from 'util';
 import { createLogger } from '@protolabs-ai/utils';
 import type { Feature } from '@protolabs-ai/types';
+import { DEFAULT_GIT_WORKFLOW_SETTINGS } from '@protolabs-ai/types';
 import { buildGitAddCommand } from '../lib/git-staging-utils.js';
 
 const execAsync = promisify(exec);
@@ -66,7 +67,7 @@ export interface WorktreeRecoveryResult {
  * 2. Stage changed files (excluding .automaker/ except memory/)
  * 3. Commit with HUSKY=0 / --no-verify to bypass hooks
  * 4. Push to remote with -u
- * 5. Create PR via gh CLI targeting main
+ * 5. Create PR via gh CLI targeting prBaseBranch
  *
  * Returns a structured result. The caller is responsible for updating feature
  * status, emitting events, and deciding how to proceed.
@@ -74,12 +75,15 @@ export interface WorktreeRecoveryResult {
  * @param feature - The feature being processed
  * @param worktreePath - Absolute path to the worktree
  * @param projectPath - Absolute path to the main project root (for resolving prettier binary)
+ * @param prBaseBranch - Base branch for PR creation and rebase (from settings, defaults to DEFAULT_GIT_WORKFLOW_SETTINGS.prBaseBranch)
  */
 export async function checkAndRecoverUncommittedWork(
   feature: Feature,
   worktreePath: string,
-  projectPath: string
+  projectPath: string,
+  prBaseBranch?: string
 ): Promise<WorktreeRecoveryResult> {
+  const baseBranch = prBaseBranch || DEFAULT_GIT_WORKFLOW_SETTINGS.prBaseBranch;
   const result: WorktreeRecoveryResult = { detected: false, recovered: false };
 
   try {
@@ -188,12 +192,12 @@ export async function checkAndRecoverUncommittedWork(
     // Step 3.5: Rebase onto origin/dev before push to prevent CONFLICTING PRs
     let useForceWithLease = false;
     try {
-      await execAsync('git fetch origin dev', {
+      await execAsync(`git fetch origin ${baseBranch}`, {
         cwd: worktreePath,
         env: execEnv,
         timeout: 30_000,
       });
-      await execAsync('git rebase origin/dev', {
+      await execAsync(`git rebase origin/${baseBranch}`, {
         cwd: worktreePath,
         env: execEnv,
         timeout: 60_000,
@@ -239,7 +243,18 @@ export async function checkAndRecoverUncommittedWork(
 
     const { stdout: prOutput } = await execFileAsync(
       'gh',
-      ['pr', 'create', '--base', 'dev', '--head', branchName, '--title', prTitle, '--body', prBody],
+      [
+        'pr',
+        'create',
+        '--base',
+        baseBranch,
+        '--head',
+        branchName,
+        '--title',
+        prTitle,
+        '--body',
+        prBody,
+      ],
       { cwd: worktreePath, env: execEnv }
     );
 

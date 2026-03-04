@@ -21,6 +21,7 @@ import { createLogger } from '@protolabs-ai/utils';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import type { FlowFactory } from '@protolabs-ai/types';
+import { DEFAULT_GIT_WORKFLOW_SETTINGS } from '@protolabs-ai/types';
 import type { EventEmitter } from '../lib/events.js';
 import type { AutoModeService } from './auto-mode-service.js';
 import type { FeatureHealthService } from './feature-health-service.js';
@@ -91,6 +92,42 @@ async function isBranchFullyMerged(
 }
 
 /**
+ * Resolve the integration branch for a project.
+ * Reads prBaseBranch from global settings, then verifies the branch exists locally.
+ * Falls back to main → master if the configured branch doesn't exist.
+ */
+async function resolveIntegrationBranch(
+  cwd: string,
+  settingsService?: SettingsService
+): Promise<string | null> {
+  // Read prBaseBranch from settings
+  const configuredBranch = settingsService
+    ? (await settingsService.getGlobalSettings().catch(() => null))?.gitWorkflow?.prBaseBranch
+    : undefined;
+  const candidates = [
+    configuredBranch ?? DEFAULT_GIT_WORKFLOW_SETTINGS.prBaseBranch,
+    'main',
+    'master',
+  ];
+  // Deduplicate (e.g., if prBaseBranch is already 'main')
+  const unique = [...new Set(candidates)];
+
+  for (const branch of unique) {
+    try {
+      await execFileAsync('git', ['rev-parse', '--verify', branch], {
+        cwd,
+        encoding: 'utf-8',
+        timeout: 5_000,
+      });
+      return branch;
+    } catch {
+      // Branch doesn't exist locally, try next
+    }
+  }
+  return null;
+}
+
+/**
  * Register flow factories for all built-in maintenance tasks in the FlowRegistry.
  * Called from AutomationService.syncWithScheduler() before seeding automation records.
  *
@@ -118,12 +155,12 @@ export function registerMaintenanceFlows(
 
   registry.register('built-in:stale-worktrees', async () => {
     const projectPaths = getKnownProjectPaths(autoModeService);
-    await detectStaleWorktrees(events, projectPaths);
+    await detectStaleWorktrees(events, projectPaths, deps.settingsService);
   });
 
   registry.register('built-in:branch-cleanup', async () => {
     const projectPaths = getKnownProjectPaths(autoModeService);
-    await checkMergedBranches(events, projectPaths);
+    await checkMergedBranches(events, projectPaths, deps.settingsService);
   });
 
   // Conditional on optional services
@@ -358,7 +395,11 @@ async function checkStaleFeatures(
  * Safety checks: confirms branch is merged, no uncommitted work, not current branch.
  * Iterates over all known project paths to aggregate results.
  */
-async function detectStaleWorktrees(events: EventEmitter, projectPaths: string[]): Promise<void> {
+async function detectStaleWorktrees(
+  events: EventEmitter,
+  projectPaths: string[],
+  settingsService?: SettingsService
+): Promise<void> {
   logger.info('Checking for stale worktrees...');
 
   if (projectPaths.length === 0) {
@@ -375,27 +416,11 @@ async function detectStaleWorktrees(events: EventEmitter, projectPaths: string[]
 
     for (const cwd of projectPaths) {
       try {
-        // Detect default branch (try 'main' first, fall back to 'master')
-        let defaultBranch = 'main';
-        try {
-          await execFileAsync('git', ['rev-parse', '--verify', 'main'], {
-            cwd,
-            encoding: 'utf-8',
-            timeout: 5_000,
-          });
-        } catch {
-          try {
-            await execFileAsync('git', ['rev-parse', '--verify', 'master'], {
-              cwd,
-              encoding: 'utf-8',
-              timeout: 5_000,
-            });
-            defaultBranch = 'master';
-          } catch {
-            // Neither main nor master exist, skip this project
-            logger.warn(`No main or master branch found for ${cwd}, skipping`);
-            continue;
-          }
+        // Resolve the integration branch from settings (prBaseBranch), falling back to main/master
+        const defaultBranch = await resolveIntegrationBranch(cwd, settingsService);
+        if (!defaultBranch) {
+          logger.warn(`No integration branch found for ${cwd}, skipping`);
+          continue;
         }
 
         // List all worktrees for this project
@@ -421,7 +446,8 @@ async function detectStaleWorktrees(events: EventEmitter, projectPaths: string[]
 
         // Check which worktree branches are already merged into the default branch
         for (const wt of worktrees) {
-          if (wt.branch === 'main' || wt.branch === 'master') continue;
+          if (wt.branch === defaultBranch || wt.branch === 'main' || wt.branch === 'master')
+            continue;
 
           try {
             // Check if branch is merged into default branch using execFileAsync (no shell injection)
@@ -519,7 +545,11 @@ async function detectStaleWorktrees(events: EventEmitter, projectPaths: string[]
  * Uses execFileAsync to avoid command injection and run asynchronously.
  * Safety checks: confirms branch is merged, no uncommitted work, not currently checked out.
  */
-async function checkMergedBranches(events: EventEmitter, projectPaths: string[]): Promise<void> {
+async function checkMergedBranches(
+  events: EventEmitter,
+  projectPaths: string[],
+  settingsService?: SettingsService
+): Promise<void> {
   logger.info('Checking for merged branches...');
 
   try {
@@ -529,25 +559,11 @@ async function checkMergedBranches(events: EventEmitter, projectPaths: string[])
       return;
     }
 
-    // Detect default branch (try main, fall back to master)
-    let defaultBranch = 'main';
-    try {
-      await execFileAsync('git', ['rev-parse', '--verify', 'main'], {
-        encoding: 'utf-8',
-        timeout: 5_000,
-        cwd,
-      });
-    } catch {
-      try {
-        await execFileAsync('git', ['rev-parse', '--verify', 'master'], {
-          encoding: 'utf-8',
-          timeout: 5_000,
-          cwd,
-        });
-        defaultBranch = 'master';
-      } catch {
-        // Fall back to 'main' if neither exists
-      }
+    // Resolve the integration branch from settings (prBaseBranch), falling back to main/master
+    const defaultBranch = await resolveIntegrationBranch(cwd, settingsService);
+    if (!defaultBranch) {
+      logger.warn(`No integration branch found for ${cwd}, skipping`);
+      return;
     }
 
     // Get current branch to avoid deleting it
@@ -572,7 +588,9 @@ async function checkMergedBranches(events: EventEmitter, projectPaths: string[])
     const mergedBranches = output
       .split('\n')
       .map((line) => line.trim().replace(/^\*\s*/, ''))
-      .filter((branch) => branch && branch !== 'main' && branch !== 'master');
+      .filter(
+        (branch) => branch && branch !== defaultBranch && branch !== 'main' && branch !== 'master'
+      );
 
     if (mergedBranches.length === 0) {
       logger.info('No merged branches to clean up');
@@ -1176,6 +1194,10 @@ export async function scanWorktreesForCrashRecovery(
       }
     );
 
+    const integrationBranch = await resolveIntegrationBranch(projectPath, settingsService);
+    const skipBranches = new Set(['main', 'master']);
+    if (integrationBranch) skipBranches.add(integrationBranch);
+
     const worktrees = worktreeList
       .split('\n\n')
       .filter((block) => block.trim())
@@ -1188,9 +1210,9 @@ export async function scanWorktreesForCrashRecovery(
           branch: branchLine?.replace('branch refs/heads/', '') ?? '',
         };
       })
-      .filter((w) => w.path && w.branch && w.branch !== 'main' && w.branch !== 'master');
+      .filter((w) => w.path && w.branch && !skipBranches.has(w.branch));
 
-    logger.info(`Found ${worktrees.length} non-main worktree(s) to scan`);
+    logger.info(`Found ${worktrees.length} non-integration worktree(s) to scan`);
 
     // Get all features for this project
     const allFeatures = await featureLoader.getAll(projectPath);

@@ -5,7 +5,7 @@
  * and syncing between useChat's live state and the Zustand store.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { useChatStore } from '@/store/chat-store';
@@ -54,19 +54,13 @@ export function useChatSession({
   // Track session switch to avoid saving stale messages
   const activeSessionRef = useRef(currentSessionId);
 
-  // HITL: pending approved actions for the next request
-  const [approvedActions, setApprovedActions] = useState<
-    Array<{ toolName: string; inputHash: string }>
-  >([]);
-
-  // Merge projectPath and approvedActions into transport body
+  // Merge projectPath into transport body
   const transportBody = useMemo(
     () => ({
       ...body,
       ...(projectPath !== undefined ? { projectPath } : {}),
-      ...(approvedActions.length > 0 ? { approvedActions } : {}),
     }),
-    [body, projectPath, approvedActions]
+    [body, projectPath]
   );
 
   // AI SDK v6 requires transport instead of api/headers/body
@@ -80,14 +74,15 @@ export function useChatSession({
     [modelAlias, transportBody]
   );
 
-  const { messages, sendMessage, stop, status, setMessages, error } = useChat({
-    id: currentSessionId ?? undefined,
-    transport,
-    messages: currentSession?.messages,
-    onError: (err) => {
-      console.error('Chat error:', err);
-    },
-  });
+  const { messages, sendMessage, stop, status, setMessages, error, addToolApprovalResponse } =
+    useChat({
+      id: currentSessionId ?? undefined,
+      transport,
+      messages: currentSession?.messages,
+      onError: (err) => {
+        console.error('Chat error:', err);
+      },
+    });
 
   const isStreaming = status === 'streaming' || status === 'submitted';
 
@@ -140,32 +135,23 @@ export function useChatSession({
     [currentSessionId, updateModel]
   );
 
-  // HITL: approve a destructive tool call and re-send for execution.
-  // Uses wildcard '*' so the approval covers any invocation of the tool name,
-  // since the model may regenerate slightly different input args on retry.
+  // HITL: approve a destructive tool call via native AI SDK approval flow.
+  // The SDK pauses tool execution and the client renders a confirmation card.
+  // Calling addToolApprovalResponse resumes execution in the same bubble.
   const approveToolAction = useCallback(
-    (toolName: string, _input: unknown) => {
-      setApprovedActions((prev) => [...prev, { toolName, inputHash: '*' }]);
-      // Send a follow-up message so the model re-invokes the tool (now approved)
-      sendMessage({ text: 'Approved. Please proceed.' });
+    (approvalId: string) => {
+      addToolApprovalResponse({ id: approvalId, approved: true });
     },
-    [sendMessage]
+    [addToolApprovalResponse]
   );
 
-  // HITL: reject a destructive tool call
+  // HITL: reject a destructive tool call via native AI SDK approval flow.
   const rejectToolAction = useCallback(
-    (_toolName: string, _input: unknown) => {
-      sendMessage({ text: 'Rejected. Do not proceed with this action.' });
+    (approvalId: string) => {
+      addToolApprovalResponse({ id: approvalId, approved: false, reason: 'User rejected' });
     },
-    [sendMessage]
+    [addToolApprovalResponse]
   );
-
-  // Clear approved actions after each completed request cycle
-  useEffect(() => {
-    if (!isStreaming && approvedActions.length > 0) {
-      setApprovedActions([]);
-    }
-  }, [isStreaming]); // intentionally omits approvedActions — only clear on stream end
 
   // Ensure there's always a session (scoped to project when projectId provided)
   useEffect(() => {
