@@ -199,7 +199,7 @@
             class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/5 bg-surface-1"
           >
             <div class="w-2.5 h-2.5 rounded-full dot-completed"></div>
-            <span class="text-sm text-zinc-300" id="count-completed">8</span>
+            <span class="text-sm text-zinc-300" id="count-completed">11</span>
             <span class="text-sm text-muted">completed</span>
           </div>
           <div
@@ -213,11 +213,11 @@
             class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/5 bg-surface-1"
           >
             <div class="w-2.5 h-2.5 rounded-full dot-planned"></div>
-            <span class="text-sm text-zinc-300" id="count-planned">1</span>
+            <span class="text-sm text-zinc-300" id="count-planned">2</span>
             <span class="text-sm text-muted">planned</span>
           </div>
         </div>
-        <p class="text-xs text-zinc-600" id="last-updated">Last updated February 23, 2026</p>
+        <p class="text-xs text-zinc-600" id="last-updated">Last updated March 2, 2026</p>
       </section>
 
       <!-- Timeline -->
@@ -308,7 +308,7 @@
                 <ul class="space-y-1.5">
                   <li class="flex items-start gap-2 text-sm text-zinc-400">
                     <span class="text-green-500 mt-0.5">&#10003;</span>Per-feature state machine
-                    (intake → plan → execute → review → merge → done)
+                    (intake, plan, execute, review, merge, done)
                   </li>
                   <li class="flex items-start gap-2 text-sm text-zinc-400">
                     <span class="text-green-500 mt-0.5">&#10003;</span>Fast-path rules engine for
@@ -539,7 +539,7 @@
                 <ul class="space-y-1.5">
                   <li class="flex items-start gap-2 text-sm text-zinc-400">
                     <span class="text-green-500 mt-0.5">&#10003;</span>Multi-stage content flow
-                    (research → outline → draft → review)
+                    (research, outline, draft, review)
                   </li>
                   <li class="flex items-start gap-2 text-sm text-zinc-400">
                     <span class="text-green-500 mt-0.5">&#10003;</span>Antagonistic review for
@@ -612,6 +612,172 @@
             </div>
             <div class="mb-8 relative">
               <div
+                class="absolute -left-10 top-4 w-[30px] h-[30px] rounded-full dot-completed flex items-center justify-center z-10"
+              >
+                <svg
+                  class="w-3.5 h-3.5 text-surface-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="3"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <div class="rounded-xl border border-green-500/20 bg-surface-1 p-6">
+                <div class="flex items-center gap-3 mb-2">
+                  <span
+                    class="status-completed inline-block px-2.5 py-0.5 rounded-md text-[11px] font-medium uppercase tracking-wider border"
+                    >Shipped</span
+                  >
+                  <h3 class="text-lg font-semibold text-white">Chat UI 2.0</h3>
+                </div>
+                <p class="text-sm text-zinc-400 mb-4">
+                  Complete redesign of the Ava chat interface with rich interactive components and
+                  streaming.
+                </p>
+                <ul class="space-y-1.5">
+                  <li class="flex items-start gap-2 text-sm text-zinc-400">
+                    <span class="text-green-500 mt-0.5">&#10003;</span>Rich tool result cards with
+                    dynamic registry system
+                  </li>
+                  <li class="flex items-start gap-2 text-sm text-zinc-400">
+                    <span class="text-green-500 mt-0.5">&#10003;</span>Inline citations with hover
+                    popovers
+                  </li>
+                  <li class="flex items-start gap-2 text-sm text-zinc-400">
+                    <span class="text-green-500 mt-0.5">&#10003;</span>Chain-of-thought reasoning
+                    display with auto-collapse
+                  </li>
+                  <li class="flex items-start gap-2 text-sm text-zinc-400">
+                    <span class="text-green-500 mt-0.5">&#10003;</span>Plan streaming with
+                    interactive plan parts
+                  </li>
+                  <li class="flex items-start gap-2 text-sm text-zinc-400">
+                    <span class="text-green-500 mt-0.5">&#10003;</span>Model selector with popover
+                    and combobox
+                  </li>
+                  <li class="flex items-start gap-2 text-sm text-zinc-400">
+                    <span class="text-green-500 mt-0.5">&#10003;</span>Message branching with
+                    response variants
+                  </li>
+                  <li class="flex items-start gap-2 text-sm text-zinc-400">
+                    <span class="text-green-500 mt-0.5">&#10003;</span>HITL confirmation dialogs for
+                    destructive actions
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <div class="mb-8 relative">
+              <div
+                class="absolute -left-10 top-4 w-[30px] h-[30px] rounded-full dot-completed flex items-center justify-center z-10"
+              >
+                <svg
+                  class="w-3.5 h-3.5 text-surface-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="3"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <div class="rounded-xl border border-green-500/20 bg-surface-1 p-6">
+                <div class="flex items-center gap-3 mb-2">
+                  <span
+                    class="status-completed inline-block px-2.5 py-0.5 rounded-md text-[11px] font-medium uppercase tracking-wider border"
+                    >Shipped</span
+                  >
+                  <h3 class="text-lg font-semibold text-white">Automation Engine</h3>
+                </div>
+                <p class="text-sm text-zinc-400 mb-4">
+                  LangGraph-based automation system with scheduled flows, run history, and full
+                  observability.
+                </p>
+                <ul class="space-y-1.5">
+                  <li class="flex items-start gap-2 text-sm text-zinc-400">
+                    <span class="text-green-500 mt-0.5">&#10003;</span>LangGraph automation flows
+                    with per-node instrumentation
+                  </li>
+                  <li class="flex items-start gap-2 text-sm text-zinc-400">
+                    <span class="text-green-500 mt-0.5">&#10003;</span>Automation registry with CRUD
+                    API and cron scheduler
+                  </li>
+                  <li class="flex items-start gap-2 text-sm text-zinc-400">
+                    <span class="text-green-500 mt-0.5">&#10003;</span>Run history panel with
+                    timestamps and stats
+                  </li>
+                  <li class="flex items-start gap-2 text-sm text-zinc-400">
+                    <span class="text-green-500 mt-0.5">&#10003;</span>Automations settings UI with
+                    model picker
+                  </li>
+                  <li class="flex items-start gap-2 text-sm text-zinc-400">
+                    <span class="text-green-500 mt-0.5">&#10003;</span>OpenTelemetry
+                    auto-instrumentation with Grafana Alloy
+                  </li>
+                  <li class="flex items-start gap-2 text-sm text-zinc-400">
+                    <span class="text-green-500 mt-0.5">&#10003;</span>LLM-powered release notes in
+                    auto-release pipeline
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <div class="mb-8 relative">
+              <div
+                class="absolute -left-10 top-4 w-[30px] h-[30px] rounded-full dot-completed flex items-center justify-center z-10"
+              >
+                <svg
+                  class="w-3.5 h-3.5 text-surface-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="3"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <div class="rounded-xl border border-green-500/20 bg-surface-1 p-6">
+                <div class="flex items-center gap-3 mb-2">
+                  <span
+                    class="status-completed inline-block px-2.5 py-0.5 rounded-md text-[11px] font-medium uppercase tracking-wider border"
+                    >Shipped</span
+                  >
+                  <h3 class="text-lg font-semibold text-white">Native Project Management</h3>
+                </div>
+                <p class="text-sm text-zinc-400 mb-4">
+                  Built-in project lifecycle, calendar, and file editor — no external dependencies
+                  required.
+                </p>
+                <ul class="space-y-1.5">
+                  <li class="flex items-start gap-2 text-sm text-zinc-400">
+                    <span class="text-green-500 mt-0.5">&#10003;</span>Full project lifecycle
+                    decoupled from Linear
+                  </li>
+                  <li class="flex items-start gap-2 text-sm text-zinc-400">
+                    <span class="text-green-500 mt-0.5">&#10003;</span>Google Calendar-style month
+                    grid with event management
+                  </li>
+                  <li class="flex items-start gap-2 text-sm text-zinc-400">
+                    <span class="text-green-500 mt-0.5">&#10003;</span>Built-in file editor with
+                    CodeMirror, 30+ languages, and diff view
+                  </li>
+                  <li class="flex items-start gap-2 text-sm text-zinc-400">
+                    <span class="text-green-500 mt-0.5">&#10003;</span>Three-branch promotion
+                    pipeline (dev, staging, main)
+                  </li>
+                  <li class="flex items-start gap-2 text-sm text-zinc-400">
+                    <span class="text-green-500 mt-0.5">&#10003;</span>Compact sidebar nav with
+                    ticker bar and quick access
+                  </li>
+                  <li class="flex items-start gap-2 text-sm text-zinc-400">
+                    <span class="text-green-500 mt-0.5">&#10003;</span>Feature flags system for
+                    gating in-development features
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <div class="mb-8 relative">
+              <div
                 class="absolute -left-10 top-4 w-[30px] h-[30px] rounded-full dot-in-progress flex items-center justify-center z-10"
               ></div>
               <div class="rounded-xl border border-accent/20 bg-surface-1 p-6">
@@ -623,8 +789,8 @@
                   <h3 class="text-lg font-semibold text-white">Community &amp; Open Source</h3>
                 </div>
                 <p class="text-sm text-zinc-400 mb-4">
-                  Fully open source as the maintained successor to the original Automaker project.
-                  Public repo, community engagement, and developer resources.
+                  Open-source release with developer resources, community tooling, and consulting
+                  offering.
                 </p>
                 <ul class="space-y-1.5">
                   <li class="flex items-start gap-2 text-sm text-zinc-400">
@@ -633,18 +799,27 @@
                   </li>
                   <li class="flex items-start gap-2 text-sm text-zinc-400">
                     <span class="text-accent mt-0.5">&#9679;</span>create-protolab CLI for
-                    scaffolding new projects (created, pending npm publish)
+                    scaffolding new projects
+                  </li>
+                  <li class="flex items-start gap-2 text-sm text-zinc-400">
+                    <span class="text-accent mt-0.5">&#9679;</span>Browser extension template with
+                    contribution flywheel
+                  </li>
+                  <li class="flex items-start gap-2 text-sm text-zinc-400">
+                    <span class="text-accent mt-0.5">&#9679;</span>Public documentation site with
+                    VitePress
                   </li>
                   <li class="flex items-start gap-2 text-sm text-zinc-400">
                     <span class="text-accent mt-0.5">&#9679;</span>Methodology guide and prompt
                     library
                   </li>
                   <li class="flex items-start gap-2 text-sm text-zinc-400">
-                    <span class="text-accent mt-0.5">&#9679;</span>Community Discord and upstream
-                    engagement
+                    <span class="text-accent mt-0.5">&#9679;</span>Community Discord with bug triage
+                    channel workflow
                   </li>
                   <li class="flex items-start gap-2 text-sm text-zinc-400">
-                    <span class="text-accent mt-0.5">&#9679;</span>setupLab consulting offering
+                    <span class="text-accent mt-0.5">&#9679;</span>setupLab consulting onboarding
+                    pipeline
                   </li>
                 </ul>
               </div>
@@ -659,24 +834,74 @@
                     class="status-planned inline-block px-2.5 py-0.5 rounded-md text-[11px] font-medium uppercase tracking-wider border"
                     >Planned</span
                   >
-                  <h3 class="text-lg font-semibold text-zinc-500">0.3.0 Engine E2E</h3>
+                  <h3 class="text-lg font-semibold text-zinc-500">
+                    Testing &amp; Quality Infrastructure
+                  </h3>
                 </div>
                 <p class="text-sm text-zinc-600 mb-4">
-                  End-to-end testing and validation for the complete engine workflow.
+                  Comprehensive testing and design system coverage with visual regression,
+                  accessibility auditing, and component documentation.
                 </p>
                 <ul class="space-y-1.5">
                   <li class="flex items-start gap-2 text-sm text-zinc-600">
-                    <span class="text-zinc-700 mt-0.5">&#9675;</span>Full pipeline integration tests
+                    <span class="text-zinc-700 mt-0.5">&#9675;</span>Storybook component library
+                    with interaction tests
                   </li>
                   <li class="flex items-start gap-2 text-sm text-zinc-600">
-                    <span class="text-zinc-700 mt-0.5">&#9675;</span>E2E test coverage for core
+                    <span class="text-zinc-700 mt-0.5">&#9675;</span>Chromatic CI for visual
+                    regression detection
+                  </li>
+                  <li class="flex items-start gap-2 text-sm text-zinc-600">
+                    <span class="text-zinc-700 mt-0.5">&#9675;</span>Accessibility auditing with
+                    @storybook/addon-a11y
+                  </li>
+                  <li class="flex items-start gap-2 text-sm text-zinc-600">
+                    <span class="text-zinc-700 mt-0.5">&#9675;</span>E2E test coverage for core user
                     workflows
                   </li>
                   <li class="flex items-start gap-2 text-sm text-zinc-600">
-                    <span class="text-zinc-700 mt-0.5">&#9675;</span>Performance and stress testing
+                    <span class="text-zinc-700 mt-0.5">&#9675;</span>UI package extraction — full
+                    @protolabs-ai/ui library
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <div class="mb-8 relative">
+              <div
+                class="absolute -left-10 top-4 w-[30px] h-[30px] rounded-full dot-planned flex items-center justify-center z-10"
+              ></div>
+              <div class="rounded-xl border border-zinc-700/50 bg-surface-0 p-6">
+                <div class="flex items-center gap-3 mb-2">
+                  <span
+                    class="status-planned inline-block px-2.5 py-0.5 rounded-md text-[11px] font-medium uppercase tracking-wider border"
+                    >Planned</span
+                  >
+                  <h3 class="text-lg font-semibold text-zinc-500">Multi-Project Workspaces</h3>
+                </div>
+                <p class="text-sm text-zinc-600 mb-4">
+                  First-class support for managing multiple projects with shared agents,
+                  cross-project dependencies, and unified dashboards.
+                </p>
+                <ul class="space-y-1.5">
+                  <li class="flex items-start gap-2 text-sm text-zinc-600">
+                    <span class="text-zinc-700 mt-0.5">&#9675;</span>Project switcher with
+                    workspace-level settings
                   </li>
                   <li class="flex items-start gap-2 text-sm text-zinc-600">
-                    <span class="text-zinc-700 mt-0.5">&#9675;</span>Automated regression test suite
+                    <span class="text-zinc-700 mt-0.5">&#9675;</span>Cross-project dependency
+                    tracking and resolution
+                  </li>
+                  <li class="flex items-start gap-2 text-sm text-zinc-600">
+                    <span class="text-zinc-700 mt-0.5">&#9675;</span>Unified analytics dashboard
+                    across all projects
+                  </li>
+                  <li class="flex items-start gap-2 text-sm text-zinc-600">
+                    <span class="text-zinc-700 mt-0.5">&#9675;</span>Shared agent templates and
+                    context files
+                  </li>
+                  <li class="flex items-start gap-2 text-sm text-zinc-600">
+                    <span class="text-zinc-700 mt-0.5">&#9675;</span>Real-time presence detection
+                    across desktop and web
                   </li>
                 </ul>
               </div>

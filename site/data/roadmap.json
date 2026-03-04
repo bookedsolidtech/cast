@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-02-24T00:00:00.000Z",
+  "lastUpdated": "2026-03-03T00:00:00.000Z",
   "milestones": [
     {
       "status": "completed",
@@ -19,7 +19,7 @@
       "title": "Smart Orchestration",
       "description": "Event-driven feature lifecycle with automated decision-making and quality gates.",
       "items": [
-        "Per-feature state machine (intake → plan → execute → review → merge → done)",
+        "Per-feature state machine (intake, plan, execute, review, merge, done)",
         "Fast-path rules engine for routine decisions without LLM calls",
         "Automated PR review and merge pipeline",
         "Quality gates with automated feedback loops"
@@ -76,7 +76,7 @@
       "title": "Content Engine",
       "description": "AI content creation pipeline with multi-stage quality gates, ceremony system, and analytics.",
       "items": [
-        "Multi-stage content flow (research → outline → draft → review)",
+        "Multi-stage content flow (research, outline, draft, review)",
         "Antagonistic review for automated quality assurance",
         "Ceremony system for project lifecycle milestones",
         "Langfuse tracing and cost analytics integration",
@@ -96,26 +96,81 @@
       ]
     },
     {
+      "status": "completed",
+      "title": "Chat UI 2.0",
+      "description": "Complete redesign of the Ava chat interface with rich interactive components and streaming.",
+      "items": [
+        "Rich tool result cards with dynamic registry system",
+        "Inline citations with hover popovers",
+        "Chain-of-thought reasoning display with auto-collapse",
+        "Plan streaming with interactive plan parts",
+        "Model selector with popover and combobox",
+        "Message branching with response variants",
+        "HITL confirmation dialogs for destructive actions"
+      ]
+    },
+    {
+      "status": "completed",
+      "title": "Automation Engine",
+      "description": "LangGraph-based automation system with scheduled flows, run history, and full observability.",
+      "items": [
+        "LangGraph automation flows with per-node instrumentation",
+        "Automation registry with CRUD API and cron scheduler",
+        "Run history panel with timestamps and stats",
+        "Automations settings UI with model picker",
+        "OpenTelemetry auto-instrumentation with Grafana Alloy",
+        "LLM-powered release notes in auto-release pipeline"
+      ]
+    },
+    {
+      "status": "completed",
+      "title": "Native Project Management",
+      "description": "Built-in project lifecycle, calendar, and file editor — no external dependencies required.",
+      "items": [
+        "Full project lifecycle decoupled from Linear",
+        "Google Calendar-style month grid with event management",
+        "Built-in file editor with CodeMirror, 30+ languages, and diff view",
+        "Three-branch promotion pipeline (dev, staging, main)",
+        "Compact sidebar nav with ticker bar and quick access",
+        "Feature flags system for gating in-development features"
+      ]
+    },
+    {
       "status": "in-progress",
       "title": "Community & Open Source",
-      "description": "Fully open source as the maintained successor to the original Automaker project. Public repo, community engagement, and developer resources.",
+      "description": "Open-source release with developer resources, community tooling, and consulting offering.",
       "items": [
         "GitHub repo public access (MIT/Apache 2.0)",
-        "create-protolab CLI for scaffolding new projects (created, pending npm publish)",
+        "create-protolab CLI for scaffolding new projects",
+        "Browser extension template with contribution flywheel",
+        "Public documentation site with VitePress",
         "Methodology guide and prompt library",
-        "Community Discord and upstream engagement",
-        "setupLab consulting offering"
+        "Community Discord with bug triage channel workflow",
+        "setupLab consulting onboarding pipeline"
       ]
     },
     {
       "status": "planned",
-      "title": "0.3.0 Engine E2E",
-      "description": "End-to-end testing and validation for the complete engine workflow.",
+      "title": "Testing & Quality Infrastructure",
+      "description": "Comprehensive testing and design system coverage with visual regression, accessibility auditing, and component documentation.",
       "items": [
-        "Full pipeline integration tests",
-        "E2E test coverage for core workflows",
-        "Performance and stress testing",
-        "Automated regression test suite"
+        "Storybook component library with interaction tests",
+        "Chromatic CI for visual regression detection",
+        "Accessibility auditing with @storybook/addon-a11y",
+        "E2E test coverage for core user workflows",
+        "UI package extraction — full @protolabs-ai/ui library"
+      ]
+    },
+    {
+      "status": "planned",
+      "title": "Multi-Project Workspaces",
+      "description": "First-class support for managing multiple projects with shared agents, cross-project dependencies, and unified dashboards.",
+      "items": [
+        "Project switcher with workspace-level settings",
+        "Cross-project dependency tracking and resolution",
+        "Unified analytics dashboard across all projects",
+        "Shared agent templates and context files",
+        "Real-time presence detection across desktop and web"
       ]
     }
   ]
