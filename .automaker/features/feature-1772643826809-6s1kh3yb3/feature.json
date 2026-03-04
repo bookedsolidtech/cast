@@ -1,0 +1,25 @@
+{
+  "category": "Bug Reports",
+  "description": "Bug 4: Max Retries Is Hardcoded and Doesn't Distinguish Failure Types\nFile: lead-engineer-execute-processor.ts\n\nprivate readonly MAX_RETRIES = 3;\nNot configurable. The system doesn't distinguish between:\n\n\"Agent wrote bad code\" (should retry with better context)\n\"Git push failed because of a lock file\" (should just retry the push)\n\"PR creation failed because gh CLI error\" (should just retry the PR)\nAll three burn a retry. Infrastructure failures eat agent retries.\n\nSeverity: Medium — wastes compute budget on re-running agents when only the post-flight step failed.",
+  "title": "Bug 4: Max Retries Is Hardcoded and Doesn't Distinguish Failure Types\nFile: lead-engineer-execute-pr",
+  "status": "backlog",
+  "projectSlug": "bugs",
+  "id": "feature-1772643826809-6s1kh3yb3",
+  "branchName": "feature/bug-4-max-retries-is-hardcoded-and",
+  "descriptionHistory": [
+    {
+      "description": "Bug 4: Max Retries Is Hardcoded and Doesn't Distinguish Failure Types\nFile: lead-engineer-execute-processor.ts\n\nprivate readonly MAX_RETRIES = 3;\nNot configurable. The system doesn't distinguish between:\n\n\"Agent wrote bad code\" (should retry with better context)\n\"Git push failed because of a lock file\" (should just retry the push)\n\"PR creation failed because gh CLI error\" (should just retry the PR)\nAll three burn a retry. Infrastructure failures eat agent retries.\n\nSeverity: Medium — wastes compute budget on re-running agents when only the post-flight step failed.",
+      "timestamp": "2026-03-04T17:03:46.810Z",
+      "source": "initial"
+    }
+  ],
+  "createdAt": "2026-03-04T17:03:46.810Z",
+  "statusHistory": [
+    {
+      "from": null,
+      "to": "backlog",
+      "timestamp": "2026-03-04T17:03:46.810Z",
+      "reason": "Feature created"
+    }
+  ]
+}

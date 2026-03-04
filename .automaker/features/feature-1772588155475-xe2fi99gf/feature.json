@@ -1,0 +1,87 @@
+{
+  "category": "Bug Reports",
+  "description": "**PR Maintainer crew does not detect permanently missing CI status checks:** \nThis COULD be by design, but my system things it's a bug. I hope this is useful. \n\nThe PR Maintainer crew runs on a 10-minute schedule and monitors for stale PRs, unresolved CodeRabbit threads, auto-merge eligibility, and format failures. However, it does not detect the case where a required status check has never been registered on a PR. In this incident, branch protection on the dev branch required a \"Quality Gates\" check, but the CI workflow was misconfigured to only trigger on PRs targeting main. The check never ran, and every PR sat in a \"waiting for required status checks\" state indefinitely — with no escalation, no alert, and no visibility into the problem. The PR Maintainer should detect when a PR has been waiting for a required check longer than a configurable threshold (e.g., 30 minutes) and surface a diagnostic message identifying which checks are missing and suggesting possible causes such as a CI trigger mismatch with the project's configured base branch.",
+  "title": "**PR Maintainer crew does not detect permanently missing CI status checks:** \nThis COULD be by desig",
+  "status": "backlog",
+  "projectSlug": "bugs",
+  "id": "feature-1772588155475-xe2fi99gf",
+  "branchName": "feature/pr-maintainer-crew-does-not-detect",
+  "descriptionHistory": [
+    {
+      "description": "**PR Maintainer crew does not detect permanently missing CI status checks:** \nThis COULD be by design, but my system things it's a bug. I hope this is useful. \n\nThe PR Maintainer crew runs on a 10-minute schedule and monitors for stale PRs, unresolved CodeRabbit threads, auto-merge eligibility, and format failures. However, it does not detect the case where a required status check has never been registered on a PR. In this incident, branch protection on the dev branch required a \"Quality Gates\" check, but the CI workflow was misconfigured to only trigger on PRs targeting main. The check never ran, and every PR sat in a \"waiting for required status checks\" state indefinitely — with no escalation, no alert, and no visibility into the problem. The PR Maintainer should detect when a PR has been waiting for a required check longer than a configurable threshold (e.g., 30 minutes) and surface a diagnostic message identifying which checks are missing and suggesting possible causes such as a CI trigger mismatch with the project's configured base branch.",
+      "timestamp": "2026-03-04T01:35:55.477Z",
+      "source": "initial"
+    }
+  ],
+  "createdAt": "2026-03-04T01:35:55.477Z",
+  "statusHistory": [
+    {
+      "from": null,
+      "to": "backlog",
+      "timestamp": "2026-03-04T01:35:55.477Z",
+      "reason": "Feature created"
+    },
+    {
+      "from": "backlog",
+      "to": "in_progress",
+      "timestamp": "2026-03-04T01:36:03.075Z"
+    },
+    {
+      "from": "in_progress",
+      "to": "interrupted",
+      "timestamp": "2026-03-04T01:46:49.472Z",
+      "reason": "Interrupted from \"in_progress\": server shutdown"
+    },
+    {
+      "from": "in_progress",
+      "to": "backlog",
+      "timestamp": "2026-03-04T01:46:57.495Z"
+    },
+    {
+      "from": "backlog",
+      "to": "in_progress",
+      "timestamp": "2026-03-04T05:58:20.032Z"
+    },
+    {
+      "from": "in_progress",
+      "to": "interrupted",
+      "timestamp": "2026-03-04T06:02:44.357Z",
+      "reason": "Interrupted from \"in_progress\": server shutdown"
+    },
+    {
+      "from": "in_progress",
+      "to": "backlog",
+      "timestamp": "2026-03-04T06:02:52.935Z"
+    }
+  ],
+  "featureType": "code",
+  "complexity": "medium",
+  "updatedAt": "2026-03-04T06:02:47.344Z",
+  "model": "claude-sonnet-4-6",
+  "statusChangeReason": "Interrupted from \"in_progress\": server shutdown",
+  "lastTraceId": "27e00c51-721e-4cda-b535-902115b3fb32",
+  "executionHistory": [
+    {
+      "id": "fb3aeabe-1162-4d0e-8f75-c2e6ccb05711",
+      "startedAt": "2026-03-04T01:36:03.585Z",
+      "completedAt": "2026-03-04T01:46:49.888Z",
+      "durationMs": 646303,
+      "costUsd": 0,
+      "model": "claude-sonnet-4-6",
+      "success": false,
+      "error": "Operation was cancelled",
+      "trigger": "manual"
+    },
+    {
+      "id": "c5755f59-2ac1-4249-ad2a-fd02bd67ad77",
+      "startedAt": "2026-03-04T05:58:20.244Z",
+      "completedAt": "2026-03-04T06:02:44.740Z",
+      "durationMs": 264496,
+      "costUsd": 0,
+      "model": "claude-sonnet-4-6",
+      "success": false,
+      "error": "Operation was cancelled",
+      "trigger": "manual"
+    }
+  ]
+}
