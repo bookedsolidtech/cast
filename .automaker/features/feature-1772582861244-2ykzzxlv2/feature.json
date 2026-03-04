@@ -2,7 +2,7 @@
   "category": "Storybook Coverage",
   "description": "**Milestone:** Storybook Coverage\n\nCreate Storybook stories for the 6 molecule components in libs/ui/src/molecules/: autocomplete.tsx, confirm-dialog.tsx, error-state.tsx, hotkey-button.tsx, loading-state.tsx, and markdown.tsx. Follow the existing atom story pattern (default export with meta, named story exports for each variant). Each story must show at minimum a default state and one variant.\n\n**Files to Modify:**\n- libs/ui/src/molecules/autocomplete.stories.tsx\n- libs/ui/src/molecules/confirm-dialog.stories.tsx\n- libs/ui/src/molecules/error-state.stories.tsx\n- libs/ui/src/molecules/hotkey-button.stories.tsx\n- libs/ui/src/molecules/loading-state.stories.tsx\n- libs/ui/src/molecules/markdown.stories.tsx\n\n**Acceptance Criteria:**\n- [ ] 6 new story files created, one per molecule component\n- [ ] Each story has at minimum a Default and one variant export\n- [ ] npm run build:storybook passes without errors\n- [ ] No TypeScript errors in story files\n\n**Complexity:** medium\n\n**Guardrails:** If this phase involves new or changed behavior, include tests that verify correctness. If this phase adds, removes, or changes a user-facing feature, API endpoint, configuration option, or service, update the relevant documentation in `docs/` to reflect those changes.",
   "title": "Add molecule stories",
-  "status": "review",
+  "status": "done",
   "isEpic": false,
   "epicId": "feature-1772582861242-wfa73u0bf",
   "branchName": "feature/storybook-coverage-add-molecule-stories",
@@ -28,6 +28,11 @@
       "from": "in_progress",
       "to": "review",
       "timestamp": "2026-03-04T22:13:09.428Z"
+    },
+    {
+      "from": "review",
+      "to": "done",
+      "timestamp": "2026-03-04T22:17:33.258Z"
     }
   ],
   "featureType": "code",
@@ -44,5 +49,6 @@
   "prCreatedAt": "2026-03-04T22:13:09.425Z",
   "reviewStartedAt": "2026-03-04T22:13:09.428Z",
   "prTrackedSince": "2026-03-04T22:13:09.433Z",
-  "prLastPolledAt": "2026-03-04T22:13:09.433Z"
+  "prLastPolledAt": "2026-03-04T22:14:05.098Z",
+  "completedAt": "2026-03-04T22:17:33.258Z"
 }
