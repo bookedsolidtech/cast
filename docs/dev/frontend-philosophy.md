@@ -444,18 +444,16 @@ npm run build:electron   →  Vite build + electron-builder for desktop
 
 Current gaps between philosophy and implementation. These are tracked as future work — don't fix opportunistically, fix deliberately.
 
-| Debt                       | Current                                                                        | Target                                                                 | Priority |
-| -------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------- | -------- |
-| God store                  | `app-store.ts` is 4,268 lines with all state                                   | Split into domain slices (board, agent, settings, theme)               | High     |
-| Monolithic views           | `board-view.tsx` (1,908 lines), `terminal-view.tsx` (1,809 lines)              | Decompose into sub-components like `settings-view/` already has        | High     |
-| Storybook coverage         | Config + 14 stories (5 ui primitives + 9 dashboard components)                 | Stories for all UI primitives, interaction tests, Chromatic CI         | High     |
-| Domain components in `ui/` | `git-diff-panel`, `dependency-selector`, `log-viewer` etc. in `components/ui/` | Move to `components/shared/` or view-specific directories              | Medium   |
-| UI package gaps            | 26 atoms extracted to `@protolabs-ai/ui`; molecules/organisms pending          | Full extraction of all primitives to `libs/ui/`                        | Medium   |
-| Static theme files         | 6 hand-written CSS files                                                       | Generate from TypeScript config                                        | Medium   |
-| No typography tokens       | Font sizes, line heights are ad-hoc Tailwind classes                           | Formalize as semantic tokens                                           | Low      |
-| No spacing tokens          | Spacing uses Tailwind defaults only                                            | Define semantic spacing scale if needed                                | Low      |
-| Minimal a11y               | Relies on Radix defaults, no linting or testing                                | `eslint-plugin-jsx-a11y`, Storybook `addon-a11y`, skip-to-content link | Medium   |
-| Loose files                | 4 components at `src/components/` root level                                   | Move to `shared/` or `layout/`                                         | Low      |
+| Debt                 | Current                                                                    | Target                                                                 | Priority |
+| -------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------- | -------- |
+| Monolithic terminal  | `terminal-panel.tsx` (2,251 lines)                                         | Decompose into sub-components like board-view already has              | High     |
+| Storybook coverage   | 27 stories in `libs/ui/` (25 atoms + 2 ai); 5 legacy stories in `apps/ui/` | Stories for all UI primitives, interaction tests, Chromatic CI         | High     |
+| UI package gaps      | 25 atoms extracted to `@protolabs-ai/ui`; molecules/organisms pending      | Full extraction of all primitives to `libs/ui/`                        | Medium   |
+| Static theme files   | 8 hand-written CSS files in `libs/ui/src/themes/`                          | Generate from TypeScript config                                        | Medium   |
+| Minimal a11y         | Relies on Radix defaults, no linting or testing                            | `eslint-plugin-jsx-a11y`, Storybook `addon-a11y`, skip-to-content link | Medium   |
+| Loose files          | 5 components at `src/components/` root level                               | Move to `shared/` or `layout/`                                         | Low      |
+| No typography tokens | Font sizes, line heights are ad-hoc Tailwind classes                       | Formalize as semantic tokens                                           | Low      |
+| No spacing tokens    | Spacing uses Tailwind defaults only                                        | Define semantic spacing scale if needed                                | Low      |
 
 ## What we do NOT adopt
 
