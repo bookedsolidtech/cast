@@ -59,7 +59,7 @@ function TabsList({
     <TabsListPrimitive
       data-slot="tabs-list"
       className={cn(
-        'bg-muted text-muted-foreground inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px] border border-border',
+        'bg-muted text-muted-foreground inline-flex h-9 w-fit items-center justify-center rounded-md p-[3px] border border-border',
         className
       )}
       {...props}
@@ -81,7 +81,7 @@ function TabsTrigger({
     <TabsTriggerPrimitive
       data-slot="tabs-trigger"
       className={cn(
-        'inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-all duration-200 cursor-pointer',
+        'inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-sm border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-all duration-200 cursor-pointer',
         'text-foreground/70 hover:text-foreground hover:bg-accent',
         'data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md data-[state=active]:border-primary/50',
         'focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring focus-visible:ring-[3px] focus-visible:outline-1',

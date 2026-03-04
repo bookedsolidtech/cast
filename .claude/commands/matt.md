@@ -530,14 +530,14 @@ libs/utils/       # @protolabs-ai/utils (logging, errors)
 
 ## Known Technical Debt
 
-| Debt                       | Current                                            | Target                                     | Priority |
-| -------------------------- | -------------------------------------------------- | ------------------------------------------ | -------- |
-| God store                  | `app-store.ts` is 4,268 lines                      | Split into domain slices                   | High     |
-| Monolithic views           | `board-view.tsx` (1,908 lines)                     | Decompose into sub-components              | High     |
-| No Storybook               | Zero stories                                       | Full setup with theme switcher + a11y      | High     |
-| Domain components in `ui/` | `git-diff-panel`, `log-viewer` in `components/ui/` | Move to `shared/` or view-specific         | Medium   |
-| No UI package              | All components in `apps/ui/`                       | Extract to `libs/ui/` (`@protolabs-ai/ui`) | Medium   |
-| Static theme files         | 41 hand-written CSS files                          | Generate from TypeScript config            | Medium   |
+| Debt                | Current                                                                    | Target                                                      | Priority |
+| ------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------- | -------- |
+| Monolithic terminal | `terminal-panel.tsx` (2,251 lines)                                         | Decompose into sub-components like board-view already has   | High     |
+| Storybook coverage  | 27 stories in `libs/ui/` (25 atoms + 2 ai); 5 legacy stories in `apps/ui/` | Stories for all primitives, interaction tests, Chromatic CI | High     |
+| UI package gaps     | 25 atoms extracted to `@protolabs-ai/ui`; molecules/organisms pending      | Full extraction of all primitives to `libs/ui/`             | Medium   |
+| Static theme files  | 8 hand-written CSS files in `libs/ui/src/themes/`                          | Generate from TypeScript config                             | Medium   |
+| Minimal a11y        | Relies on Radix defaults, no linting or testing                            | `eslint-plugin-jsx-a11y`, Storybook `addon-a11y`            | Medium   |
+| Loose files         | 5 components at `src/components/` root level                               | Move to `shared/` or `layout/`                              | Low      |
 
 ## Communication
 

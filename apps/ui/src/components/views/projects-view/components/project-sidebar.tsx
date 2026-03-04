@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Calendar, User, Users, Target } from 'lucide-react';
-import { Badge, Card, Input } from '@protolabs-ai/ui/atoms';
+import { Badge, Input } from '@protolabs-ai/ui/atoms';
 import { Button } from '@protolabs-ai/ui/atoms';
 import {
   Select,
@@ -9,8 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@protolabs-ai/ui/atoms';
-import { cn } from '@/lib/utils';
-import { HealthIndicator } from '../components/health-indicator';
+import { HealthIndicator } from './health-indicator';
 import { getProjectStatusVariant } from '../lib/status-variants';
 import { useProjectUpdate } from '../hooks/use-project';
 import type { Project, ProjectHealth, ProjectPriority } from '@protolabs-ai/types';
@@ -33,19 +32,10 @@ function PropertyRow({ label, children }: { label: string; children: React.React
   );
 }
 
-export function OverviewTab({ project }: { project: Project }) {
+export function ProjectSidebar({ project }: { project: Project }) {
   const updateMutation = useProjectUpdate(project.slug);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
-
-  const milestoneCount = project.milestones?.length ?? 0;
-  const phaseCount =
-    project.milestones?.reduce((sum, ms) => sum + (ms.phases?.length ?? 0), 0) ?? 0;
-  const completedPhases =
-    project.milestones?.reduce(
-      (sum, ms) => sum + (ms.phases?.filter((p) => p.featureId).length ?? 0),
-      0
-    ) ?? 0;
 
   const startEdit = (field: string, value: string) => {
     setEditingField(field);
@@ -73,7 +63,7 @@ export function OverviewTab({ project }: { project: Project }) {
   };
 
   return (
-    <div className="space-y-6 py-4">
+    <div className="w-72 shrink-0 border-r border-border/40 overflow-y-auto px-4 py-4 space-y-4">
       {/* Goal */}
       {project.goal && (
         <div>
@@ -84,8 +74,8 @@ export function OverviewTab({ project }: { project: Project }) {
         </div>
       )}
 
-      {/* Properties Grid */}
-      <div className="border border-border/30 rounded-lg divide-y divide-border/20 px-3">
+      {/* Properties */}
+      <div className="divide-y divide-border/20">
         <PropertyRow label="Status">
           <Badge
             variant={getProjectStatusVariant(project.status)}
@@ -101,7 +91,7 @@ export function OverviewTab({ project }: { project: Project }) {
             value={project.health ?? 'on-track'}
             onValueChange={(v) => handleHealthChange(v as ProjectHealth)}
           >
-            <SelectTrigger className="h-8 w-40 text-xs">
+            <SelectTrigger className="h-8 w-full text-xs">
               <SelectValue>
                 <HealthIndicator
                   health={(project.health ?? 'on-track') as ProjectHealth}
@@ -124,7 +114,7 @@ export function OverviewTab({ project }: { project: Project }) {
             value={project.priority ?? 'none'}
             onValueChange={(v) => handlePriorityChange(v as ProjectPriority)}
           >
-            <SelectTrigger className="h-8 w-32 text-xs">
+            <SelectTrigger className="h-8 w-full text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -145,7 +135,7 @@ export function OverviewTab({ project }: { project: Project }) {
               <Input
                 value={editValue}
                 onChange={(e) => setEditValue(e.target.value)}
-                className="h-8 w-40 text-sm"
+                className="h-8 w-full text-sm"
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') saveEdit('lead');
@@ -183,7 +173,7 @@ export function OverviewTab({ project }: { project: Project }) {
                 type="date"
                 value={editValue}
                 onChange={(e) => setEditValue(e.target.value)}
-                className="h-8 w-40 text-sm"
+                className="h-8 w-full text-sm"
                 autoFocus
                 onBlur={() => saveEdit('startDate')}
               />
@@ -207,7 +197,7 @@ export function OverviewTab({ project }: { project: Project }) {
                 type="date"
                 value={editValue}
                 onChange={(e) => setEditValue(e.target.value)}
-                className="h-8 w-40 text-sm"
+                className="h-8 w-full text-sm"
                 autoFocus
                 onBlur={() => saveEdit('targetDate')}
               />
@@ -222,26 +212,6 @@ export function OverviewTab({ project }: { project: Project }) {
             )}
           </span>
         </PropertyRow>
-      </div>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-3 gap-3">
-        <Card className="py-3 px-4 text-center">
-          <div className="text-lg font-semibold text-foreground">{milestoneCount}</div>
-          <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
-            Milestones
-          </div>
-        </Card>
-        <Card className="py-3 px-4 text-center">
-          <div className="text-lg font-semibold text-foreground">{phaseCount}</div>
-          <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Phases</div>
-        </Card>
-        <Card className="py-3 px-4 text-center">
-          <div className="text-lg font-semibold text-foreground">
-            {phaseCount > 0 ? Math.round((completedPhases / phaseCount) * 100) : 0}%
-          </div>
-          <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Complete</div>
-        </Card>
       </div>
     </div>
   );
