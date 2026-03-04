@@ -1,5 +1,13 @@
 # @protolabs-ai/mcp-server
 
+## 0.33.1
+
+### Patch Changes
+
+- Maintenance release.
+- Updated dependencies
+  - @protolabs-ai/tools@0.33.1
+
 ## 0.33.0
 
 ### Minor Changes
