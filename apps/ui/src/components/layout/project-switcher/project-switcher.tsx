@@ -321,7 +321,21 @@ export function ProjectSwitcher() {
                 </linearGradient>
               </defs>
               <rect x="16" y="16" width="224" height="224" rx="56" fill="url(#bg-switcher)" />
-              <path d="M128 52 L196 128 L128 204 L60 128 Z" fill="#FFFFFF" />
+              <g
+                transform="translate(32, 32) scale(8)"
+                fill="none"
+                stroke="#FFFFFF"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 8V4H8" />
+                <rect width="16" height="12" x="4" y="8" rx="2" />
+                <path d="M2 14h2" />
+                <path d="M20 14h2" />
+                <path d="M15 13v2" />
+                <path d="M9 13v2" />
+              </g>
             </svg>
             <span className="text-[0.625rem] text-muted-foreground leading-none font-medium">
               v{appVersion} {versionSuffix}

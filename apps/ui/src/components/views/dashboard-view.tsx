@@ -539,11 +539,22 @@ export function DashboardView() {
                 </filter>
               </defs>
               <rect x="16" y="16" width="224" height="224" rx="56" fill="url(#bg-dashboard)" />
-              <path
-                d="M128 52 L196 128 L128 204 L60 128 Z"
-                fill="#FFFFFF"
+              <g
+                transform="translate(32, 32) scale(8)"
+                fill="none"
+                stroke="#FFFFFF"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
                 filter="url(#iconShadow-dashboard)"
-              />
+              >
+                <path d="M12 8V4H8" />
+                <rect width="16" height="12" x="4" y="8" rx="2" />
+                <path d="M2 14h2" />
+                <path d="M20 14h2" />
+                <path d="M15 13v2" />
+                <path d="M9 13v2" />
+              </g>
             </svg>
             <div className="flex flex-col">
               <span className="font-bold text-foreground text-xl sm:text-2xl tracking-tight leading-none">
