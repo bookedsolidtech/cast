@@ -1,5 +1,25 @@
 # @protolabs-ai/prompts
 
+## 0.33.0
+
+### Minor Changes
+
+- ### Features
+  - project detail sidebar layout + tighten border radii
+  - scaffold frontend tech debt remediation project + close 2 bug tickets
+
+  ### Bug Fixes
+  - calendar showing tomorrow as today due to UTC date conversion
+
+  ### Refactors
+  - Install and configure eslint-plugin-jsx-a11y
+
+### Patch Changes
+
+- Updated dependencies
+  - @protolabs-ai/types@0.33.0
+  - @protolabs-ai/utils@0.33.0
+
 ## 0.32.1
 
 ### Patch Changes
