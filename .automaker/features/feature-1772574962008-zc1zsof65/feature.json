@@ -1,0 +1,54 @@
+{
+  "category": "Bug Reports",
+  "description": "we have many references to `npm run dev:web` throughout our docs and internal references, but its not clear that it needs to have a server instance to connect to. Audit as needed and create a project for updating quick start guides and getting user facing docs finished",
+  "title": "we have many references to `npm run dev:web` throughout our docs and internal references, but its no",
+  "status": "done",
+  "projectSlug": "bugs",
+  "id": "feature-1772574962008-zc1zsof65",
+  "branchName": "feature/we-have-many-references-to-npm-run",
+  "descriptionHistory": [
+    {
+      "description": "we have many references to `npm run dev:web` throughout our docs and internal references, but its not clear that it needs to have a server instance to connect to. Audit as needed and create a project for updating quick start guides and getting user facing docs finished",
+      "timestamp": "2026-03-03T21:56:02.009Z",
+      "source": "initial"
+    }
+  ],
+  "createdAt": "2026-03-03T21:56:02.010Z",
+  "statusHistory": [
+    {
+      "from": null,
+      "to": "backlog",
+      "timestamp": "2026-03-03T21:56:02.010Z",
+      "reason": "Feature created"
+    },
+    {
+      "from": "backlog",
+      "to": "in_progress",
+      "timestamp": "2026-03-03T23:10:58.064Z"
+    },
+    {
+      "from": "in_progress",
+      "to": "review",
+      "timestamp": "2026-03-03T23:14:25.857Z"
+    },
+    {
+      "from": "review",
+      "to": "done",
+      "timestamp": "2026-03-04T00:04:00.820Z"
+    }
+  ],
+  "featureType": "code",
+  "startedAt": "2026-03-03T23:10:57.980Z",
+  "updatedAt": "2026-03-03T23:11:00.559Z",
+  "model": "claude-sonnet-4-6",
+  "costUsd": 1.0294378500000003,
+  "lastSessionId": "42d0fafb-96de-41c3-94c3-f31e360b0a3f",
+  "lastTraceId": "a8dab6b2-2b14-4bb6-873e-94942f0c4cb1",
+  "prUrl": "https://github.com/proto-labs-ai/protoMaker/pull/1678",
+  "prNumber": 1678,
+  "prCreatedAt": "2026-03-03T23:14:25.851Z",
+  "reviewStartedAt": "2026-03-03T23:14:25.857Z",
+  "prTrackedSince": "2026-03-03T23:14:25.862Z",
+  "prLastPolledAt": "2026-03-04T00:03:13.804Z",
+  "completedAt": "2026-03-04T00:04:00.820Z"
+}

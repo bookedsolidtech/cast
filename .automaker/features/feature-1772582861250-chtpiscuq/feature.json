@@ -1,0 +1,32 @@
+{
+  "category": "Terminal Panel Decomposition",
+  "description": "**Milestone:** Terminal Panel Decomposition\n\nIdentify the terminal settings popover in terminal-panel.tsx (font size slider, theme selector, any other per-terminal settings). Extract into apps/ui/src/components/views/terminal-view/terminal-settings-popover.tsx. Accept config values and onChange callbacks as props. Update terminal-panel.tsx to use it.\n\n**Files to Modify:**\n- apps/ui/src/components/views/terminal-view/terminal-panel.tsx\n- apps/ui/src/components/views/terminal-view/terminal-settings-popover.tsx\n\n**Acceptance Criteria:**\n- [ ] terminal-settings-popover.tsx created with TerminalSettingsPopover export\n- [ ] terminal-panel.tsx further reduced by at least 100 lines\n- [ ] Settings popover renders and functions identically to before\n- [ ] npm run typecheck passes\n\n**Complexity:** medium\n\n**Guardrails:** If this phase involves new or changed behavior, include tests that verify correctness. If this phase adds, removes, or changes a user-facing feature, API endpoint, configuration option, or service, update the relevant documentation in `docs/` to reflect those changes.",
+  "title": "Extract TerminalSettingsPopover component",
+  "status": "backlog",
+  "isEpic": false,
+  "epicId": "feature-1772582861246-o49cnzjzl",
+  "branchName": "feature/terminal-panel-extract-terminalsett",
+  "isFoundation": false,
+  "projectSlug": "frontend-tech-debt-remediation",
+  "id": "feature-1772582861250-chtpiscuq",
+  "descriptionHistory": [
+    {
+      "description": "**Milestone:** Terminal Panel Decomposition\n\nIdentify the terminal settings popover in terminal-panel.tsx (font size slider, theme selector, any other per-terminal settings). Extract into apps/ui/src/components/views/terminal-view/terminal-settings-popover.tsx. Accept config values and onChange callbacks as props. Update terminal-panel.tsx to use it.\n\n**Files to Modify:**\n- apps/ui/src/components/views/terminal-view/terminal-panel.tsx\n- apps/ui/src/components/views/terminal-view/terminal-settings-popover.tsx\n\n**Acceptance Criteria:**\n- [ ] terminal-settings-popover.tsx created with TerminalSettingsPopover export\n- [ ] terminal-panel.tsx further reduced by at least 100 lines\n- [ ] Settings popover renders and functions identically to before\n- [ ] npm run typecheck passes\n\n**Complexity:** medium\n\n**Guardrails:** If this phase involves new or changed behavior, include tests that verify correctness. If this phase adds, removes, or changes a user-facing feature, API endpoint, configuration option, or service, update the relevant documentation in `docs/` to reflect those changes.",
+      "timestamp": "2026-03-04T00:07:41.251Z",
+      "source": "initial"
+    }
+  ],
+  "createdAt": "2026-03-04T00:07:41.251Z",
+  "statusHistory": [
+    {
+      "from": null,
+      "to": "backlog",
+      "timestamp": "2026-03-04T00:07:41.251Z",
+      "reason": "Feature created"
+    }
+  ],
+  "featureType": "code",
+  "dependencies": [
+    "feature-1772582861249-1ppw4onoj"
+  ]
+}

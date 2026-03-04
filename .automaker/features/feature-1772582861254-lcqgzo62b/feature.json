@@ -1,0 +1,32 @@
+{
+  "category": "Organisms Extraction",
+  "description": "**Milestone:** Organisms Extraction\n\nMove the protolabs-report directory (dialog, results, index components) from apps/ui/src/components/shared/protolabs-report/ to libs/ui/src/organisms/protolabs-report/. Export from organisms index. Update all import paths. Run typecheck to verify no broken imports.\n\n**Files to Modify:**\n- libs/ui/src/organisms/protolabs-report/\n- libs/ui/src/organisms/index.ts\n- apps/ui/src/components/shared/protolabs-report/\n\n**Acceptance Criteria:**\n- [ ] protolabs-report components moved to libs/ui/src/organisms/protolabs-report/\n- [ ] Old apps/ui/shared/protolabs-report/ directory removed\n- [ ] All import paths updated\n- [ ] npm run typecheck passes\n- [ ] Tech debt table updated — UI package gaps marked complete\n\n**Complexity:** medium\n\n**Guardrails:** If this phase involves new or changed behavior, include tests that verify correctness. If this phase adds, removes, or changes a user-facing feature, API endpoint, configuration option, or service, update the relevant documentation in `docs/` to reflect those changes.",
+  "title": "Migrate protolabs-report to organisms",
+  "status": "backlog",
+  "isEpic": false,
+  "epicId": "feature-1772582861253-3kjo5o48h",
+  "branchName": "feature/organisms-extraction-migrate-protolabs",
+  "isFoundation": false,
+  "projectSlug": "frontend-tech-debt-remediation",
+  "id": "feature-1772582861254-lcqgzo62b",
+  "descriptionHistory": [
+    {
+      "description": "**Milestone:** Organisms Extraction\n\nMove the protolabs-report directory (dialog, results, index components) from apps/ui/src/components/shared/protolabs-report/ to libs/ui/src/organisms/protolabs-report/. Export from organisms index. Update all import paths. Run typecheck to verify no broken imports.\n\n**Files to Modify:**\n- libs/ui/src/organisms/protolabs-report/\n- libs/ui/src/organisms/index.ts\n- apps/ui/src/components/shared/protolabs-report/\n\n**Acceptance Criteria:**\n- [ ] protolabs-report components moved to libs/ui/src/organisms/protolabs-report/\n- [ ] Old apps/ui/shared/protolabs-report/ directory removed\n- [ ] All import paths updated\n- [ ] npm run typecheck passes\n- [ ] Tech debt table updated — UI package gaps marked complete\n\n**Complexity:** medium\n\n**Guardrails:** If this phase involves new or changed behavior, include tests that verify correctness. If this phase adds, removes, or changes a user-facing feature, API endpoint, configuration option, or service, update the relevant documentation in `docs/` to reflect those changes.",
+      "timestamp": "2026-03-04T00:07:41.254Z",
+      "source": "initial"
+    }
+  ],
+  "createdAt": "2026-03-04T00:07:41.254Z",
+  "statusHistory": [
+    {
+      "from": null,
+      "to": "backlog",
+      "timestamp": "2026-03-04T00:07:41.254Z",
+      "reason": "Feature created"
+    }
+  ],
+  "featureType": "code",
+  "dependencies": [
+    "feature-1772582861253-0sz7koat2"
+  ]
+}
