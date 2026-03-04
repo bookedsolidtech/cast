@@ -5,7 +5,7 @@ relevantTo: [architecture]
 importance: 0.7
 relatedFiles: []
 usageStats:
-  loaded: 69
+  loaded: 71
   referenced: 26
   successfulFeatures: 26
 ---
@@ -3660,3 +3660,70 @@ usageStats:
 - **Rejected:** Setting `autoRemediable: true` and adding a remediation function that deletes the feature or clears branchName
 - **Trade-offs:** Users must manually clean up vs. automatic cleanup. Extensible later: comment says 'any future remediation action can be wired in separately'
 - **Breaking if changed:** If auto-remediation is later enabled, health check becomes a mutating operation, changing project state without audit trail
+
+#### [Pattern] Use Set deduplication for ordered candidate lookup loops to prevent redundant system calls (2026-03-04)
+- **Problem solved:** resolveIntegrationBranch iterates through branch candidates [prBaseBranch, 'main', 'master'] and calls `git rev-parse --verify` for each
+- **Why this works:** When prBaseBranch is already 'main', the candidates become ['main', 'main', 'master']. Without deduplication, git is called twice for 'main', wasting I/O. Set deduplication reduces candidates to ['main', 'master'].
+- **Trade-offs:** Tiny code overhead (one Set construction) eliminates worst-case I/O duplication. Safe because Set preserves insertion order in JS.
+
+#### [Pattern] Validate existence of configuration values via system calls before using them (git rev-parse --verify pattern) (2026-03-04)
+- **Problem solved:** resolveIntegrationBranch doesn't assume prBaseBranch exists in repo; it verifies each candidate with `git rev-parse --verify branch`
+- **Why this works:** A repo might have 'dev' in settings but no 'dev' branch locally (e.g., fresh clone, incomplete setup). Calling functions downstream that assume the branch exists would fail cryptically. Fail-fast validation prevents this.
+- **Trade-offs:** Each resolveIntegrationBranch call costs 1-3 git verifications (acceptable for scheduled maintenance task). Eliminates entire class of downstream errors.
+
+### Preserve hardcoded main/master in skip lists even when prBaseBranch is different (e.g., 'dev') (2026-03-04)
+- **Context:** detectStaleWorktrees filters out integration branch and 'main'/'master'. When prBaseBranch='dev', the filter skips both 'dev' and 'main'.
+- **Why:** Defensive posture: prevents accidental deletion of worktrees for canonical branches even if they aren't the configured integration branch. 'main' and 'master' are special in git culture and shouldn't be auto-removed.
+- **Rejected:** Could skip 'main'/'master' and only preserve prBaseBranch. Simpler rule but risky if 'main' is a release branch that shouldn't have worktrees.
+- **Trade-offs:** Slightly more conservative (never deletes main/master worktrees). Trade safety for reduced cleanup coverage, acceptable for maintenance.
+- **Breaking if changed:** Removing main/master from skip list means worktrees on canonical branches could be auto-deleted, breaking release workflows
+
+#### [Pattern] Order candidate fallbacks by configuration priority, then well-known defaults (2026-03-04)
+- **Problem solved:** Branch resolution candidates ordered as [configuredBranch, 'main', 'master'] — prioritizes prBaseBranch over canonical branches
+- **Why this works:** Respects project-specific configuration first, then falls back to industry standards if config doesn't exist. Matches principle: custom settings > defaults.
+- **Trade-offs:** Prioritizing config means projects using 'develop', 'trunk', 'release', etc. get correct behavior. Loses implicit knowledge that 'main' is 'probably right'.
+
+### Project uses 'dev' as default integration branch (prBaseBranch), not 'main' (2026-03-04)
+- **Context:** DEFAULT_GIT_WORKFLOW_SETTINGS.prBaseBranch is 'dev'. Maintenance tasks now respect this, checking dev → main → master.
+- **Why:** This project uses 'feature/* → dev → staging → main' workflow. Dev is the primary integration branch, not main. Settings accurately reflect team workflow.
+- **Rejected:** Could use 'main' as default like most projects. Would require custom branch settings everywhere.
+- **Trade-offs:** Explicit workflow documentation means one less implicit assumption. Maintenance code is now workflow-aware.
+- **Breaking if changed:** Changing DEFAULT_GIT_WORKFLOW_SETTINGS.prBaseBranch would alter which branch is preferred for stale worktree and merge detection
+
+#### [Pattern] One-shot alerting using Set<string> (alertedMissingChecks) to prevent duplicate alerts on 60-second poll cycles. Alert fires once per tracking session, cleared on cleanup/stop. (2026-03-04)
+- **Problem solved:** detectMissingCIChecks() runs every 60 seconds in pollAllPRs(). Without deduplication, same missing check would alert every cycle, causing spam.
+- **Why this works:** Prevents alert fatigue while maintaining detection guarantees. Set provides O(1) lookup and auto-dedup semantics.
+- **Trade-offs:** Adds state management (Set), requires lifecycle coordination (clear on cleanup). Simpler than timestamp-based dedup but requires explicit cleanup.
+
+### Missing CI check detection uses internal `pr:missing-ci-checks` event consumed by PR Maintainer agent, rather than new HTTP API endpoint. Event payload includes `possibleCauses[]` with diagnostic hints. (2026-03-04)
+- **Context:** PR Maintainer agent already subscribes to PR feedback events. Detection result is only meaningful to this agent, not external systems.
+- **Why:** Scope discipline: no new surface area. Reuses existing event-driven consumption pattern. Diagnostic hints (trigger config, branch mismatch) allow agent to act without re-fetching/re-diagnosing.
+- **Rejected:** Alternative: new HTTP endpoint (external visibility coupling); agent queries on demand (extra latency, loses subscription guarantee); raw event + agent self-diagnoses (agent bloat).
+- **Trade-offs:** Tighter coupling to one agent; simpler API surface; diagnostic hints prevent duplication. Event-driven is slower than on-demand query but aligns with polling architecture.
+- **Breaking if changed:** Creating HTTP endpoint means maintaining external contract; removing possibleCauses means agent must recompute diagnostics.
+
+### MISSING_CI_CHECK_THRESHOLD configurable via environment variable (default 30 minutes). Not hardcoded. (2026-03-04)
+- **Context:** 30 minutes is reasonable for production (CI slowness windows, infrastructure delays). Dev/test needs faster feedback (5-10 min). Different repos may have different tolerance.
+- **Why:** Operational flexibility without code change. Default is sensible for majority case. Env var is standard pattern for config.
+- **Rejected:** Alternative: hardcoded 30 min (inflexible for dev, can't tune per deployment); database config (unnecessary complexity); feature flag (overkill).
+- **Trade-offs:** Env var adds one extra layer of settings mgmt. Makes threshold transparent and debuggable.
+- **Breaking if changed:** Hardcoding removes ability to tune without redeployment. No breaking change from feature perspective, but ops friction increases.
+
+#### [Pattern] PR details (base branch, head SHA) fetched fresh on each poll via `gh pr view`, not cached. Required status checks also fetched fresh, not cached. (2026-03-04)
+- **Problem solved:** PR base branch or required checks can change mid-flight (rare, but possible if branch protection rules updated or PR rebased). Stale cache would miss these changes.
+- **Why this works:** Correctness over performance. Cache invalidation is hard; polling frequency (60s) makes fresh fetch acceptable. GitHub CLI and API have internal caching.
+- **Trade-offs:** Extra API calls per poll. Guarantees correctness. GitHub's own caching reduces actual latency.
+
+### AvaConfig uses MCPServerConfig (richer type with id, enabled, tools metadata) but execution layer expects AgentConfig['mcpServers'] (minimal type with name, type, command, args, env, url, headers). Conversion and filtering happens in index.ts at routing layer, not at config load or tool invocation. (2026-03-04)
+- **Context:** MCP servers can be defined at project level (with full MCPServerConfig) or Ava level (same type). Both must be injected into inner agents via execute_dynamic_agent, which expects AgentConfig['mcpServers'] format.
+- **Why:** MCPServerConfig has enabled flag and metadata (tools, description, toolsLastFetched) that come from provider settings UI. The Agent SDK only needs name, type, command, args, env, url, headers — the minimal executable spec. Filtering disabled servers at conversion time prevents them from running even if mistakenly passed.
+- **Rejected:** Could have extended AgentConfig['mcpServers'] type to accept MCPServerConfig fields, but that would clutter the execution API with configuration concerns. Could have filtered in ava-tools.ts, but keeping conversion in routing layer (index.ts) keeps tool code pure.
+- **Trade-offs:** Conversion logic in one place (index.ts) makes it easy to verify all servers are filtered/mapped consistently. Downside: if another code path needs avaMcpServers, it bypasses this and gets unfiltered servers.
+- **Breaking if changed:** If conversion logic is removed or skipped, disabled servers would attempt to execute and type mismatch errors occur. If filtering moves to ava-tools.ts, index.ts must pass unfiltered array, making filtering intent non-obvious.
+
+### Filtering of enabled MCP servers happens at conversion point in index.ts (routing layer), not in loadAvaConfig (config layer) or ava-tools.ts (tool layer). (2026-03-04)
+- **Context:** avaMcpServers must be filtered to exclude disabled servers before passing to execute_dynamic_agent. Question: where should this logic live?
+- **Why:** Config layer should be neutral — it just loads and merges config. Routing layer (index.ts) is aware of execution context and can make policy decisions (e.g., 'only enabled servers run'). Keeps ava-tools.ts pure — it doesn't need to know about enabled/disabled semantics.
+- **Rejected:** Could filter in loadAvaConfig, but that's config layer business, not filtering. Could filter in ava-tools.ts, but that's buried inside tool code and less discoverable.
+- **Trade-offs:** Single conversion point makes audit trail clear. If routing logic changes (e.g., 'allow all servers including disabled'), it's obvious where to change. Downside: any other code needing avaMcpServers would have to reimplement filtering or call through index.ts.
+- **Breaking if changed:** If filtering moves to ava-tools.ts and index.ts starts passing unfiltered array, the intent becomes implicit rather than explicit. If filtering is removed entirely, disabled servers execute.

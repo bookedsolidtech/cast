@@ -5,9 +5,9 @@ relevantTo: [gotchas]
 importance: 0.7
 relatedFiles: []
 usageStats:
-  loaded: 727
-  referenced: 239
-  successfulFeatures: 239
+  loaded: 751
+  referenced: 242
+  successfulFeatures: 242
 ---
 # gotchas
 
@@ -478,3 +478,13 @@ usageStats:
 - **Situation:** A feature with branchName='feature/foo' will report as orphaned even if 'origin/feature/foo' exists in refs. Conversely, if git fetch --prune hasn't run, stale local branches still report as existing
 - **Root cause:** Simple implementation chose `git rev-parse --verify` for directness. It's a reliable check for local branch state but incomplete for distributed workflows
 - **How to avoid:** Simplicity vs. coverage. Current approach works for features that always track local branches, fails silently for remote-only or pruned scenarios
+
+#### [Gotcha] Optional settingsService parameter can hide bugs where callers forget to pass the service, causing fallback to hardcoded defaults (2026-03-04)
+- **Situation:** detectStaleWorktrees and checkMergedBranches accept optional `settingsService?` parameter. Callers might omit it and code still runs using default 'dev' fallback.
+- **Root cause:** Backward compatibility: existing call sites that don't have settingsService in scope can still call these functions. But this silently ignores custom prBaseBranch settings.
+- **How to avoid:** Easier migration path (optional param) vs. risk of forgotten parameters silently ignoring config. Pattern is useful for gradual refactoring.
+
+#### [Gotcha] GitHub branch protection API returns two different formats: newer `checks[]` and deprecated `contexts[]`. Implementation prefers checks, falls back to contexts. Format mismatch between API versions unexpected. (2026-03-04)
+- **Situation:** Modern repos use checks[], older repos only have contexts[]. Single API call returns both fields. Calling code must handle both to avoid empty required-checks list.
+- **Root cause:** GitHub API evolved. Branch protection rules predate the checks API redesign. No single format covers all repos.
+- **How to avoid:** Explicit fallback logic is verbose but safe. Costs one extra union type check. Without it, old repos silently fail CI check detection.
