@@ -26,7 +26,8 @@ import {
   stepCountIs,
   createUIMessageStream,
   pipeUIMessageStreamToResponse,
-  type ModelMessage,
+  convertToModelMessages,
+  type UIMessage,
   type UIMessageChunk,
 } from 'ai';
 import fs from 'fs/promises';
@@ -111,33 +112,6 @@ export function stripFrontmatter(raw: string): string {
  */
 function modelSupportsExtendedThinking(resolvedModelId: string): boolean {
   return resolvedModelId.includes('opus') || resolvedModelId.includes('sonnet');
-}
-
-/**
- * Convert UIMessage format (from useChat) to ModelMessage format (for streamText).
- * useChat sends: { role, parts: [{ type: "text", text: "..." }] }
- * streamText expects: { role, content: "..." }
- */
-function toModelMessages(
-  messages: Array<{
-    role: string;
-    content?: string;
-    parts?: Array<{ type: string; text?: string }>;
-  }>
-): ModelMessage[] {
-  return messages.map((msg) => {
-    // If content already exists, use it directly (standard format)
-    if (typeof msg.content === 'string') {
-      return { role: msg.role, content: msg.content } as ModelMessage;
-    }
-    // Convert parts format to content string
-    const text =
-      msg.parts
-        ?.filter((p) => p.type === 'text' && p.text)
-        .map((p) => p.text)
-        .join('') || '';
-    return { role: msg.role, content: text } as ModelMessage;
-  });
 }
 
 // ── Citation extraction ───────────────────────────────────────────────────────
@@ -254,11 +228,7 @@ export function createChatRoutes(services: ServiceContainer): Router {
         context,
         projectPath,
       } = req.body as {
-        messages: Array<{
-          role: string;
-          content?: string;
-          parts?: Array<{ type: string; text?: string }>;
-        }>;
+        messages: UIMessage[];
         model?: string;
         system?: string;
         context?: NotesContext;
@@ -269,8 +239,6 @@ export function createChatRoutes(services: ServiceContainer): Router {
         res.status(400).json({ error: 'messages array is required' });
         return;
       }
-
-      const messages = toModelMessages(rawMessages);
 
       // Load AvaConfig when a projectPath is available; fall back to defaults
       const avaConfig: AvaConfig = projectPath
@@ -361,6 +329,11 @@ export function createChatRoutes(services: ServiceContainer): Router {
       // The thinking budget caps how many tokens the model may use for internal
       // reasoning before producing its visible response.
       const extendedThinking = modelSupportsExtendedThinking(resolvedModelId);
+
+      // Convert UIMessages (with tool-invocation, reasoning, approval parts) to
+      // ModelMessages that streamText understands. This preserves tool call/result
+      // pairs required for HITL approval continuation and multi-turn tool use.
+      const messages = await convertToModelMessages(rawMessages, { tools });
 
       logger.info(
         `Chat request: ${messages.length} messages, model=${modelAlias}, projectPath=${projectPath ?? 'none'}, contextInjection=${avaConfig.contextInjection}, sitrepInjection=${avaConfig.sitrepInjection}, extendedThinking=${extendedThinking}`
