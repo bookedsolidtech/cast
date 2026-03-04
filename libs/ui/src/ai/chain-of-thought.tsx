@@ -3,10 +3,10 @@
  *
  * Parses reasoning text into logical steps (detected by newlines or numbered
  * lists). Each step shows a spinner while streaming and a check icon when the
- * next step starts. Auto-opens when Ava starts thinking and auto-collapses with
- * a "Thought for Xs" summary when reasoning completes. Duration tracks from
- * first render (reasoning start) to when state transitions to "done"
- * (≈ first text token).
+ * next step starts. Defaults to collapsed — user opens to inspect. Shows a
+ * "Thought for Xs" (or ms when under 1s) summary when reasoning completes.
+ * Duration tracks from first render (reasoning start) to when state transitions
+ * to "done" (first text token).
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -54,6 +54,7 @@ function parseSteps(text: string): string[] {
 }
 
 function formatDuration(ms: number): string {
+  if (ms < 1000) return `${Math.round(ms)}ms`;
   const seconds = Math.round(ms / 1000);
   return `${seconds}s`;
 }
@@ -66,18 +67,10 @@ export function ChainOfThought({ text, state, className }: ChainOfThoughtProps) 
 
   const isStreaming = state === 'streaming';
 
-  // Auto-open as soon as streaming begins.
-  useEffect(() => {
-    if (isStreaming) {
-      setIsOpen(true);
-    }
-  }, [isStreaming]);
-
-  // Auto-collapse when streaming finishes and record duration.
+  // Record duration when streaming finishes. Stay collapsed throughout.
   useEffect(() => {
     if (state === 'done' && durationMs === undefined) {
       setDurationMs(Date.now() - startTimeRef.current);
-      setIsOpen(false);
     }
   }, [state, durationMs]);
 

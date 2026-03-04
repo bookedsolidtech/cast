@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Switch } from '@protolabs-ai/ui/atoms';
 import { Label, Kbd, KbdGroup } from '@protolabs-ai/ui/atoms';
 import { LayoutGrid, Wand2, GitBranch, ClipboardCheck, DollarSign, Sparkles } from 'lucide-react';
-import { ConflictBadge } from './components/conflict-badge';
+
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@protolabs-ai/ui/atoms';
 import { UsagePopover } from '@/components/usage-popover';
 import { PanelHeader } from '@/components/shared/panel-header';
@@ -170,9 +170,6 @@ export function BoardHeader({
                 </Tooltip>
               </TooltipProvider>
             )}
-
-            {/* Sync Conflict Badge - shows only when conflicts exist */}
-            {isMounted && !isTablet && <ConflictBadge />}
 
             {/* Usage Popover - show if either provider is authenticated, only on desktop */}
             {isMounted && !isTablet && (showClaudeUsage || showCodexUsage) && <UsagePopover />}

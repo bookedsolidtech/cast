@@ -53,10 +53,10 @@ export function ChatMessageList({
   onThumbsUp?: () => void;
   /** Called when the user clicks Thumbs Down on an assistant message. */
   onThumbsDown?: () => void;
-  /** Called when the user approves a destructive tool call (HITL). */
-  onToolApprove?: (toolName: string, input: unknown) => void;
-  /** Called when the user rejects a destructive tool call (HITL). */
-  onToolReject?: (toolName: string, input: unknown) => void;
+  /** Called when the user approves a destructive tool call (HITL). Receives the approval ID. */
+  onToolApprove?: (approvalId: string) => void;
+  /** Called when the user rejects a destructive tool call (HITL). Receives the approval ID. */
+  onToolReject?: (approvalId: string) => void;
   /** Branch info keyed by message ID — provided by the parent managing branch state. */
   branchInfoMap?: Map<string, BranchInfo>;
   /** Called with the origId when the user navigates to the previous branch. */
@@ -74,7 +74,7 @@ export function ChatMessageList({
   const checkIfAtBottom = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return true;
-    return el.scrollHeight - el.scrollTop - el.clientHeight < 50;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 20;
   }, []);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
@@ -107,34 +107,50 @@ export function ChatMessageList({
     return () => el.removeEventListener('scroll', handleScroll);
   }, [checkIfAtBottom]);
 
-  // Detect scroll-up gestures via wheel/touch to set the userScrolled flag.
-  // This ensures we can distinguish user intent from programmatic scrolling.
+  // Detect scroll direction via wheel/touch to set the userScrolled flag.
+  // Scrolling UP pauses auto-scroll immediately (no threshold check needed).
+  // Scrolling DOWN resumes auto-scroll only when already at the bottom.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
 
-    const markUserScrolled = () => {
-      if (!checkIfAtBottom()) {
+    const handleWheel = (e: WheelEvent) => {
+      if (e.deltaY < 0) {
         userScrolledRef.current = true;
+      } else if (e.deltaY > 0 && checkIfAtBottom()) {
+        userScrolledRef.current = false;
       }
     };
 
-    el.addEventListener('wheel', markUserScrolled, { passive: true });
-    el.addEventListener('touchmove', markUserScrolled, { passive: true });
+    const handleTouchMove = () => {
+      userScrolledRef.current = true;
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: true });
+    el.addEventListener('touchmove', handleTouchMove, { passive: true });
     return () => {
-      el.removeEventListener('wheel', markUserScrolled);
-      el.removeEventListener('touchmove', markUserScrolled);
+      el.removeEventListener('wheel', handleWheel);
+      el.removeEventListener('touchmove', handleTouchMove);
     };
   }, [checkIfAtBottom]);
 
   // Auto-scroll on streaming content changes (MutationObserver).
+  // Throttled with rAF gate so it fires at most once per frame, and uses
+  // 'instant' scroll to avoid smooth-scroll animations fighting with wheel input.
   useEffect(() => {
     const el = contentRef.current;
     if (!el) return;
 
+    let rafPending = false;
     const observer = new MutationObserver(() => {
-      if (!userScrolledRef.current) {
-        scrollToBottom('smooth');
+      if (!userScrolledRef.current && !rafPending) {
+        rafPending = true;
+        requestAnimationFrame(() => {
+          rafPending = false;
+          if (!userScrolledRef.current) {
+            scrollToBottom('instant');
+          }
+        });
       }
     });
 

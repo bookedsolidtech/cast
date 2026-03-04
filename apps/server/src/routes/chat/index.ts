@@ -253,7 +253,6 @@ export function createChatRoutes(services: ServiceContainer): Router {
         system,
         context,
         projectPath,
-        approvedActions,
       } = req.body as {
         messages: Array<{
           role: string;
@@ -264,8 +263,6 @@ export function createChatRoutes(services: ServiceContainer): Router {
         system?: string;
         context?: NotesContext;
         projectPath?: string;
-        /** Pre-approved destructive tool calls for the HITL confirmation flow */
-        approvedActions?: Array<{ toolName: string; inputHash: string }>;
       };
 
       if (!rawMessages || !Array.isArray(rawMessages) || rawMessages.length === 0) {
@@ -326,8 +323,6 @@ export function createChatRoutes(services: ServiceContainer): Router {
         });
 
       // Build tool set for this request — gated by per-project toolGroups config.
-      // approvedActions carries pre-approved destructive-tool call identifiers for
-      // the HITL confirmation flow.
       // Read the userPresenceDetection flag from global settings (non-blocking fallback to false).
       let userPresenceDetection = false;
       try {
@@ -357,7 +352,6 @@ export function createChatRoutes(services: ServiceContainer): Router {
             {
               ...avaConfig.toolGroups,
               userPresenceDetection,
-              approvedActions: approvedActions ?? [],
               autoApproveTools: avaConfig.autoApproveTools,
             }
           )

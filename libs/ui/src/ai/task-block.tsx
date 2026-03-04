@@ -11,7 +11,7 @@
  * ToolInvocationPart cards (no wrapping).
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ChevronDown, Loader2, Check, AlertTriangle, Wrench } from 'lucide-react';
 import { cn } from '../lib/utils.js';
 import { formatToolName } from './tool-invocation-part.js';
@@ -33,6 +33,8 @@ export interface ToolInvocationItem {
   output?: unknown;
   errorText?: string;
   title?: string;
+  /** Native AI SDK approval ID — present when state is 'approval-requested' */
+  approvalId?: string;
 }
 
 export interface TaskBlockProps {
@@ -141,11 +143,8 @@ function ToolRow({ tool }: { tool: ToolInvocationItem }) {
 export function TaskBlock({ tools, className }: TaskBlockProps) {
   const allDone = tools.length > 0 && tools.every((t) => DONE_STATES.includes(t.state));
 
-  // Open by default; auto-collapse when every tool has a terminal state
-  const [isOpen, setIsOpen] = useState(true);
-  useEffect(() => {
-    if (allDone) setIsOpen(false);
-  }, [allDone]);
+  // Default collapsed — user opens to inspect details
+  const [isOpen, setIsOpen] = useState(false);
 
   const title = inferBlockTitle(tools);
   const completedCount = tools.filter((t) => DONE_STATES.includes(t.state)).length;

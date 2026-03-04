@@ -101,33 +101,15 @@ export function setupWebSockets(server: http.Server, services: ServiceContainer)
 
     // Subscribe to all events and forward to this client
     const unsubscribe = events.subscribe((type, payload) => {
-      logger.info('Event received:', {
-        type,
-        hasPayload: !!payload,
-        payloadKeys: payload ? Object.keys(payload) : [],
-        wsReadyState: ws.readyState,
-        wsOpen: ws.readyState === WebSocket.OPEN,
-      });
-
       if (ws.readyState === WebSocket.OPEN) {
         try {
           // Check backpressure before sending
           if (ws.bufferedAmount > WS_BACKPRESSURE_THRESHOLD) {
-            logger.warn('WebSocket backpressure detected, dropping event:', {
-              type,
-              bufferedAmount: ws.bufferedAmount,
-              threshold: WS_BACKPRESSURE_THRESHOLD,
-            });
+            logger.warn('WebSocket backpressure, dropping event:', type);
             return;
           }
 
           const message = JSON.stringify({ type, payload });
-          logger.info('Sending event to client:', {
-            type,
-            messageLength: message.length,
-            sessionId: (payload as Record<string, unknown>)?.sessionId,
-            bufferedAmount: ws.bufferedAmount,
-          });
           ws.send(message);
         } catch (err) {
           logger.warn('Failed to send WebSocket message:', {
@@ -135,8 +117,6 @@ export function setupWebSockets(server: http.Server, services: ServiceContainer)
             error: (err as Error).message,
           });
         }
-      } else {
-        logger.info('WARNING: Cannot send event, WebSocket not open. ReadyState:', ws.readyState);
       }
     });
 

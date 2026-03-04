@@ -24,7 +24,6 @@ import {
   type BranchInfo,
 } from '@protolabs-ai/ui/ai';
 import { Button } from '@protolabs-ai/ui/atoms';
-import { Popover, PopoverContent, PopoverTrigger } from '@protolabs-ai/ui/atoms';
 import { cn } from '@/lib/utils';
 import { ChatModelSelect } from '@/components/views/chat/components/chat-model-select';
 import { ConversationList } from './conversation-list';
@@ -321,26 +320,16 @@ export function ChatOverlayContent({ onHide, isModal = false }: ChatOverlayConte
               {expanded ? <ChevronDown className="size-3.5" /> : <ChevronUp className="size-3.5" />}
             </Button>
           )}
-          <Popover open={settingsOpen} onOpenChange={setSettingsOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-7"
-                title="Settings"
-                aria-label="Open settings"
-              >
-                <Settings className="size-3.5" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              align="end"
-              sideOffset={6}
-              className="w-80 max-h-[70vh] overflow-y-auto p-0"
-            >
-              <AvaSettingsPanel projectPath={currentProject?.path} />
-            </PopoverContent>
-          </Popover>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7"
+            onClick={() => setSettingsOpen((v) => !v)}
+            title="Settings"
+            aria-label="Toggle settings"
+          >
+            <Settings className="size-3.5" />
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -393,8 +382,15 @@ export function ChatOverlayContent({ onHide, isModal = false }: ChatOverlayConte
           />
         )}
 
-        {/* Chat area */}
-        <div className="flex min-w-0 flex-1 flex-col">
+        {/* Settings panel — slides in from right, replaces chat area */}
+        {settingsOpen && (
+          <div className="flex min-w-0 flex-1 flex-col overflow-y-auto animate-in slide-in-from-right duration-200">
+            <AvaSettingsPanel projectPath={currentProject?.path} />
+          </div>
+        )}
+
+        {/* Chat area — hidden when settings is open */}
+        <div className={cn('flex min-w-0 flex-1 flex-col', settingsOpen && 'hidden')}>
           <ChatMessageList
             messages={displayedMessages}
             emptyMessage="Ask Ava anything..."

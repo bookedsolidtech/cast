@@ -43,7 +43,7 @@ const messageVariants = cva('flex gap-3 px-4 py-2', {
   defaultVariants: { role: 'assistant' },
 });
 
-const bubbleVariants = cva('rounded-lg px-3 py-2 text-sm max-w-[85%] overflow-hidden', {
+const bubbleVariants = cva('rounded-lg px-4 py-3 text-sm max-w-[85%] overflow-hidden', {
   variants: {
     role: {
       user: 'bg-primary text-primary-foreground ml-auto',
@@ -174,21 +174,18 @@ function buildSegments(rawParts: Array<Record<string, unknown>>): PartSegment[] 
       while (i < rawParts.length && isToolPart(rawParts[i])) {
         const p = rawParts[i];
         const rawState = (p.state as string) ?? 'input-available';
-        // Override state to 'approval-requested' when the tool returned a HITL sentinel
-        const outputData =
-          p.output && typeof p.output === 'object'
-            ? (p.output as Record<string, unknown>)
-            : undefined;
-        const effectiveState: TaskToolState =
-          outputData?.__hitl === true ? 'approval-requested' : (rawState as TaskToolState);
+        const approval = p.approval as
+          | { id: string; approved?: boolean; reason?: string }
+          | undefined;
         tools.push({
           toolName: getToolName(p),
           toolCallId: (p.toolCallId as string) ?? `tool-${i}`,
-          state: effectiveState,
+          state: rawState as TaskToolState,
           input: p.input,
           output: p.output,
           errorText: p.errorText as string | undefined,
           title: p.title as string | undefined,
+          approvalId: approval?.id,
         });
         i++;
       }
@@ -349,10 +346,10 @@ export function ChatMessage({
 }: {
   message: UIMessage;
   className?: string;
-  /** Called when the user approves a destructive tool call (HITL). Receives the tool name and input. */
-  onToolApprove?: (toolName: string, input: unknown) => void;
-  /** Called when the user rejects a destructive tool call (HITL). Receives the tool name and input. */
-  onToolReject?: (toolName: string, input: unknown) => void;
+  /** Called when the user approves a destructive tool call (HITL). Receives the approval ID. */
+  onToolApprove?: (approvalId: string) => void;
+  /** Called when the user rejects a destructive tool call (HITL). Receives the approval ID. */
+  onToolReject?: (approvalId: string) => void;
   /** Called when the user clicks the Regenerate button on an assistant message. */
   onRegenerate?: () => void;
   /** Called when the user clicks Thumbs Up on an assistant message. */
@@ -481,10 +478,14 @@ export function ChatMessage({
                           title={t.title}
                           progressLabel={getToolProgressLabel?.(t.toolCallId)}
                           onApprove={
-                            onToolApprove ? () => onToolApprove(t.toolName, t.input) : undefined
+                            onToolApprove && t.approvalId
+                              ? () => onToolApprove(t.approvalId!)
+                              : undefined
                           }
                           onReject={
-                            onToolReject ? () => onToolReject(t.toolName, t.input) : undefined
+                            onToolReject && t.approvalId
+                              ? () => onToolReject(t.approvalId!)
+                              : undefined
                           }
                         />
                       );

@@ -161,15 +161,10 @@ export function ToolInvocationPart({
 
   // ── HITL confirmation states — render ConfirmationCard inline ────────────
   if (state === 'approval-requested' || state === 'output-denied') {
-    const hitlData =
-      output && typeof output === 'object' ? (output as Record<string, unknown>) : null;
-    const summary = typeof hitlData?.summary === 'string' ? hitlData.summary : undefined;
-
     return (
       <ConfirmationCard
         toolName={toolName}
         input={input}
-        summary={summary}
         state={state === 'output-denied' ? 'output-denied' : 'approval-requested'}
         onApprove={onApprove}
         onReject={onReject}
