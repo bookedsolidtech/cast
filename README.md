@@ -25,7 +25,7 @@
 
 You describe what you want built. AI agents implement it in isolated git branches, create PRs, and handle review feedback. You merge and ship.
 
-![protoLabs UI](https://i.imgur.com/jdwKydM.png)
+![protoLabs UI](https://i.imgur.com/B6vZ2nW.png)
 
 ## Get Started
 
