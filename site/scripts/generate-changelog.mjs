@@ -252,7 +252,7 @@ function formatNumber(n) {
   return n.toLocaleString('en-US');
 }
 
-const VISIBLE_ENTRIES = 100;
+const VISIBLE_ENTRIES = 5;
 
 function renderEntry(entry) {
   const cat = escapeHtml(entry.category);
