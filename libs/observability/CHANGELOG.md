@@ -1,5 +1,74 @@
 # @protolabsai/observability
 
+## 0.36.0
+
+### Minor Changes
+
+- ### Features
+  - add hover popovers to bottom panel stats + system health indicator
+  - epic-grouped features tab + consolidated resources tab (#1795)
+  - remove feature flags for Notes and Calendar — ship as GA
+  - Health Dashboard and Failure Alerting (M4) (#1785)
+  - macOS System Tray (#1783)
+  - enable PWA install on staging via Tailscale HTTPS
+  - gate spec editor, notes, calendar behind feature flags + fix sensors nav
+
+  ### Bug Fixes
+  - remove calendar and notes from feature flag labels
+  - tray quit sets isQuittingIntentionally, disambiguate settings label
+  - remove heart percentage number, swap terminal split directions
+  - bottom panel stats clickable, sync heart color with peak metric
+  - terminal hooks order, shift+= new terminal, notes bubble cleanup
+  - remove stale DocumentsTab/LinksTab references, wire ResourcesTab content
+  - bottom panel uses live API data via useProjectHealth
+  - compact metrics tab — side-by-side health + events, less padding
+  - guard leadEngineerService and sanitize PR number in shell commands
+  - declutter board header — remove icon, title, and usage button
+  - add clickable link to open terminal from empty state
+  - fix empty terminal centering and copy
+  - add hint text in empty terminal panel
+  - show tab bar chrome in empty terminal state
+  - remove PanelHeader from terminal view
+  - resolve hooks ordering violation in bottom panel
+  - projectPlanExists checks project.json not directory
+  - load inbox notification count eagerly in sidebar
+  - make Tailscale HTTPS setup non-fatal
+  - stub PWA virtual modules in Electron dev mode
+  - add credentials to chat transport for session auth
+
+  ### Refactors
+  - shared header for projects view toggle and time range
+  - remove event feed from projects metrics tab
+  - Wire State Machine into CeremonyService + Scheduler (#1800)
+  - comment out Send to pipeline, terminal icon-only toggle, Cmd/Alt keybind
+  - Tab Consolidation + Responsive Layout (#1796)
+  - move board stats to bottom panel, remove health card from metrics
+  - change default landing to /projects with metrics tab
+  - rename sidebar items and update keyboard shortcuts
+  - reorganize sidebar — move Notes/Calendar to Tools, add Ava Chat
+  - consolidate Context & Memory into board ViewToggle tabs
+  - break apart stats page from board view
+  - move terminal to bottom panel, add Cmd+` toggle shortcut
+  - SchedulerSettings Type and Persistence Wiring (#1775) (#1776)
+  - Scheduler Status Endpoint (#1771) (#1772)
+  - replace bottom panel tabs with resizable terminal
+  - extract FeatureScheduler from AutoModeService (#1766)
+  - Migrate escalation-router and notification-router (#1760)
+  - Remove legacy executeFeature fallback (#1759)
+  - Add typed on() method to EventEmitter (#1756)
+  - Pipeline processors emit events directly (#1755)
+  - Move model selection into INTAKE (#1753)
+  - Scheduler interprets PipelineResult (#1754)
+  - PipelineResult type and LE return value (#1752)
+  - Worktree locking: prevent cleanup while agents are active (#1751)
+  - Bug: Auto-loop 'stuck in starting state' cleanup races with LE pipeline (#1750)
+
+### Patch Changes
+
+- Updated dependencies
+  - @protolabsai/types@0.36.0
+  - @protolabsai/utils@0.36.0
+
 ## 0.35.3
 
 ### Patch Changes
