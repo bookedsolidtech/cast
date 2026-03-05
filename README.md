@@ -29,7 +29,7 @@ You describe features on a Kanban board. Agents pick them up, implement them in 
 
 No copy-pasting prompts. No babysitting context windows. You set the rules once in context files, and every agent follows them every time.
 
-![protoLabs UI](https://i.imgur.com/B6vZ2nW.png)
+![protoLabs UI](https://i.imgur.com/eG3ZMZx.png)
 
 ## Get Started
 
