@@ -41,6 +41,11 @@ import { loadAvaConfig, DEFAULT_AVA_CONFIG, type AvaConfig } from './ava-config.
 import { getSitrep } from './sitrep.js';
 import { buildAvaTools } from './ava-tools.js';
 import type { PlanData } from './ava-tools.js';
+import {
+  estimateTokens,
+  compactMessageHistory,
+  COMPACTION_BUDGET_TOKENS,
+} from './message-compaction.js';
 import { ToolProgressEmitter } from './tool-progress.js';
 import { compactToolResult } from './tool-compaction.js';
 import { buildCanUseToolCallback } from '../../lib/agent-trust.js';
@@ -410,7 +415,18 @@ export function createChatRoutes(services: ServiceContainer): Router {
       // Convert UIMessages (with tool-invocation, reasoning, approval parts) to
       // ModelMessages that streamText understands. This preserves tool call/result
       // pairs required for HITL approval continuation and multi-turn tool use.
-      const messages = await convertToModelMessages(rawMessages, { tools });
+      const convertedMessages = await convertToModelMessages(rawMessages, { tools });
+
+      // Apply message-level compaction when the estimated token count exceeds the
+      // budget. Older tool results are summarized to one-line and long assistant
+      // responses are truncated; the most recent messages are preserved verbatim.
+      const preCompactionTokens = estimateTokens(convertedMessages);
+      const messages = compactMessageHistory(convertedMessages, COMPACTION_BUDGET_TOKENS);
+      if (messages !== convertedMessages) {
+        logger.info(
+          `Message compaction applied: ${preCompactionTokens} -> ${estimateTokens(messages)} est. tokens, ${convertedMessages.length} messages`
+        );
+      }
 
       // Estimate payload size for perf tracking
       const systemPromptChars = systemPrompt.length;
@@ -437,13 +453,28 @@ export function createChatRoutes(services: ServiceContainer): Router {
         system: systemPrompt,
         tools,
         stopWhen: stepCountIs(10),
-        ...(extendedThinking && {
-          providerOptions: {
-            anthropic: {
+        providerOptions: {
+          anthropic: {
+            ...(extendedThinking && {
               thinking: { type: 'enabled', budgetTokens: THINKING_BUDGET_TOKENS },
+            }),
+            contextManagement: {
+              edits: [
+                {
+                  type: 'clear_tool_uses_20250919',
+                  trigger: { type: 'input_tokens', value: 80000 },
+                  keep: { type: 'tool_uses', value: 5 },
+                  clearAtLeast: { type: 'input_tokens', value: 10000 },
+                  clearToolInputs: true,
+                },
+                {
+                  type: 'compact_20260112',
+                  trigger: { type: 'input_tokens', value: 150000 },
+                },
+              ],
             },
           },
-        }),
+        },
         experimental_telemetry: {
           isEnabled: true,
           metadata: {
@@ -495,6 +526,22 @@ export function createChatRoutes(services: ServiceContainer): Router {
                 outputTokens: usage.outputTokens ?? 0,
               },
             } as UIMessageChunk);
+
+            // Detect server-side compaction activation (compact_20260112).
+            // When compaction fires, the Anthropic API includes a compaction block
+            // in the response. The AI SDK surfaces provider-specific data via
+            // providerMetadata — log when this occurs so we can monitor its frequency.
+            try {
+              const meta = await result.providerMetadata;
+              const anthropicMeta = meta?.['anthropic'] as Record<string, unknown> | undefined;
+              if (anthropicMeta && 'compaction' in anthropicMeta) {
+                logger.info(
+                  `Server-side compaction activated (compact_20260112): ${JSON.stringify(anthropicMeta['compaction'])}`
+                );
+              }
+            } catch {
+              // providerMetadata unavailable — not critical, skip
+            }
           } catch {
             logger.warn(`Chat complete: ${Date.now() - requestStartTime}ms (usage unavailable)`);
           }
