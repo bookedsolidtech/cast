@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-03-03T00:00:00.000Z",
+  "lastUpdated": "2026-03-04T00:00:00.000Z",
   "milestones": [
     {
       "status": "completed",
@@ -136,17 +136,30 @@
       ]
     },
     {
-      "status": "in-progress",
+      "status": "completed",
       "title": "Community & Open Source",
       "description": "Open-source release with developer resources, community tooling, and consulting offering.",
       "items": [
-        "GitHub repo public access (MIT/Apache 2.0)",
+        "GitHub repo public access (MIT)",
         "create-protolab CLI for scaffolding new projects",
         "Browser extension template with contribution flywheel",
         "Public documentation site with VitePress",
         "Methodology guide and prompt library",
         "Community Discord with bug triage channel workflow",
         "setupLab consulting onboarding pipeline"
+      ]
+    },
+    {
+      "status": "in-progress",
+      "title": "Beta Release",
+      "description": "Hardening, polish, and community readiness for the first public beta.",
+      "items": [
+        "Bug fixes and stability improvements",
+        "GitHub Issues queue triage and response",
+        "Discord community moderation and onboarding",
+        "Ava Anywhere — agent access from any surface",
+        "Mobile UI improvements and responsive polish",
+        "Beta release packaging and distribution"
       ]
     },
     {
