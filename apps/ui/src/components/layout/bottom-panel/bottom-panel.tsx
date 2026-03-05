@@ -51,10 +51,7 @@ function StatItem({
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span
-          className="flex items-center gap-1 cursor-default"
-          onClick={(e) => e.stopPropagation()}
-        >
+        <span className="flex items-center gap-1 cursor-default">
           <Icon className="h-3.5 w-3.5" />
           <span className={highlight && value > 0 ? `${highlightColor} font-medium` : ''}>
             {value}
@@ -111,18 +108,7 @@ export function BottomPanel() {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={toggleBottomPanel}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            toggleBottomPanel();
-          }
-        }}
-        className="h-8 border-t border-border bg-card/80 backdrop-blur flex items-center px-3 gap-4 cursor-pointer hover:bg-muted/50 transition-colors select-none shrink-0"
-      >
+      <div className="h-8 border-t border-border bg-card/80 backdrop-blur flex items-center px-3 gap-4 select-none shrink-0">
         {/* Stats */}
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           <StatItem
@@ -194,10 +180,7 @@ export function BottomPanel() {
           <div className="h-4 w-px bg-border" />
           <Tooltip>
             <TooltipTrigger asChild>
-              <span
-                className={cn('flex items-center gap-1 cursor-default', systemStatusColor)}
-                onClick={(e) => e.stopPropagation()}
-              >
+              <span className={cn('flex items-center gap-1 cursor-default', systemStatusColor)}>
                 <HeartPulse className="h-3.5 w-3.5" />
               </span>
             </TooltipTrigger>
@@ -245,10 +228,7 @@ export function BottomPanel() {
         <div className="flex-1" />
 
         {/* Clock */}
-        <span
-          className="relative group text-xs tabular-nums text-muted-foreground cursor-default"
-          onClick={(e) => e.stopPropagation()}
-        >
+        <span className="relative group text-xs tabular-nums text-muted-foreground cursor-default">
           {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
           <span className="absolute bottom-full right-0 mb-2 px-2.5 py-1.5 rounded-lg bg-popover text-popover-foreground text-xs font-medium border border-border shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap pointer-events-none tabular-nums">
             <span className="font-semibold">
@@ -282,9 +262,15 @@ export function BottomPanel() {
         )}
 
         {/* Terminal toggle */}
-        <Terminal
-          className={`h-3.5 w-3.5 ${bottomPanelOpen ? 'text-foreground' : 'text-muted-foreground'}`}
-        />
+        <button
+          onClick={toggleBottomPanel}
+          className="p-1 rounded-md hover:bg-muted/50 transition-colors"
+          title="Toggle Terminal"
+        >
+          <Terminal
+            className={`h-3.5 w-3.5 ${bottomPanelOpen ? 'text-foreground' : 'text-muted-foreground'}`}
+          />
+        </button>
       </div>
     </TooltipProvider>
   );

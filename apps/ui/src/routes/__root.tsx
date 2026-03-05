@@ -218,18 +218,14 @@ function RootLayoutContent() {
   // focus is inside a terminal or input — you always want to be able to dismiss the panel.
   const shortcuts = useKeyboardShortcutsConfig();
   useEffect(() => {
-    const handleTerminalToggle = (event: KeyboardEvent) => {
-      const parsed = parseShortcut(shortcuts.terminal);
-      if (!parsed.key) return;
+    const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
 
-      const cmdCtrlPressed = event.metaKey || event.ctrlKey;
-      if (parsed.cmdCtrl && !cmdCtrlPressed) return;
-      if (!parsed.cmdCtrl && cmdCtrlPressed) return;
-      if (parsed.shift && !event.shiftKey) return;
-      if (!parsed.shift && event.shiftKey) return;
-      if (parsed.alt && !event.altKey) return;
-      if (!parsed.alt && event.altKey) return;
-      if (event.key.toLowerCase() !== parsed.key.toLowerCase()) return;
+    const handleTerminalToggle = (event: KeyboardEvent) => {
+      if (event.key !== '`') return;
+      // Cmd+` on Mac, Alt+` on Windows/Linux
+      const modifierPressed = isMac ? event.metaKey : event.altKey;
+      if (!modifierPressed) return;
+      if (event.shiftKey) return;
 
       event.preventDefault();
       useAppStore.getState().toggleBottomPanel();
@@ -237,7 +233,7 @@ function RootLayoutContent() {
 
     window.addEventListener('keydown', handleTerminalToggle);
     return () => window.removeEventListener('keydown', handleTerminalToggle);
-  }, [shortcuts.terminal]);
+  }, []);
 
   // Mobile device detection for PWA optimizations
   const isMobile = useIsMobile();
@@ -958,7 +954,7 @@ function RootLayoutContent() {
             />
             <Panel
               ref={terminalPanelRef}
-              defaultSize={35}
+              defaultSize={50}
               minSize={15}
               maxSize={70}
               collapsible
