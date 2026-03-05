@@ -408,8 +408,10 @@ export class GitWorkflowService {
     // - If feature belongs to an epic and epicBranchName is provided, use it
     // - If feature is an epic itself, use the default base (main)
     // - Otherwise use the default base from settings
-    const prBaseBranch =
+    const rawBaseBranch =
       epicBranchName && !feature.isEpic ? epicBranchName : gitSettings.prBaseBranch;
+    // Sanitize branch name to prevent shell injection — allow only valid git ref characters
+    const prBaseBranch = rawBaseBranch.replace(/[^a-zA-Z0-9_./-]/g, '');
 
     logger.debug(
       `Git workflow for ${featureId}: isEpic=${feature.isEpic}, epicId=${feature.epicId}, base=${prBaseBranch}`

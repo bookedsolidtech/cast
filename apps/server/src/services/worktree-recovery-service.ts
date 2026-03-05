@@ -83,7 +83,9 @@ export async function checkAndRecoverUncommittedWork(
   projectPath: string,
   prBaseBranch?: string
 ): Promise<WorktreeRecoveryResult> {
-  const baseBranch = prBaseBranch || DEFAULT_GIT_WORKFLOW_SETTINGS.prBaseBranch;
+  const rawBranch = prBaseBranch || DEFAULT_GIT_WORKFLOW_SETTINGS.prBaseBranch;
+  // Sanitize branch name to prevent shell injection — allow only valid git ref characters
+  const baseBranch = rawBranch.replace(/[^a-zA-Z0-9_./-]/g, '');
   const result: WorktreeRecoveryResult = { detected: false, recovered: false };
 
   try {
