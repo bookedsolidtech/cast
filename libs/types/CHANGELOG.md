@@ -1,5 +1,16 @@
 # @protolabsai/types
 
+## 0.35.2
+
+### Patch Changes
+
+- ### Bug Fixes
+  - circuit breaker cooldown race, outer catch, event bus leak
+  - cast LangfuseSpanProcessor to resolve OTel type conflict
+
+  ### Refactors
+  - remove Linear, crew loops, Langfuse prompt versioning — rewrite README
+
 ## 0.35.1
 
 ### Patch Changes
