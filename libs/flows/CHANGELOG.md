@@ -1,5 +1,58 @@
 # @protolabsai/flows
 
+## 0.34.0
+
+### Minor Changes
+
+- ### Features
+  - gated approval WebSocket flow and inline SubagentApprovalCard (#1711)
+  - trust level toggle in Ava settings panel (#1712)
+  - add mcpServers field to AvaConfig and wire into chat routes (#1708)
+  - agent hook factory utilities for Claude Agent SDK integration (#1704)
+  - ava chat UX overhaul — scroll fix, settings redesign, agent tools, cleanup
+  - real-time tool progress labels for Ava chat (#1696)
+
+  ### Bug Fixes
+  - resolve npm audit high-severity vulnerabilities
+  - resolve high-severity audit vulnerabilities
+  - resolve CodeRabbit critical issues before staging
+  - rename stragglers from upstream rebase
+  - pr maintainer robustness — coderabbit transient detection, configurable review timeout, always-inject watermarks (#1714)
+  - detect permanently missing CI status checks in PR Maintainer (#1705)
+  - update @hono/node-server to resolve high severity vulnerability
+  - update hono to fix high severity audit vulnerability
+  - remove HITL from execute_dynamic_agent, fix hallucinated template names
+  - use AI SDK convertToModelMessages for HITL approval continuation
+  - surface HITL approval cards inside TaskBlock for multi-tool steps
+  - maintenance scheduler branch detection, recovery service, and retry classification
+  - use full OTLP trace URL — /api/public/otel returns 404
+  - unify dual OTel SDK into single NodeSDK, wire subprocess telemetry
+
+  ### Refactors
+  - rename @protolabs-ai → @protolabsai and proto-labs-ai → protoLabsAI
+  - Migrate protolabs-report to organisms (#1721)
+  - replace diamond logo with Lucide Bot icon
+  - Extract TerminalKeyboardMap and finalize (#1718)
+  - Extract TerminalToolbar component (#1716)
+  - Trust config types and canUseTool factory (#1710)
+  - Ava settings MCP servers UI (#1709)
+  - Bug 4: Max Retries Is Hardcoded and Doesn't Distinguish Failure Types (#1707)
+  - DynamicAgentExecutor and AgentTemplate wiring (#1702)
+  - Provider types and ClaudeProvider wiring (#1701)
+  - **Auto-mode re-launches agents on features that already have open PRs:**
+  - Delete duplicate app-level stories
+  - Wire @storybook/addon-a11y in Storybook preview
+  - Set up Chromatic CI integration
+
+### Patch Changes
+
+- Updated dependencies
+  - @protolabsai/types@0.34.0
+  - @protolabsai/utils@0.34.0
+  - @protolabsai/prompts@0.34.0
+  - @protolabsai/model-resolver@0.34.0
+  - @protolabsai/observability@0.34.0
+
 ## 0.33.1
 
 ### Patch Changes
