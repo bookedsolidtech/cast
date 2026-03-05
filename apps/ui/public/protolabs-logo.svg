@@ -1,13 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 80" role="img" aria-label="protoLabs Logo">
-  <defs>
-    <linearGradient id="diamond-gradient" x1="0" y1="0" x2="56" y2="56" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#c4b5fd" />
-      <stop offset="100%" stop-color="#7c3aed" />
-    </linearGradient>
-  </defs>
   <!-- Bot icon on rounded-square background -->
-  <rect x="4" y="12" width="56" height="56" rx="14" fill="url(#diamond-gradient)" />
-  <g transform="translate(8, 16) scale(2)" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="4" y="12" width="56" height="56" rx="14" fill="#7c3aed" />
+  <g transform="translate(56, 16) scale(-2, 2)" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <path d="M12 8V4H8" />
     <rect width="16" height="12" x="4" y="8" rx="2" />
     <path d="M2 14h2" />

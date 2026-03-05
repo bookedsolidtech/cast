@@ -310,22 +310,9 @@ export function ProjectSwitcher() {
               aria-label="protoLabs Logo"
               className="size-10 group-hover:rotate-12 transition-transform duration-300 ease-out"
             >
-              <defs>
-                <linearGradient
-                  id="bg-switcher"
-                  x1="0"
-                  y1="0"
-                  x2="256"
-                  y2="256"
-                  gradientUnits="userSpaceOnUse"
-                >
-                  <stop offset="0%" style={{ stopColor: 'var(--brand-400)' }} />
-                  <stop offset="100%" style={{ stopColor: 'var(--brand-600)' }} />
-                </linearGradient>
-              </defs>
-              <rect x="16" y="16" width="224" height="224" rx="56" fill="url(#bg-switcher)" />
+              <rect x="16" y="16" width="224" height="224" rx="56" fill="#7c3aed" />
               <g
-                transform="translate(32, 32) scale(8)"
+                transform="translate(224, 32) scale(-8, 8)"
                 fill="none"
                 stroke="#FFFFFF"
                 strokeWidth="2"
