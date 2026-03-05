@@ -1,5 +1,16 @@
 # @protolabsai/prompts
 
+## 0.40.1
+
+### Patch Changes
+
+- ### Refactors
+  - Server-side compaction safety net (#1863)
+  - Wire providerOptions for context management (#1860)
+- Updated dependencies
+  - @protolabsai/types@0.40.1
+  - @protolabsai/utils@0.40.1
+
 ## 0.40.0
 
 ### Minor Changes
