@@ -1,21 +1,181 @@
 {
   "summary": {
-    "totalEntries": 1069,
+    "totalEntries": 1089,
     "categories": {
-      "infrastructure": 84,
-      "feature": 567,
-      "improvement": 84,
-      "fix": 276,
-      "docs": 58
+      "improvement": 93,
+      "feature": 575,
+      "fix": 278,
+      "docs": 59,
+      "infrastructure": 84
     },
     "firstDate": "2026-02-04T21:35:59.000Z",
-    "latestDate": "2026-03-03T19:38:40.000Z"
+    "latestDate": "2026-03-04T23:46:36.000Z"
   },
   "months": [
     {
       "month": "2026-03",
       "label": "March 2026",
       "entries": [
+        {
+          "hash": "51efb977",
+          "date": "2026-03-04T15:46:36-08:00",
+          "title": "Migrate protolabs-report to organisms",
+          "prNumber": 1721,
+          "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/1721",
+          "category": "improvement"
+        },
+        {
+          "hash": "f8ab451e",
+          "date": "2026-03-04T15:05:35-08:00",
+          "title": "Extract TerminalKeyboardMap and finalize",
+          "prNumber": 1718,
+          "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/1718",
+          "category": "improvement"
+        },
+        {
+          "hash": "654f31e4",
+          "date": "2026-03-04T14:48:58-08:00",
+          "title": "Extract TerminalSettingsPopover component",
+          "prNumber": 1717,
+          "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/1717",
+          "category": "improvement"
+        },
+        {
+          "hash": "7619d30c",
+          "date": "2026-03-04T14:30:19-08:00",
+          "title": "Extract TerminalToolbar component",
+          "prNumber": 1716,
+          "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/1716",
+          "category": "improvement"
+        },
+        {
+          "hash": "84ad38bb",
+          "date": "2026-03-04T14:17:16-08:00",
+          "title": "Add molecule stories",
+          "prNumber": 1715,
+          "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/1715",
+          "category": "feature"
+        },
+        {
+          "hash": "8811ca33",
+          "date": "2026-03-04T14:07:49-08:00",
+          "title": "Pr maintainer robustness — coderabbit transient detection, configurable review timeout, always-inject watermarks",
+          "prNumber": 1714,
+          "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/1714",
+          "category": "fix"
+        },
+        {
+          "hash": "451ad771",
+          "date": "2026-03-04T13:45:26-08:00",
+          "title": "Add Ava architecture pipeline, delegation flow, and SDK integration docs",
+          "prNumber": 1713,
+          "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/1713",
+          "category": "docs"
+        },
+        {
+          "hash": "aaa6fe38",
+          "date": "2026-03-04T13:39:45-08:00",
+          "title": "Gated approval WebSocket flow and inline SubagentApprovalCard",
+          "prNumber": 1711,
+          "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/1711",
+          "category": "feature"
+        },
+        {
+          "hash": "c16b63e1",
+          "date": "2026-03-04T13:39:17-08:00",
+          "title": "Trust level toggle in Ava settings panel",
+          "prNumber": 1712,
+          "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/1712",
+          "category": "feature"
+        },
+        {
+          "hash": "7409bda0",
+          "date": "2026-03-04T13:17:41-08:00",
+          "title": "Trust config types and canUseTool factory",
+          "prNumber": 1710,
+          "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/1710",
+          "category": "improvement"
+        },
+        {
+          "hash": "c737d6ec",
+          "date": "2026-03-04T13:15:08-08:00",
+          "title": "Ava settings MCP servers UI",
+          "prNumber": 1709,
+          "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/1709",
+          "category": "improvement"
+        },
+        {
+          "hash": "3d5d6732",
+          "date": "2026-03-04T13:04:30-08:00",
+          "title": "Bug 4: Max Retries Is Hardcoded and Doesn't Distinguish Failure Types",
+          "prNumber": 1707,
+          "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/1707",
+          "category": "improvement"
+        },
+        {
+          "hash": "cad3f7f8",
+          "date": "2026-03-04T13:04:10-08:00",
+          "title": "Add mcpServers field to AvaConfig and wire into chat routes",
+          "prNumber": 1708,
+          "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/1708",
+          "category": "feature"
+        },
+        {
+          "hash": "1c3ecec0",
+          "date": "2026-03-04T12:49:04-08:00",
+          "title": "Detect permanently missing CI status checks in PR Maintainer",
+          "prNumber": 1705,
+          "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/1705",
+          "category": "fix"
+        },
+        {
+          "hash": "a6ba0ad5",
+          "date": "2026-03-04T12:43:10-08:00",
+          "title": "Wire hooks into DynamicAgentExecutor and update progress tracking",
+          "prNumber": 1706,
+          "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/1706",
+          "category": "feature"
+        },
+        {
+          "hash": "e371c9cf",
+          "date": "2026-03-04T12:29:28-08:00",
+          "title": "Agent hook factory utilities for Claude Agent SDK integration",
+          "prNumber": 1704,
+          "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/1704",
+          "category": "feature"
+        },
+        {
+          "hash": "14e24caf",
+          "date": "2026-03-04T12:23:04-08:00",
+          "title": "DynamicAgentExecutor and AgentTemplate wiring",
+          "prNumber": 1702,
+          "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/1702",
+          "category": "improvement"
+        },
+        {
+          "hash": "fc67f9bd",
+          "date": "2026-03-04T11:48:30-08:00",
+          "title": "Provider types and ClaudeProvider wiring",
+          "prNumber": 1701,
+          "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/1701",
+          "category": "improvement"
+        },
+        {
+          "hash": "da659ea4",
+          "date": "2026-03-04T11:44:13-08:00",
+          "title": "Separate Ava UI prompt from CLI skill prompt",
+          "prNumber": 1700,
+          "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/1700",
+          "category": "feature"
+        },
+        {
+          "hash": "39d99074",
+          "date": "2026-03-03T22:19:39-08:00",
+          "title": "Real-time tool progress labels for Ava chat",
+          "prNumber": 1696,
+          "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/1696",
+          "category": "feature"
+        },
         {
           "hash": "038b8ece",
           "date": "2026-03-03T11:38:40-08:00",
@@ -3049,7 +3209,7 @@
         {
           "hash": "b3dd52f0",
           "date": "2026-02-24T08:44:28-08:00",
-          "title": "Rename package scope @automaker/* → @protolabsai/*",
+          "title": "Rename package scope @automaker/* → @protolabs-ai/*",
           "prNumber": 1017,
           "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/1017",
           "category": "infrastructure"
@@ -8577,5 +8737,5 @@
       ]
     }
   ],
-  "generatedAt": "2026-03-04T01:27:07.290Z"
+  "generatedAt": "2026-03-05T00:53:02.823Z"
 }

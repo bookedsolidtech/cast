@@ -215,37 +215,14 @@ export function SplashScreen({ onComplete }: { onComplete: () => void }) {
             filter: 'drop-shadow(0 0 30px var(--brand-500))',
           }}
         >
-          <defs>
-            <linearGradient
-              id="splash-bg"
-              x1="0"
-              y1="0"
-              x2="256"
-              y2="256"
-              gradientUnits="userSpaceOnUse"
-            >
-              <stop offset="0%" style={{ stopColor: 'var(--brand-400)' }} />
-              <stop offset="100%" style={{ stopColor: 'var(--brand-600)' }} />
-            </linearGradient>
-            <filter id="splash-shadow" x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow
-                dx="0"
-                dy="4"
-                stdDeviation="4"
-                floodColor="#000000"
-                floodOpacity="0.25"
-              />
-            </filter>
-          </defs>
-          <rect x="16" y="16" width="224" height="224" rx="56" fill="url(#splash-bg)" />
+          <rect x="16" y="16" width="224" height="224" rx="56" fill="#7c3aed" />
           <g
-            transform="translate(32, 32) scale(8)"
+            transform="translate(224, 32) scale(-8, 8)"
             fill="none"
             stroke="#FFFFFF"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            filter="url(#splash-shadow)"
           >
             <path d="M12 8V4H8" />
             <rect width="16" height="12" x="4" y="8" rx="2" />

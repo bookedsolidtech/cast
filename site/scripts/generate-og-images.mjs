@@ -79,10 +79,10 @@ async function generateOGImages() {
           <!-- Background gradient accent -->
           <rect width="1200" height="630" fill="url(#accent-gradient)" />
 
-          <!-- Bot logo (centered top) -->
+          <!-- Bot logo (centered top, mirrored) -->
           <g transform="translate(550, 120)">
-            <rect width="100" height="100" rx="25" fill="url(#text-gradient)" />
-            <g transform="translate(12, 12) scale(3.2)" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="100" height="100" rx="25" fill="#7c3aed" />
+            <g transform="translate(88, 12) scale(-3.2, 3.2)" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 8V4H8" />
               <rect width="16" height="12" x="4" y="8" rx="2" />
               <path d="M2 14h2" />
