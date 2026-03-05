@@ -1,10 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Switch } from '@protolabsai/ui/atoms';
 import { Label, Kbd, KbdGroup } from '@protolabsai/ui/atoms';
-import { LayoutGrid, Wand2, GitBranch, ClipboardCheck, DollarSign, Sparkles } from 'lucide-react';
+import { Wand2, GitBranch, ClipboardCheck, DollarSign, Sparkles } from 'lucide-react';
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@protolabsai/ui/atoms';
-import { UsagePopover } from '@/components/usage-popover';
 import { PanelHeader } from '@/components/shared/panel-header';
 import { useAppStore } from '@/store/app-store';
 import { useWorktreeStore } from '@/store/worktree-store';
@@ -136,8 +135,6 @@ export function BoardHeader({
 
   return (
     <PanelHeader
-      icon={LayoutGrid}
-      title="Board"
       extra={
         <div className="flex items-center gap-4 flex-1">
           {/* Left group: search + view toggle + board controls */}
@@ -171,9 +168,6 @@ export function BoardHeader({
                 </Tooltip>
               </TooltipProvider>
             )}
-
-            {/* Usage Popover - show if either provider is authenticated, only on desktop */}
-            {isMounted && !isTablet && (showClaudeUsage || showCodexUsage) && <UsagePopover />}
 
             {/* Tablet/Mobile view: show hamburger menu with all controls */}
             {isMounted && isTablet && (

@@ -2,7 +2,7 @@
   "category": "Epic",
   "description": "# Settings Persistence\n\nPersist built-in maintenance task configuration (enabled state, cron overrides) in GlobalSettings so it survives server restarts. Today this resets to defaults on every restart.\n\n## Phases\n1. SchedulerSettings Type and Persistence Wiring",
   "title": "[Epic] Settings Persistence",
-  "status": "backlog",
+  "status": "done",
   "isEpic": true,
   "epicColor": "#7C3AED",
   "branchName": "epic/settings-persistence",
@@ -22,10 +22,16 @@
       "to": "backlog",
       "timestamp": "2026-03-05T08:44:51.784Z",
       "reason": "Feature created"
+    },
+    {
+      "from": "backlog",
+      "to": "done",
+      "timestamp": "2026-03-05T09:29:55.075Z"
     }
   ],
   "featureType": "code",
   "dependencies": [
     "feature-1772700291779-pnprimiop"
-  ]
+  ],
+  "completedAt": "2026-03-05T09:29:55.075Z"
 }

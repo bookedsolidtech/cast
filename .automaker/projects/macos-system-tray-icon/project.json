@@ -1,0 +1,77 @@
+{
+  "slug": "macos-system-tray-icon",
+  "title": "macOS System Tray Icon",
+  "goal": "Add a persistent macOS system tray icon to the Electron app so Ava stays accessible in the menubar when the main window is closed, with a context menu for quick actions and a live status indicator showing running agent count.",
+  "status": "active",
+  "milestones": [
+    {
+      "number": 1,
+      "slug": "01-macos-system-tray",
+      "title": "macOS System Tray",
+      "description": "Add tray icon, window hide behavior, Cmd+Q intercept, and live agent status to the Electron main process.",
+      "phases": [
+        {
+          "number": 1,
+          "name": "core-tray-window-hide-behavior",
+          "title": "Core Tray + Window Hide Behavior",
+          "description": "Add Tray and Menu to imports, create a createTray() function that initializes the menubar icon with a context menu (Open Board, separator, Quit), wire tray click to show/focus the main window. Change mainWindow close handler on macOS to call hide() instead of allowing destroy. Intercept the 'before-quit' intent from Cmd+Q on macOS: register a 'will-quit' listener that only allows quit when a flag isQuittingIntentionally is set (set by the tray Quit menu item). Add tray.destroy() cleanup in the existing before-quit handler. Gate all tray code behind process.platform === 'darwin'. The icon to use is path.join(__dirname, '../public/icons/icon-16.png') — verify this resolves correctly in both dev and packaged builds using getIconPath() pattern already in the file.",
+          "filesToModify": [
+            "apps/ui/src/main.ts"
+          ],
+          "acceptanceCriteria": [
+            "Tray icon appears in macOS menubar when app starts",
+            "Clicking tray icon shows/focuses the main window",
+            "Context menu has 'Open Board' and 'Quit' items",
+            "Clicking window red X hides the window (not quit) on macOS",
+            "Cmd+Q hides window instead of quitting on macOS",
+            "Tray 'Quit' fully quits the app and server",
+            "Tray icon is destroyed in before-quit handler",
+            "Windows and Linux behavior unchanged",
+            "npm run build:server passes with no TypeScript errors"
+          ],
+          "complexity": "small",
+          "featureId": "feature-1772701865230-k44h1gyxj"
+        },
+        {
+          "number": 2,
+          "name": "live-agent-status-in-tray",
+          "title": "Live Agent Status in Tray",
+          "description": "Add a polling loop in the main process (every 10 seconds) that fetches http://localhost:{serverPort}/api/agents/running using the existing serverPort module variable and AUTOMAKER_API_KEY for the X-API-Key header. Parse the response to get running agent count. Update the tray tooltip to show 'protoLabs Studio — N agents running' (or 'Idle' when 0). Rebuild the tray context menu dynamically to include a non-clickable status line (e.g. '● 2 agents running' or '○ Idle') above the separator. Clear the polling interval in the before-quit handler. Handle fetch errors gracefully (keep last known state, no crashes).",
+          "filesToModify": [
+            "apps/ui/src/main.ts"
+          ],
+          "acceptanceCriteria": [
+            "Tray tooltip updates every 10 seconds with agent count",
+            "Context menu shows live agent status line",
+            "Status shows 'Idle' when no agents running",
+            "Status shows count when agents are active",
+            "Polling stops cleanly when app quits",
+            "Fetch errors are caught and logged without crashing",
+            "npm run typecheck passes"
+          ],
+          "complexity": "small",
+          "featureId": "feature-1772701865231-x7fjrxcv8"
+        }
+      ],
+      "status": "pending",
+      "epicId": "feature-1772701865228-iv54sut3r"
+    }
+  ],
+  "prd": {
+    "situation": "The protoLabs Studio Electron app already handles macOS window lifecycle correctly — closing the main window keeps the server and app process alive. However, there is no tray icon or menubar presence, so once the window is closed there is no visual indication that Ava is still running and no way to reopen it without going to the Dock. The global Cmd+Shift+Space overlay exists but is invisible to users who don't know the shortcut.",
+    "problem": "Users have no persistent visual anchor for Ava in the macOS menubar. Closing the window feels like quitting the app even though the server is still running. There is no quick way to: (1) reopen the board, (2) see at a glance whether agents are active, or (3) quit cleanly. The Cmd+Q shortcut also fully quits the app and server, which is destructive if agents are mid-execution.",
+    "approach": "Add a native Electron Tray icon to the macOS menubar using the built-in Tray and Menu classes (no new npm packages). The tray icon will show the app logo (icon-16.png already exists), display a context menu with 'Open Board', a live agent count status line, and 'Quit'. Change the main window close behavior on macOS to hide (not destroy) the window for instant re-open. Intercept Cmd+Q on macOS to hide the window instead of quitting, with quit only available via the tray menu. Wire a polling loop in the main process to fetch /api/agents/running and update the tray tooltip and menu dynamically.",
+    "results": "Users see a menubar icon whenever Ava is running. Clicking it shows the board instantly (hidden window, not re-created). The menu shows live agent count. Quitting requires a deliberate action via the tray menu. The app feels like a proper macOS background service rather than a window-centric app.",
+    "constraints": [
+      "macOS only — tray code must be gated behind process.platform === 'darwin' guards",
+      "No new npm packages — Tray and Menu are built into Electron 39",
+      "All changes in apps/ui/src/main.ts — no new files unless strictly necessary",
+      "Must not break Windows or Linux behavior",
+      "Must not break the existing overlay (Cmd+Shift+Space) or auto-updater",
+      "Tray must be destroyed cleanly in the before-quit handler",
+      "Window hide-on-close must only apply on macOS"
+    ]
+  },
+  "createdAt": "2026-03-05T09:10:57.365Z",
+  "updatedAt": "2026-03-05T09:11:05.242Z"
+}

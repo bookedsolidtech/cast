@@ -16,8 +16,8 @@ export interface PanelHeaderAction {
 }
 
 interface PanelHeaderProps {
-  icon: LucideIcon;
-  title: string;
+  icon?: LucideIcon;
+  title?: string;
   badge?: ReactNode;
   actions?: PanelHeaderAction[];
   extra?: ReactNode;
@@ -26,11 +26,13 @@ interface PanelHeaderProps {
 export function PanelHeader({ icon: Icon, title, badge, actions, extra }: PanelHeaderProps) {
   return (
     <div className="flex items-center justify-between border-b border-border px-4 py-2">
-      <div className="flex items-center gap-2">
-        <Icon className="size-4 text-primary" />
-        <h1 className="text-sm font-medium">{title}</h1>
-        {badge}
-      </div>
+      {(Icon || title || badge) && (
+        <div className="flex items-center gap-2">
+          {Icon && <Icon className="size-4 text-primary" />}
+          {title && <h1 className="text-sm font-medium">{title}</h1>}
+          {badge}
+        </div>
+      )}
       {(actions?.length || extra) && (
         <TooltipProvider delayDuration={300}>
           <div className="flex items-center gap-0.5">
