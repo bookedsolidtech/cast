@@ -22,7 +22,7 @@ automaker/
     ├── git-utils/    # Git operations & worktree management
     ├── tools/        # Unified tool definition and registry system
     ├── flows/        # LangGraph state graph primitives & flow orchestration
-    ├── observability/# Langfuse tracing, prompt versioning & cost tracking
+    ├── observability/# Langfuse tracing & cost tracking
     └── ui/           # Shared UI components (@protolabsai/ui) — atoms, molecules, theme
 ```
 

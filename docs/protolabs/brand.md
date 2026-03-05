@@ -58,7 +58,7 @@ This is the living brand bible for protoLabs. All agents, content, and external 
 
 ## Team
 
-The team is organized into **Operations** and **Engineering** branches. Orchestration agents use domain tools (feature management, git ops, Linear, Discord) and subagents rather than direct agent execution for every task.
+The team is organized into **Operations** and **Engineering** branches. Orchestration agents use domain tools (feature management, git ops, Discord) and subagents rather than direct agent execution for every task.
 
 ### Operations
 

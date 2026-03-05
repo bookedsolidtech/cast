@@ -9,9 +9,9 @@ Signal Sources                 Router                        Channels
 --------------                 ------                        --------
 Lead Engineer escalation  -->                            --> DiscordDM
 Agent failure             -->                            --> DiscordChannel
-CI failure                -->  EscalationRouter          --> LinearIssue
-Health check failure      -->    (dedup + rate limit)    --> GitHubIssue
-SLA breach                -->                            --> UINotification
+CI failure                -->  EscalationRouter          --> GitHubIssue
+Health check failure      -->    (dedup + rate limit)    --> UINotification
+SLA breach                -->
 Board anomaly             -->
 ```
 
@@ -91,12 +91,6 @@ Sends direct messages to configured recipients via the Discord bot. Recipients a
 **File:** `apps/server/src/services/escalation-channels/discord-channel-escalation.ts`
 
 Posts escalation messages to a configured Discord channel. Used for team-visible alerts that don't require direct notification.
-
-### LinearIssue
-
-**File:** `apps/server/src/services/escalation-channels/linear-issue-channel.ts`
-
-Creates Linear issues for escalations that need tracked resolution. The `teamId` is read from project settings at startup (`integrations.linear.teamId`). Uses the `LinearMCPClient` for API calls.
 
 ### GitHubIssue
 

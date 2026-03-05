@@ -65,9 +65,7 @@
 | [MCP Tools Reference](./integrations/mcp-tools-reference.md) | Full MCP tool catalog (120+ tools)                             |
 | [Discord](./integrations/discord.md)                         | Discord channels, bot integration, event routing               |
 | [GitHub](./integrations/github.md)                           | GitHub integration, PR workflows, webhooks                     |
-| [Linear](./integrations/linear.md)                           | MCP-tool-only Linear integration                               |
-| [Linear Deep Links](./integrations/linear-deeplink.md)       | Deep link generation for Linear issues                         |
-| [Langfuse](./integrations/langfuse.md)                       | Tracing, prompt versioning, cost tracking, MCP tools           |
+| [Langfuse](./integrations/langfuse.md)                       | Tracing, cost tracking, scoring, MCP tools                     |
 | [API Key Profiles](./integrations/api-key-profiles.md)       | Unified API key and provider profile system                    |
 
 ## Server Reference
@@ -109,12 +107,11 @@
 | [Feature Status System](./dev/feature-status-system.md) | 5-status feature lifecycle                         |
 | [Feature Flags](./dev/feature-flags.md)                 | Feature flag system and conventions                |
 | [Issue Management](./dev/issue-management.md)           | Automated failure-to-issue pipeline                |
-| [Bug Tracking](./dev/bug-tracking.md)                   | Bug triage and tracking workflow                   |
 | [Shared Packages](./dev/shared-packages.md)             | Monorepo package architecture                      |
 | [Monorepo Architecture](./dev/monorepo-architecture.md) | Workspace structure and dependency chain           |
 | [Flows Package](./dev/flows.md)                         | LangGraph state graph primitives and patterns      |
 | [Tool Package](./dev/tool-package.md)                   | Unified tool definition and registry               |
-| [Observability Package](./dev/observability-package.md) | Langfuse tracing, prompt management, cost tracking |
+| [Observability Package](./dev/observability-package.md) | Langfuse tracing and cost tracking                 |
 | [Integration Registry](./dev/integration-registry.md)   | Service integration registry patterns              |
 | [Creating MCP Tools](./dev/creating-mcp-tools.md)       | How to add new MCP tools                           |
 | [Design Philosophy](./dev/design-philosophy.md)         | UI design direction (Linear, Vercel, shadcn/ui)    |
@@ -164,11 +161,13 @@
 
 ## Archived
 
-| Document                                                   | Description                                            |
-| ---------------------------------------------------------- | ------------------------------------------------------ |
-| [Engine Architecture](./archived/engine-architecture.md)   | Lead Engineer state machine ADR (content migrated)     |
-| [Linear Sync](./archived/linear-sync.md)                   | Bidirectional Linear sync (removed, MCP-tool-only now) |
-| [Competitive Analysis](./archived/competitive-analysis.md) | Early competitive landscape analysis                   |
+| Document                                                   | Description                                        |
+| ---------------------------------------------------------- | -------------------------------------------------- |
+| [Engine Architecture](./archived/engine-architecture.md)   | Lead Engineer state machine ADR (content migrated) |
+| [Linear Sync](./archived/linear-sync.md)                   | Bidirectional Linear sync (removed)                |
+| [Linear Integration](./archived/linear.md)                 | MCP-tool-only Linear integration (removed)         |
+| [Linear Deep Links](./archived/linear-deeplink.md)         | Linear deep link generation (removed)              |
+| [Competitive Analysis](./archived/competitive-analysis.md) | Early competitive landscape analysis               |
 
 ## Legal
 

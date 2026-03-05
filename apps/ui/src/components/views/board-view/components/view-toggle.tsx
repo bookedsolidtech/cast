@@ -1,7 +1,7 @@
-import { LayoutGrid, List } from 'lucide-react';
+import { LayoutGrid, List, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export type ViewMode = 'kanban' | 'list';
+export type ViewMode = 'kanban' | 'list' | 'stats';
 
 interface ViewToggleProps {
   viewMode: ViewMode;
@@ -9,9 +9,20 @@ interface ViewToggleProps {
   className?: string;
 }
 
+const buttonClass =
+  'inline-flex h-[calc(100%-1px)] items-center justify-center gap-1.5 rounded-md px-2.5 py-1 text-sm font-medium transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
+
+function toggleBtnClass(active: boolean) {
+  return cn(
+    buttonClass,
+    active
+      ? 'bg-primary text-primary-foreground shadow-md'
+      : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+  );
+}
+
 /**
- * A segmented control component for switching between kanban (grid) and list views.
- * Uses icons to represent each view mode with clear visual feedback.
+ * A segmented control component for switching between kanban, list, and stats views.
  */
 export function ViewToggle({ viewMode, onViewModeChange, className }: ViewToggleProps) {
   return (
@@ -28,13 +39,7 @@ export function ViewToggle({ viewMode, onViewModeChange, className }: ViewToggle
         aria-selected={viewMode === 'kanban'}
         aria-label="Kanban view"
         onClick={() => onViewModeChange('kanban')}
-        className={cn(
-          'inline-flex h-[calc(100%-1px)] items-center justify-center gap-1.5 rounded-md px-2.5 py-1 text-sm font-medium transition-all duration-200 cursor-pointer',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-          viewMode === 'kanban'
-            ? 'bg-primary text-primary-foreground shadow-md'
-            : 'text-muted-foreground hover:text-foreground hover:bg-accent'
-        )}
+        className={toggleBtnClass(viewMode === 'kanban')}
         data-testid="view-toggle-kanban"
       >
         <LayoutGrid className="w-4 h-4" />
@@ -45,17 +50,22 @@ export function ViewToggle({ viewMode, onViewModeChange, className }: ViewToggle
         aria-selected={viewMode === 'list'}
         aria-label="List view"
         onClick={() => onViewModeChange('list')}
-        className={cn(
-          'inline-flex h-[calc(100%-1px)] items-center justify-center gap-1.5 rounded-md px-2.5 py-1 text-sm font-medium transition-all duration-200 cursor-pointer',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-          viewMode === 'list'
-            ? 'bg-primary text-primary-foreground shadow-md'
-            : 'text-muted-foreground hover:text-foreground hover:bg-accent'
-        )}
+        className={toggleBtnClass(viewMode === 'list')}
         data-testid="view-toggle-list"
       >
         <List className="w-4 h-4" />
         <span className="sr-only">List</span>
+      </button>
+      <button
+        role="tab"
+        aria-selected={viewMode === 'stats'}
+        aria-label="Stats view"
+        onClick={() => onViewModeChange('stats')}
+        className={toggleBtnClass(viewMode === 'stats')}
+        data-testid="view-toggle-stats"
+      >
+        <BarChart3 className="w-4 h-4" />
+        <span className="sr-only">Stats</span>
       </button>
     </div>
   );

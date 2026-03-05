@@ -222,5 +222,5 @@ protoLabs stores data in two locations:
 ### Go Deeper
 
 - **[Idea to Production](../dev/idea-to-production.md)** — The full 9-phase pipeline reference
-- **[Project Lifecycle](../dev/project-lifecycle.md)** — Linear-driven project state machine
+- **[Project Lifecycle](../dev/project-lifecycle.md)** — Board-driven project state machine
 - **[Engine Architecture](../archived/engine-architecture.md)** — ADR for the Lead Engineer design

@@ -1,6 +1,6 @@
 ---
 name: plan-project
-description: Full project lifecycle — research, PRD, milestones, feature creation, and launch. Works with Linear as source of truth or standalone.
+description: Full project lifecycle — research, PRD, milestones, feature creation, and launch.
 argument-hint: <project idea or title>
 allowed-tools:
   - Read
@@ -14,7 +14,6 @@ allowed-tools:
   - mcp__plugin_protolabs_studio__approve_project_prd
   - mcp__plugin_protolabs_studio__launch_project
   - mcp__plugin_protolabs_studio__get_lifecycle_status
-  - mcp__plugin_protolabs_studio__collect_related_issues
   - mcp__plugin_protolabs_studio__create_project
   - mcp__plugin_protolabs_studio__get_project
   - mcp__plugin_protolabs_studio__update_project
@@ -25,7 +24,6 @@ allowed-tools:
   - mcp__plugin_protolabs_studio__get_context_file
   - mcp__plugin_protolabs_studio__create_feature
   - mcp__plugin_protolabs_studio__set_feature_dependencies
-  - mcp__plugin_protolabs_studio__sync_project_to_linear
   - mcp__plugin_protolabs_studio__archive_project
 model: sonnet
 ---
@@ -47,7 +45,7 @@ Full project lifecycle from idea to launch:
 
 ### Step 1: Health Check
 
-Run `health_check` to verify protoLabs Studio is running. Check if Linear integration is configured — it's preferred but not required.
+Run `health_check` to verify protoLabs Studio is running.
 
 ### Step 2: Check Existing Status
 
@@ -85,24 +83,17 @@ For simple or well-understood projects, skip to Step 4.
 
 ### Step 4: Dedup Check
 
-If Linear is configured, run `initiate_project` with the title.
+Run `initiate_project` with the title to check for duplicate projects.
 
 If `hasDuplicates: true`:
 
 - Show the duplicate projects found
 - Ask the user: "Similar projects found. Proceed with new project, merge into existing, or cancel?"
 - If cancel: stop
-- If merge: use `collect_related_issues` to move issues
-
-If Linear is NOT configured, skip dedup and proceed directly to PRD creation.
 
 ### Step 5: Create Idea + Generate PRD
 
-**With Linear:** The project is created in Linear. Present the Linear URL to the user.
-
-**Without Linear:** Proceed directly to PRD creation using `create_project`.
-
-Run `generate_project_prd` to check for existing PRD.
+Create the project using `create_project`, then run `generate_project_prd` to check for existing PRD.
 
 If no PRD exists, create one following SPARC format:
 
@@ -171,9 +162,7 @@ Ask the user:
 
 If "Review first": run `list_features` and `get_board_summary` to show current state.
 
-**With Linear:** Run `launch_project` with the project slug. Optionally sync milestones with `sync_project_to_linear` and archive planning data with `archive_project`.
-
-**Without Linear:** Start auto-mode directly or let the user start it manually.
+Run `launch_project` with the project slug. Optionally archive planning data with `archive_project`. Start auto-mode or let the user start it manually.
 
 ### Step 10: Summary
 
@@ -207,4 +196,3 @@ Show a summary dashboard:
 - Each gate uses `AskUserQuestion` with clear options
 - Can resume at any gate by checking `get_lifecycle_status`
 - The `projectPath` should be the root of the target repository
-- Linear integration is preferred but not required — works standalone

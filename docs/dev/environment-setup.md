@@ -173,19 +173,6 @@ LANGFUSE_BASE_URL=https://langfuse.example.com
 LANGFUSE_WEBHOOK_SECRET=whsec_...
 ```
 
-#### Langfuse Sync Configuration
-
-**Variables:** `LANGFUSE_SYNC_LABEL`, `LANGFUSE_SYNC_CI_TRIGGER`
-**Description:** Prompt sync configuration for production prompts
-
-```bash
-# Only sync prompts with this label
-LANGFUSE_SYNC_LABEL=production
-
-# Trigger GitHub Actions after sync (true/1 to enable)
-LANGFUSE_SYNC_CI_TRIGGER=true
-```
-
 ### Discord Integration
 
 #### Discord Bot Token

@@ -14,7 +14,7 @@ flowchart TD
         A[Idea / Signal] --> B{Source?}
         B -->|Human| C[Josh creates PRD via CLI]
         B -->|CoS| D["Ava submits PRD via submit_prd MCP"]
-        B -->|External| E[Linear webhook / Discord signal]
+        B -->|External| E[GitHub issue / Discord signal]
         C --> F[SPARC PRD Document]
         D --> F
         E --> F
@@ -166,51 +166,6 @@ sequenceDiagram
         CoS->>Git: Post-flight (rebase, format, push)
         CoS->>Board: Create PR, enable auto-merge
     end
-```
-
-### Background Monitoring (Parallel to Execution)
-
-While agents execute, monitoring agents maintain system health.
-
-```mermaid
-flowchart LR
-    subgraph Cron["Cron Scheduler"]
-        T1["*/10 min"] --> PR[PR Maintainer]
-        T1 --> FK[Frank]
-        T2["*/15 min"] --> BJ[Board Janitor]
-    end
-
-    subgraph PRMaint["PR Maintainer"]
-        PR --> PR1[Stale PRs > 24h?]
-        PR --> PR2[Auto-merge stuck?]
-        PR --> PR3[CodeRabbit unresolved?]
-        PR --> PR4[Orphaned worktrees?]
-    end
-
-    subgraph Frank["Frank (DevOps)"]
-        FK --> FK1[V8 heap usage]
-        FK --> FK2[RSS memory]
-        FK --> FK3[Agent capacity]
-    end
-
-    subgraph BoardJ["Board Janitor"]
-        BJ --> BJ1[Merged but not done?]
-        BJ --> BJ2[Orphaned in-progress?]
-        BJ --> BJ3[Broken dependency chain?]
-    end
-
-    PR1 & PR2 & PR3 & PR4 --> E1{Needs escalation?}
-    FK1 & FK2 & FK3 --> E2{Critical?}
-    BJ1 & BJ2 & BJ3 --> E3{Needs fix?}
-
-    E1 -->|Yes| A1[Escalate to Ava]
-    E2 -->|Yes| A2[Alert #infra]
-    E3 -->|Yes| A3[Auto-fix board state]
-
-    style Cron fill:#1e293b,color:#e2e8f0
-    style PRMaint fill:#2a1a3a,color:#e2e8f0
-    style Frank fill:#1a3a2a,color:#e2e8f0
-    style BoardJ fill:#3a2a1a,color:#e2e8f0
 ```
 
 ### Key Metrics

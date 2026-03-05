@@ -66,7 +66,6 @@ libs/prompts/src/agents/
 ├── jon.ts              # GTM — content strategy, brand, social media
 ├── pr-maintainer.ts    # Pipeline — auto-merge, CodeRabbit, format fixes
 ├── board-janitor.ts    # Board hygiene — stale features, dependency repair
-├── linear-specialist.ts # Linear — issues, sprints, projects, initiatives
 ├── product-manager-prompt.ts     # PM authority agent
 ├── engineering-manager-prompt.ts # EM authority agent
 ├── frontend-engineer-prompt.ts   # Generic frontend template
@@ -143,7 +142,7 @@ Supports `{{projectPath}}` and `{{contextFiles}}` placeholders.
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Generic templates | `product-manager`, `engineering-manager`, `frontend-engineer`, `backend-engineer`, `devops-engineer`, `qa-engineer`, `docs-engineer`, `gtm-specialist` |
 | Named personas    | `ava`, `matt`, `sam`, `kai`, `frank`, `cindi`, `jon`                                                                                                   |
-| Utility agents    | `pr-maintainer`, `board-janitor`, `linear-specialist`                                                                                                  |
+| Utility agents    | `pr-maintainer`, `board-janitor`                                                                                                                       |
 
 ## Default prompts
 
@@ -172,20 +171,6 @@ import { DEFAULT_PROMPTS } from '@protolabsai/prompts';
 DEFAULT_PROMPTS.autoMode.planningLite;
 DEFAULT_PROMPTS.taskExecution.implementationInstructions;
 ```
-
-## Three-layer prompt resolution
-
-For prompts that support user customization, the resolution order is:
-
-```
-User Override (settings) → Langfuse (versioned) → Hardcoded Default
-```
-
-1. **User Override** — If the user has customized a prompt in project or global settings, that takes priority
-2. **Langfuse** — If Langfuse is configured and has a versioned prompt for this key, use it
-3. **Hardcoded Default** — Fall back to the constant in `defaults.ts`
-
-For details on Langfuse prompt management and versioning, see [Langfuse Integration](../integrations/langfuse.md).
 
 ## Writing effective prompts
 
@@ -294,16 +279,6 @@ STOP if you catch yourself thinking:
 3. Run `npm run build:packages`
 4. Test the affected flow (e.g., auto-mode planning, commit message generation)
 
-### Using Langfuse for prompt versioning
-
-If Langfuse is configured, prompts can be versioned and A/B tested:
-
-1. Create a prompt in the Langfuse dashboard
-2. The server fetches the latest version on startup
-3. User overrides still take priority over Langfuse versions
-
-See [Langfuse Integration](../integrations/langfuse.md) for the full workflow.
-
 ## Prompt template variables
 
 Auto-mode feature prompts support Handlebars-style variables:
@@ -339,4 +314,4 @@ These are rendered by `buildSystemPrompt()` in the agent factory. Templates can 
 - [Agent Philosophy](./philosophy.md) — Why the prompt system is designed this way
 - [Context System](./context-system.md) — How context files and memory flow into prompts
 - [Dynamic Role Registry](./dynamic-role-registry.md) — Template-based agent creation
-- [Langfuse Integration](../integrations/langfuse.md) — Tracing, prompt versioning, and cost tracking
+- [Langfuse Integration](../integrations/langfuse.md) — Tracing and cost tracking

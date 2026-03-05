@@ -45,7 +45,7 @@ export function BoardSearchBar({
         <Input
           ref={searchInputRef}
           type="text"
-          placeholder="Search features by keyword..."
+          placeholder="Search features..."
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           className="pl-9 pr-12 border-border"

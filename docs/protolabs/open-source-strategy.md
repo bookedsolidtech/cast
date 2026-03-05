@@ -272,7 +272,7 @@ GitHub's own documentation states: **"We recommend that you only use self-hosted
 | Risk                   | Description                                                                                                 |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------- |
 | Crypto mining          | Persistent runners provide long-lived compute. Fork PRs could run mining workloads.                         |
-| API key exfiltration   | Runner environment contains Anthropic, GitHub, Discord, Linear, and Langfuse credentials.                   |
+| API key exfiltration   | Runner environment contains Anthropic, GitHub, Discord, and Langfuse credentials.                           |
 | Supply chain poisoning | Modified `package.json` or build scripts could install backdoored dependencies.                             |
 | Lateral movement       | Runner is on our Tailscale network, with access to staging and other internal services.                     |
 | Persistent backdoors   | Unlike ephemeral GitHub-hosted runners, our runner persists between jobs. A backdoor survives the workflow. |
@@ -312,8 +312,7 @@ Team Review
   |
   v
 If Accepted:
-  - Create Linear issue (strategic tracking)
-  - Intake bridge creates Automaker board feature (execution tracking)
+  - Create board feature (execution tracking)
   - GitHub issue linked via feature metadata
   |
   v
