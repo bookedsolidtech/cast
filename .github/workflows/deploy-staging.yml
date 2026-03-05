@@ -78,10 +78,21 @@ jobs:
 
           MIN_GB=10
           if [ "$AVAIL_GB" -lt "$MIN_GB" ]; then
-            echo "ERROR: Only ${AVAIL_GB}GB free — need at least ${MIN_GB}GB for Docker build"
-            echo "Run: docker system prune -a --volumes"
-            df -h "$DEPLOY_DIR"
-            exit 1
+            echo "WARN: Only ${AVAIL_GB}GB free — running aggressive Docker cleanup"
+            # Remove all unused images (not just dangling), build cache, and unused volumes
+            docker system prune -af --volumes 2>/dev/null || true
+            docker builder prune -af 2>/dev/null || true
+
+            # Re-check after cleanup
+            AVAIL_KB=$(df -k "$DEPLOY_DIR" | awk 'NR==2 {print $4}')
+            AVAIL_GB=$((AVAIL_KB / 1024 / 1024))
+            echo "After cleanup: ${AVAIL_GB}GB free"
+
+            if [ "$AVAIL_GB" -lt "$MIN_GB" ]; then
+              echo "ERROR: Still only ${AVAIL_GB}GB free after cleanup — need at least ${MIN_GB}GB"
+              df -h "$DEPLOY_DIR"
+              exit 1
+            fi
           fi
           echo "Disk space OK: ${AVAIL_GB}GB free (minimum ${MIN_GB}GB)"
 

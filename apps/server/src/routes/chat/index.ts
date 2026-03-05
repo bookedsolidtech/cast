@@ -446,7 +446,7 @@ export function createChatRoutes(services: ServiceContainer): Router {
           // Await the full text (separate internal stream tee in streamText)
           const fullText = await result.text;
 
-          // Log completion metrics
+          // Log completion metrics and stream usage data to the client
           try {
             const usage = await result.usage;
             const durationMs = Date.now() - requestStartTime;
@@ -456,6 +456,17 @@ export function createChatRoutes(services: ServiceContainer): Router {
                 `totalTokens=${(usage.inputTokens ?? 0) + (usage.outputTokens ?? 0)}, ` +
                 `responseChars=${fullText.length}, messages=${messages.length}`
             );
+
+            // Send real token usage to the client as a data part on the message.
+            // The AI SDK surfaces this as { type: 'data-usage', data: { ... } } in
+            // the message's parts array — same pattern as data-citations and data-plan.
+            writer.write({
+              type: 'data-usage',
+              data: {
+                inputTokens: usage.inputTokens ?? 0,
+                outputTokens: usage.outputTokens ?? 0,
+              },
+            } as UIMessageChunk);
           } catch {
             logger.warn(`Chat complete: ${Date.now() - requestStartTime}ms (usage unavailable)`);
           }

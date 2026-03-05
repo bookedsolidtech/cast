@@ -90,11 +90,32 @@ export function ChatOverlayContent({ onHide, isModal = false }: ChatOverlayConte
   const suggestions = useContextualSuggestions(features ?? []);
   const { getProgressLabel, activeLabel: activeToolLabel } = useToolProgress();
 
-  // Estimate token count from conversation messages (chars / 4 approximation)
-  const estimatedTokens = useMemo(() => {
-    if (messages.length === 0) return 0;
+  // Accumulate real token usage from data-usage parts on assistant messages.
+  // The server writes a data-usage chunk after each response with exact
+  // inputTokens/outputTokens from the AI provider (works for any model).
+  // Falls back to chars/4 estimate only before the first response arrives.
+  const tokenUsage = useMemo(() => {
+    let input = 0;
+    let output = 0;
+    let hasReal = false;
+    for (const msg of messages) {
+      if (msg.role !== 'assistant' || !msg.parts) continue;
+      for (const part of msg.parts) {
+        if (part.type === 'data-usage' && part.data) {
+          const d = part.data as { inputTokens?: number; outputTokens?: number };
+          input += d.inputTokens ?? 0;
+          output += d.outputTokens ?? 0;
+          hasReal = true;
+        }
+      }
+    }
+    if (hasReal) {
+      return { total: input + output, input, output, estimated: false };
+    }
+    // Fallback: rough estimate before first response completes
+    if (messages.length === 0) return { total: 0, input: 0, output: 0, estimated: true };
     const chars = JSON.stringify(messages).length;
-    return Math.ceil(chars / 4);
+    return { total: Math.ceil(chars / 4), input: 0, output: 0, estimated: true };
   }, [messages]);
 
   // Count agentic steps in the current streaming message for the status bar
@@ -445,22 +466,26 @@ export function ChatOverlayContent({ onHide, isModal = false }: ChatOverlayConte
               actions={
                 <>
                   <ChatModelSelect value={modelAlias} onValueChange={handleModelChange} />
-                  {estimatedTokens > 0 && (
+                  {tokenUsage.total > 0 && (
                     <span
                       className={cn(
                         'text-xs tabular-nums',
-                        estimatedTokens > 100_000
+                        tokenUsage.total > 100_000
                           ? 'text-destructive font-medium'
-                          : estimatedTokens > 50_000
+                          : tokenUsage.total > 50_000
                             ? 'text-yellow-500'
                             : 'text-muted-foreground'
                       )}
-                      title={`~${estimatedTokens.toLocaleString()} estimated tokens in conversation`}
+                      title={
+                        tokenUsage.estimated
+                          ? `~${tokenUsage.total.toLocaleString()} estimated tokens`
+                          : `${tokenUsage.input.toLocaleString()} input + ${tokenUsage.output.toLocaleString()} output tokens`
+                      }
                     >
-                      ~
-                      {estimatedTokens >= 1000
-                        ? `${(estimatedTokens / 1000).toFixed(1)}k`
-                        : estimatedTokens}{' '}
+                      {tokenUsage.estimated && '~'}
+                      {tokenUsage.total >= 1000
+                        ? `${(tokenUsage.total / 1000).toFixed(1)}k`
+                        : tokenUsage.total}{' '}
                       tokens
                     </span>
                   )}
