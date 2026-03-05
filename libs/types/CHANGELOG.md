@@ -1,5 +1,18 @@
 # @protolabsai/types
 
+## 0.35.0
+
+### Minor Changes
+
+- ### Features
+  - unify all icons to mirrored bot logo
+  - changelog page — show 5 entries, collapse rest, add origin story
+
+  ### Bug Fixes
+  - unify all brand icons — solid #7c3aed, mirrored bot across site, docs, and UI
+  - use solid brand violet (#7c3aed) for all icons — drop gradient
+  - correct fork date in changelog story to Feb 4th, 2026
+
 ## 0.34.0
 
 ### Minor Changes
