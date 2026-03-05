@@ -21,6 +21,7 @@ import {
 } from '@/store/app-store';
 import { useKeyboardShortcutsConfig } from '@/hooks/use-keyboard-shortcuts';
 import { useSetupStore } from '@/store/setup-store';
+import { useTerminalStore } from '@/store/terminal-store';
 import { useAuthStore } from '@/store/auth-store';
 import { getElectronAPI, isElectron } from '@/lib/electron';
 import { isMac } from '@/lib/utils';
@@ -231,8 +232,35 @@ function RootLayoutContent() {
       useAppStore.getState().toggleBottomPanel();
     };
 
+    // Shift+= ('+' key) — open terminal panel and create a new tab
+    const handleNewTerminal = (event: KeyboardEvent) => {
+      if (event.key !== '+' || !event.shiftKey) return;
+      // Don't trigger inside inputs/textareas
+      const tag = (event.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (event.target as HTMLElement)?.isContentEditable)
+        return;
+
+      event.preventDefault();
+      const store = useAppStore.getState();
+      // Open the panel if closed
+      if (!store.bottomPanelOpen) {
+        store.toggleBottomPanel();
+      }
+      // Request a new terminal tab via the terminal store
+      const projectPath = store.currentProject?.path;
+      useTerminalStore.getState().setPendingTerminalRequest({
+        cwd: projectPath || '~',
+        mode: 'tab',
+        nonce: Date.now(),
+      });
+    };
+
     window.addEventListener('keydown', handleTerminalToggle);
-    return () => window.removeEventListener('keydown', handleTerminalToggle);
+    window.addEventListener('keydown', handleNewTerminal);
+    return () => {
+      window.removeEventListener('keydown', handleTerminalToggle);
+      window.removeEventListener('keydown', handleNewTerminal);
+    };
   }, []);
 
   // Mobile device detection for PWA optimizations

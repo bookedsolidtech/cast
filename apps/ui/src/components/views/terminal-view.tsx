@@ -221,6 +221,7 @@ export function TerminalView() {
   const initialMode = pendingRequest?.mode;
   const nonce = pendingRequest?.nonce;
   const { currentProject } = useAppStore();
+  const toggleBottomPanel = useAppStore((s) => s.toggleBottomPanel);
   const {
     terminalState,
     setTerminalUnlocked,
@@ -1480,6 +1481,13 @@ export function TerminalView() {
               <Plus className="h-4 w-4" />
             </button>
           </div>
+          <button
+            className="flex items-center justify-center p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+            onClick={toggleBottomPanel}
+            title="Close Terminal"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
         <div className="flex-1 flex items-center justify-center min-h-0">
           <p className="text-sm text-muted-foreground/50">
@@ -1709,6 +1717,17 @@ export function TerminalView() {
                 </div>
               </PopoverContent>
             </Popover>
+
+            {/* Close terminal panel */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-muted-foreground hover:text-foreground"
+              onClick={toggleBottomPanel}
+              title="Close Terminal"
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </div>
         </div>
 
