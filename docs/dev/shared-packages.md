@@ -18,7 +18,7 @@ libs/
 ├── spec-parser/        # XML/markdown spec parsing
 ├── git-utils/          # Git operations
 ├── flows/              # LangGraph state graph primitives
-└── observability/      # Langfuse tracing and prompt management
+└── observability/      # Langfuse tracing and cost tracking
 ```
 
 ## When to Use Each Package

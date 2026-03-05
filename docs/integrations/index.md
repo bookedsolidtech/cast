@@ -21,19 +21,11 @@ Configure and control the AI agents that power your development studio.
 
 ## Observability
 
-Monitor agent performance, trace LLM calls, and manage prompt versions.
+Monitor agent performance, trace LLM calls, and track costs.
 
-| Integration            | Description                                                                                                                                                         | Status   |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| [Langfuse](./langfuse) | LLM observability with trace inspection, cost tracking, and managed prompt versioning. Includes MCP tools for querying traces, scoring runs, and managing datasets. | Optional |
-
-## Project Management
-
-Linear integration for issue tracking and escalation routing.
-
-| Integration        | Description                                                                                   | Status   |
-| ------------------ | --------------------------------------------------------------------------------------------- | -------- |
-| [Linear](./linear) | MCP-tool-only integration for issue management, plus escalation channel for critical signals. | Optional |
+| Integration            | Description                                                                                                                        | Status   |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| [Langfuse](./langfuse) | LLM observability with trace inspection, cost tracking, and scoring. Includes MCP tools for querying traces and managing datasets. | Optional |
 
 ## Team Communication
 

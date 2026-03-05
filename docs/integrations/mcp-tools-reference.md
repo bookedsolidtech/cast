@@ -124,17 +124,16 @@ After creation, project files are organized as:
 
 When `createEpics: true`, each milestone becomes an epic feature. Phase 1 of each milestone is automatically marked `isFoundation: true` -- downstream features won't start until the foundation's PR is merged to main.
 
-## Project Lifecycle (7 tools)
+## Project Lifecycle (6 tools)
 
-| Tool                     | Description                                     |
-| ------------------------ | ----------------------------------------------- |
-| `initiate_project`       | Start the full project lifecycle                |
-| `generate_project_prd`   | Generate a SPARC PRD for a project              |
-| `approve_project_prd`    | Approve or reject a generated PRD               |
-| `launch_project`         | Launch an approved project into execution       |
-| `get_lifecycle_status`   | Get current lifecycle stage for a project       |
-| `collect_related_issues` | Gather Linear issues related to a project       |
-| `sync_project_to_linear` | Sync project milestones/phases to Linear issues |
+| Tool                     | Description                               |
+| ------------------------ | ----------------------------------------- |
+| `initiate_project`       | Start the full project lifecycle          |
+| `generate_project_prd`   | Generate a SPARC PRD for a project        |
+| `approve_project_prd`    | Approve or reject a generated PRD         |
+| `launch_project`         | Launch an approved project into execution |
+| `get_lifecycle_status`   | Get current lifecycle stage for a project |
+| `collect_related_issues` | Gather related issues into a project      |
 
 ## PRD & CoS Pipeline (1 tool)
 
@@ -229,7 +228,7 @@ When `createEpics: true`, each milestone becomes an epic feature. Phase 1 of eac
 
 ## Calendar (4 tools)
 
-Manages calendar events across custom, feature, milestone, Google, and Linear sources. The calendar assistant agent (`/calendar-assistant`) has exclusive write access. See [Calendar API](../server/calendar-api) for full endpoint documentation.
+Manages calendar events across custom, feature, milestone, and Google sources. The calendar assistant agent (`/calendar-assistant`) has exclusive write access. See [Calendar API](../server/calendar-api) for full endpoint documentation.
 
 | Tool                    | Description                 | Required Params                       | Optional Params                                           |
 | ----------------------- | --------------------------- | ------------------------------------- | --------------------------------------------------------- |
@@ -332,7 +331,6 @@ Manages calendar events across custom, feature, milestone, Google, and Linear so
 | `twitch_list_suggestions` | List Twitch chat suggestions             |
 | `twitch_build_suggestion` | Build a feature from a Twitch suggestion |
 | `twitch_create_poll`      | Create a Twitch poll                     |
-| `sync_project_to_linear`  | Sync project milestones to Linear issues |
 
 ## Settings & Health (4 tools)
 
@@ -358,18 +356,16 @@ Manages calendar events across custom, feature, milestone, Google, and Linear so
 | `get_capacity_metrics` | Get agent capacity and utilization |
 | `get_forecast`         | Get delivery forecasts             |
 
-## Observability (8 tools)
+## Observability (6 tools)
 
 | Tool                      | Description                        |
 | ------------------------- | ---------------------------------- |
 | `langfuse_list_traces`    | List Langfuse traces               |
 | `langfuse_get_trace`      | Get a specific trace               |
 | `langfuse_get_costs`      | Get cost breakdown                 |
-| `langfuse_list_prompts`   | List prompt versions               |
 | `langfuse_score_trace`    | Score a trace for quality tracking |
 | `langfuse_list_datasets`  | List evaluation datasets           |
 | `langfuse_add_to_dataset` | Add trace to evaluation dataset    |
-| `langfuse_seed_prompts`   | Seed prompts from Langfuse         |
 
 ## Utilities (5 tools)
 

@@ -166,7 +166,7 @@ Creating coding-standards.md...
 
 ### /plan-project
 
-Full project lifecycle from research to launch. Works with Linear as source of truth or standalone.
+Full project lifecycle from research to launch.
 
 ```bash
 /plan-project             # Start project planning wizard
@@ -176,7 +176,7 @@ Full project lifecycle from research to launch. Works with Linear as source of t
 **Workflow:**
 
 1. **Research** - Analyzes codebase, identifies patterns (optional)
-2. **Dedup** - Checks for duplicate projects in Linear
+2. **Dedup** - Checks for duplicate projects
 3. **SPARC PRD** - Creates structured requirements document
 4. **Milestones** - Breaks into phases with sizing guidance
 5. **Features** - Creates board features with dependencies
@@ -216,22 +216,6 @@ Deep work mode for autonomous feature processing.
 - Grooms the board
 - Stays productive until the system is void of work
 - Minimal human interaction required
-
-### /linear
-
-Manage Linear projects, issues, teams, cycles, and initiatives.
-
-```bash
-/linear                   # Start Linear management
-/linear [query]           # Search or act on Linear issues
-```
-
-**Capabilities:**
-
-- Search and triage Linear issues
-- Create and update issues
-- Manage team assignments
-- View cycle and project status
 
 ### /create-project
 
@@ -459,18 +443,6 @@ Creates project directory structure from approved PRD.
 
 **Model:** Haiku | **When to Use:** Scaffolding `.automaker/projects/` structure from a PRD
 
-### protolabs:linear-triage
-
-Triage Linear issues -- find unassigned work, suggest priorities, identify stale issues.
-
-**Model:** Sonnet | **When to Use:** Organizing and prioritizing Linear backlog
-
-### protolabs:linear-board
-
-Linear board operations -- search issues, view status, check assignments.
-
-**Model:** Haiku | **When to Use:** Quick queries against Linear board state
-
 ### protolabs:devops-health-check
 
 Run comprehensive health diagnostics for deployment.
@@ -503,7 +475,6 @@ Backup and restore Docker volumes.
 | `/context`            | --     | No model (direct tool calls) |
 | `/ship`               | --     | No model (direct tool calls) |
 | `/headsdown`          | --     | No model (direct tool calls) |
-| `/linear`             | --     | No model (direct tool calls) |
 | `/calendar-assistant` | --     | No model (direct tool calls) |
 | `/improve-prompts`    | --     | No model (direct tool calls) |
 | `/due-diligence`      | Sonnet | Evidence-based analysis      |
@@ -520,12 +491,10 @@ Backup and restore Docker volumes.
 | --------------------- | ------ | ----------------------- |
 | `feature-factory`     | Haiku  | Straightforward parsing |
 | `project-scaffold`    | Haiku  | Simple file operations  |
-| `linear-board`        | Haiku  | Quick queries           |
 | `devops-health-check` | Haiku  | Quick diagnostics       |
 | `devops-logs`         | Haiku  | Log parsing             |
 | `devops-backup`       | Haiku  | Simple file operations  |
 | `agent-reviewer`      | Sonnet | Code quality judgment   |
-| `linear-triage`       | Sonnet | Priority analysis       |
 | `feature-planner`     | Opus   | Architectural decisions |
 | `codebase-analyzer`   | Opus   | Deep pattern analysis   |
 | `deep-research`       | Opus   | Thorough exploration    |

@@ -161,7 +161,7 @@ automaker/
     ├── git-utils/    # Git operations & worktree management
     ├── tools/        # Unified tool definition and registry system
     ├── flows/        # LangGraph state graph primitives & flow orchestration
-    ├── observability/# Langfuse tracing, prompt versioning & cost tracking
+    ├── observability/# Langfuse tracing & cost tracking
     └── ui/           # Shared UI components (@protolabsai/ui) — atoms, molecules, theme
 ```
 
@@ -194,7 +194,6 @@ The server (`apps/server/src/`) follows a modular pattern:
 - `services/authority-agents/` - AI authority agents (PM, ProjM, EM, Status, Discord approval routing)
 - `providers/` - AI provider abstraction (currently Claude via Claude Agent SDK)
 - `lib/` - Utilities (events, auth, worktree metadata)
-- `routes/linear/` - Linear agent integration (OAuth + webhook)
 
 ### Multi-Agent Architecture
 
@@ -203,7 +202,6 @@ Automaker uses a dynamic role registry and factory pattern for agents:
 - **Role Registry** (`RoleRegistryService`) — Stores agent templates (role, system prompt, tools, model). Built-in templates registered at startup.
 - **Agent Factory** (`AgentFactoryService`) — Creates agent instances from templates. Resolves models, injects context.
 - **Dynamic Executor** (`DynamicAgentExecutor`) — Runs agents in worktrees with the Claude Agent SDK.
-- **Linear Agent Integration** — OAuth `actor=app` flow registers Automaker as an agent in Linear. `AgentSessionEvent` webhooks route mentions/delegations to the appropriate agent.
 
 Agent roles are defined as templates with a schema validated by Zod. New agent types can be added via the REST API (`/api/agents`) or MCP tools without code changes.
 
@@ -394,8 +392,6 @@ mcp__protolabs__create_feature({
 - `GITHUB_TOKEN` - GitHub personal access token for repository operations
 - `GITHUB_REPO_OWNER` - GitHub repository owner/organization name
 - `GITHUB_REPO_NAME` - GitHub repository name
-- `LANGFUSE_SYNC_LABEL` - Prompt label to filter webhook events (default: production)
-- `LANGFUSE_SYNC_CI_TRIGGER` - Enable repository_dispatch after prompt sync (true/1 to enable)
 - `DISCORD_TOKEN` - Discord bot token for event routing and notifications
 - `DISCORD_GUILD_ID` - Discord server (guild) ID
 - `DISCORD_CHANNEL_SUGGESTIONS` - Channel ID for #suggestions
@@ -458,7 +454,7 @@ The MCP server exposes ~159 tools organized by category:
 
 **GitHub Operations:** `merge_pr`, `check_pr_status`, `resolve_pr_threads`
 
-**Observability:** `langfuse_list_traces`, `langfuse_get_trace`, `langfuse_get_costs`, `langfuse_list_prompts`, `langfuse_score_trace`, `langfuse_add_to_dataset`
+**Observability:** `langfuse_list_traces`, `langfuse_get_trace`, `langfuse_get_costs`, `langfuse_score_trace`, `langfuse_list_datasets`, `langfuse_add_to_dataset`
 
 **Utilities:** `health_check`, `get_board_summary`
 

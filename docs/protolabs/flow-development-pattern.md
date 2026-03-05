@@ -171,10 +171,10 @@ Workers should return error objects, never crash. The aggregator handles partial
 
 ## Package Map
 
-| Package                      | Role                                 | Key Exports                                                              |
-| ---------------------------- | ------------------------------------ | ------------------------------------------------------------------------ |
-| `@protolabsai/flows`         | State graphs, reducers, builders     | `GraphBuilder`, `createStateAnnotation`, `appendReducer`, `wrapSubgraph` |
-| `@protolabsai/observability` | Langfuse tracing + prompt versioning | `LangfuseClient`, `executeTrackedPrompt`                                 |
+| Package                      | Role                             | Key Exports                                                              |
+| ---------------------------- | -------------------------------- | ------------------------------------------------------------------------ |
+| `@protolabsai/flows`         | State graphs, reducers, builders | `GraphBuilder`, `createStateAnnotation`, `appendReducer`, `wrapSubgraph` |
+| `@protolabsai/observability` | Langfuse tracing + cost tracking | `LangfuseClient`, `wrapProviderWithTracing`                              |
 
 ## Existing Implementations
 

@@ -24,18 +24,17 @@ When a PR introduces a regression, the audit trail shows exactly which persona m
 
 The canonical roster lives in `libs/prompts/src/shared/team-base.ts` as the `TEAM_ROSTER` constant. Every agent receives this table in its system prompt, so each agent knows _who to delegate to_ when work falls outside its domain.
 
-| Agent                 | Domain        | Delegate when...                                       |
-| --------------------- | ------------- | ------------------------------------------------------ |
-| **Ava**               | Orchestration | Product direction, cross-team coordination, escalation |
-| **Matt**              | Frontend      | React, UI components, design system, Tailwind, a11y    |
-| **Sam**               | Agent infra   | LangGraph flows, LLM providers, observability          |
-| **Kai**               | Backend       | Express routes, services, API design, error handling   |
-| **Frank**             | DevOps        | CI/CD, Docker, deploy, monitoring, infra               |
-| **Jon**               | GTM           | Content strategy, brand, social media, launches        |
-| **Cindi**             | Content       | Blog posts, docs, training data, SEO copy              |
-| **PR Maintainer**     | Pipeline      | Auto-merge, CodeRabbit threads, format fixes           |
-| **Board Janitor**     | Board hygiene | Stale features, dependency repair, status cleanup      |
-| **Linear Specialist** | Linear        | Issues, sprints, projects, initiatives                 |
+| Agent             | Domain        | Delegate when...                                       |
+| ----------------- | ------------- | ------------------------------------------------------ |
+| **Ava**           | Orchestration | Product direction, cross-team coordination, escalation |
+| **Matt**          | Frontend      | React, UI components, design system, Tailwind, a11y    |
+| **Sam**           | Agent infra   | LangGraph flows, LLM providers, observability          |
+| **Kai**           | Backend       | Express routes, services, API design, error handling   |
+| **Frank**         | DevOps        | CI/CD, Docker, deploy, monitoring, infra               |
+| **Jon**           | GTM           | Content strategy, brand, social media, launches        |
+| **Cindi**         | Content       | Blog posts, docs, training data, SEO copy              |
+| **PR Maintainer** | Pipeline      | Auto-merge, CodeRabbit threads, format fixes           |
+| **Board Janitor** | Board hygiene | Stale features, dependency repair, status cleanup      |
 
 ## Two surfaces: interactive and autonomous
 
@@ -190,7 +189,7 @@ Agents accumulate learnings in `.automaker/memory/`. The context loader scores m
 
 ### Continuous improvement tracking
 
-Every persona agent receives the `CONTINUOUS_IMPROVEMENT` prompt fragment. When an agent encounters a bug, code smell, or missing test during execution, it files a Linear issue (search-before-create to avoid duplicates). This turns every agent execution into a low-cost audit of the codebase.
+Every persona agent receives the `CONTINUOUS_IMPROVEMENT` prompt fragment. When an agent encounters a bug, code smell, or missing test during execution, it creates a board feature (search-before-create to avoid duplicates). This turns every agent execution into a low-cost audit of the codebase.
 
 ## Design principles summary
 

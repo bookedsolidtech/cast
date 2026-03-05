@@ -16,7 +16,6 @@ Project Owner (CEO, Human)
 │   ├── Backend Engineer, Sonnet, Trust=2
 │   ├── Product Manager, Sonnet, Trust=1
 │   ├── Engineering Manager, Sonnet, Trust=1
-│   ├── Linear Specialist, Sonnet, Trust=2
 │   ├── PR Maintainer, Haiku, Trust=2
 │   └── Board Janitor, Haiku, Trust=1
 └── Jon, Sonnet, Trust=1 — Go-to-Market
@@ -35,7 +34,6 @@ Project Owner (CEO, Human)
 | [Backend Engineer](#backend-engineer)       | backend-engineer    | Sonnet | 2 (Conditional) | AVA           | Bash, Edit, Commit, PR        | Internal     |
 | [Product Manager](#product-manager)         | product-manager     | Sonnet | 1 (Assisted)    | AVA           | Read-only                     | Internal     |
 | [Engineering Manager](#engineering-manager) | engineering-manager | Sonnet | 1 (Assisted)    | AVA           | Read-only                     | Internal     |
-| [Linear Specialist](#linear-specialist)     | linear-specialist   | Sonnet | 2 (Conditional) | AVA           | Read-only                     | Internal     |
 | [PR Maintainer](#pr-maintainer)             | pr-maintainer       | Haiku  | 2 (Conditional) | AVA           | Bash, Edit, Commit, PR        | Internal     |
 | [Board Janitor](#board-janitor)             | board-janitor       | Haiku  | 1 (Assisted)    | AVA           | Read-only                     | Internal     |
 | [Jon](#jon)                                 | gtm-specialist      | Sonnet | 1 (Assisted)    | Project Owner | Bash, Edit                    | CLI, Discord |
@@ -81,7 +79,6 @@ Autonomous operator with full authority. Manages operations, coordinates agents,
 - [Backend Engineer](#backend-engineer) — Implements server-side features, APIs, services, and database logic
 - [Product Manager](#product-manager) — Manages requirements, priorities, roadmap, and stakeholder communication
 - [Engineering Manager](#engineering-manager) — Oversees engineering execution, code review, team coordination, and technical decisions
-- [Linear Specialist](#linear-specialist) — Owns all Linear workspace operations: project management, sprint planning, issue lifecycle, initiative tracking, and Automaker board synchronization
 - [PR Maintainer](#pr-maintainer) — Handles PR pipeline mechanics: auto-merge enablement, CodeRabbit thread resolution, format fixing in worktrees, branch rebasing, and PR creation from orphaned worktrees
 - [Board Janitor](#board-janitor) — Maintains board consistency: moves merged-PR features to done, resets stale in-progress features, repairs dependency chains
 
@@ -207,23 +204,6 @@ Manages requirements, priorities, roadmap, and stakeholder communication.
 ### Description
 
 Oversees engineering execution, code review, team coordination, and technical decisions.
-
----
-
-## Linear Specialist {#linear-specialist}
-
-**Type:** AI
-**Role:** linear-specialist
-**Model:** Sonnet
-**Trust Level:** 2 (Conditional)
-**Reports to:** AVA
-**Exposure:** Internal
-**Capabilities:** Read-only
-**Tags:** linear, project-management, sprint-planning, issues, initiatives
-
-### Description
-
-Owns all Linear workspace operations: project management, sprint planning, issue lifecycle, initiative tracking, and Automaker board synchronization.
 
 ---
 

@@ -1,6 +1,5 @@
 import type { NavigateOptions } from '@tanstack/react-router';
 import { cn } from '@/lib/utils';
-import { useOSDetection } from '@/hooks/use-os-detection';
 import { useDemoMode } from '@/hooks/use-demo-mode';
 
 interface AutomakerLogoProps {
@@ -8,24 +7,8 @@ interface AutomakerLogoProps {
   navigate: (opts: NavigateOptions) => void;
 }
 
-function getOSAbbreviation(os: string): string {
-  switch (os) {
-    case 'mac':
-      return 'M';
-    case 'windows':
-      return 'W';
-    case 'linux':
-      return 'L';
-    default:
-      return '?';
-  }
-}
-
 export function AutomakerLogo({ sidebarOpen, navigate }: AutomakerLogoProps) {
   const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0';
-  const { os } = useOSDetection();
-  const appMode = import.meta.env.VITE_APP_MODE || '?';
-  const versionSuffix = `${getOSAbbreviation(os)}${appMode}`;
   const demoMode = useDemoMode();
 
   return (
@@ -49,9 +32,9 @@ export function AutomakerLogo({ sidebarOpen, navigate }: AutomakerLogoProps) {
           viewBox="0 0 256 256"
           role="img"
           aria-label="protoLabs Logo"
-          className="size-8 group-hover:rotate-12 transition-transform duration-300 ease-out"
+          className="size-8 text-brand-500 group-hover:rotate-12 transition-transform duration-300 ease-out"
         >
-          <rect x="16" y="16" width="224" height="224" rx="56" fill="#7c3aed" />
+          <rect x="16" y="16" width="224" height="224" rx="56" fill="currentColor" />
           <g
             transform="translate(224, 32) scale(-8, 8)"
             fill="none"
@@ -79,9 +62,9 @@ export function AutomakerLogo({ sidebarOpen, navigate }: AutomakerLogoProps) {
               viewBox="0 0 256 256"
               role="img"
               aria-label="protoLabs"
-              className="h-8 w-8 lg:h-[36.8px] lg:w-[36.8px] shrink-0 group-hover:rotate-12 transition-transform duration-300 ease-out"
+              className="h-8 w-8 lg:h-[36.8px] lg:w-[36.8px] shrink-0 text-brand-500 group-hover:rotate-12 transition-transform duration-300 ease-out"
             >
-              <rect x="16" y="16" width="224" height="224" rx="56" fill="#7c3aed" />
+              <rect x="16" y="16" width="224" height="224" rx="56" fill="currentColor" />
               <g
                 transform="translate(224, 32) scale(-8, 8)"
                 fill="none"
@@ -104,7 +87,7 @@ export function AutomakerLogo({ sidebarOpen, navigate }: AutomakerLogoProps) {
           </div>
           <div className="flex items-center gap-1.5 ml-9 lg:ml-[38.8px]">
             <span className="text-[0.625rem] text-muted-foreground leading-none font-medium">
-              v{appVersion} {versionSuffix}
+              v{appVersion} alpha
             </span>
             {demoMode && (
               <span className="text-[0.5rem] font-bold uppercase tracking-wider text-brand-400 bg-brand-400/10 px-1.5 py-0.5 rounded leading-none">

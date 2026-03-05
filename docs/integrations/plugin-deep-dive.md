@@ -136,9 +136,9 @@ All tools are defined as static schemas in separate module files under `packages
 | Promotion          | `promotion-tools.ts`     | Staging/main promotion pipeline                |
 | Calendar           | `calendar-tools.ts`      | Calendar events CRUD                           |
 | Content            | `content-tools.ts`       | Content pipeline (blog, docs)                  |
-| Integrations       | `integration-tools.ts`   | Discord, Twitch, Linear sync, HITL forms       |
+| Integrations       | `integration-tools.ts`   | Discord, Twitch, HITL forms                    |
 | Lead Engineer      | `lead-engineer-tools.ts` | Lead engineer state machine control            |
-| Observability      | `observability-tools.ts` | Langfuse traces, costs, prompts, datasets      |
+| Observability      | `observability-tools.ts` | Langfuse traces, costs, scoring, datasets      |
 | Quarantine         | `quarantine-tools.ts`    | Quarantine entries, trust tiers                |
 | Scheduler          | `scheduler-tools.ts`     | Scheduler status, maintenance tasks            |
 | Setup              | `setup-tools.ts`         | SetupLab: research, gap analysis, alignment    |
@@ -320,9 +320,9 @@ temporary-reason: '...'
 | Context    | Full conversation history      | Only the prompt provided                      |
 | Use case   | Interactive workflows          | Parallelizable, isolated tasks                |
 
-### Current Commands (18)
+### Current Commands (17)
 
-`/auto-mode`, `/ava`, `/board`, `/calendar-assistant`, `/context`, `/create-project`, `/deep-research`, `/due-diligence`, `/headsdown`, `/improve-prompts`, `/linear`, `/orchestrate`, `/plan-project`, `/setuplab`, `/ship`, `/sparc-prd`, `/upgrade-plugin`
+`/auto-mode`, `/ava`, `/board`, `/calendar-assistant`, `/context`, `/create-project`, `/deep-research`, `/due-diligence`, `/headsdown`, `/improve-prompts`, `/orchestrate`, `/plan-project`, `/setuplab`, `/ship`, `/sparc-prd`, `/upgrade-plugin`
 
 ## Session Lifecycle
 

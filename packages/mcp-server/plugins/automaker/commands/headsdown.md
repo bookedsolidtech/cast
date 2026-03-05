@@ -50,11 +50,6 @@ allowed-tools:
   # Discord
   - mcp__plugin_protolabs_discord__discord_send
   - mcp__plugin_protolabs_discord__discord_read_messages
-  # Linear
-  - mcp__linear__linear_createIssue
-  - mcp__linear__linear_updateIssue
-  - mcp__linear__linear_searchIssues
-  - mcp__linear__linear_getIssues
   # Context7 - live library documentation
   - mcp__plugin_protolabs_context7__resolve-library-id
   - mcp__plugin_protolabs_context7__query-docs
@@ -90,24 +85,6 @@ Use Context7 to look up current library docs when implementing features. Two-ste
 - **Clean as you go** - Groom the board, fix stale features, resolve blockers
 - **Act, don't ask** - Make autonomous decisions. Only escalate to the user when truly stuck.
 - **Exponential backoff** - When truly blocked, sleep intelligently
-
-## Linear-First Awareness
-
-Work enters the board via the **Linear intake bridge**. When a Linear issue moves to "In Progress", the intake bridge auto-creates a board feature. Headsdown mode processes whatever lands on the board — you don't need to interact with Linear directly.
-
-**If you find new work during productive waiting** (bugs, improvements, cleanup needs), create a Linear issue instead of a board feature. Use the team ID and state IDs from your project's `linear-config` skill (run `/linear-config` to see them):
-
-```
-mcp__linear__linear_createIssue({
-  teamId: "<from linear-config>",
-  title: "Fix: [description]",
-  description: "[details]"
-})
-```
-
-Then move it to "In Progress" (use the `inProgress` stateId from `linear-config`) to trigger intake.
-
----
 
 ## Main Loop
 
@@ -222,7 +199,7 @@ mcp__plugin_protolabs_studio__list_running_agents()
 2. **Review Completed Work** - When agent finishes, review the output
 3. **Post-Flight Delegation** - Delegate mechanical cleanup to specialists:
    - PR creation, formatting, CodeRabbit -> `execute_dynamic_agent` with template `pr-maintainer`
-   - Board state fixes -> Board Janitor crew handles automatically every 15min
+   - Board state fixes -> handle directly or via specialist agent
 4. **Handle Failures** - If agent fails, analyze error and decide:
    - Retry with more context
    - Escalate complexity (haiku -> sonnet -> opus)
@@ -377,16 +354,6 @@ For features in `in_progress` or `review` with no activity > 24h:
 ## Phase 6: Productive Waiting
 
 When blocked on external factors (PR review, CI build, rate limits), use time productively.
-
-### Crew Loop Status Check
-
-Before doing productive work, check if crew members are handling maintenance:
-
-- PR pipeline maintenance -> **PR Maintainer** crew runs every 10min
-- Board consistency -> **Board Janitor** crew runs every 15min
-- Server health -> **Frank** crew runs every 10min
-
-Only intervene in these areas if the crew member hasn't fired yet and the issue is blocking your current work.
 
 ### Tier 1: Code Quality (5-10 min tasks)
 
@@ -558,7 +525,6 @@ AskUserQuestion({
 - **Don't leave memory drift** - Always commit `.automaker/memory/*.md` and `.automaker/context/` changes alongside your code commits. These are git-tracked files, not runtime data. Check `git status` for unstaged `.automaker/memory/` changes before switching branches or ending a session.
 - **Don't ignore failures** - Address them before moving on
 - **Don't present menus** - Decide and act autonomously
-- **Don't duplicate crew work** - Check if PR Maintainer/Board Janitor already handled it
 
 ---
 

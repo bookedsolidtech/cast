@@ -2,7 +2,7 @@
 
 ## What It Is
 
-protoLabs is a fully autonomous software development agency powered by AI agents. It takes ideas from any source — human conversation, Discord messages, Linear issues, GitHub — and transforms them into shipped, tested, merged code through a repeatable, measurable loop.
+protoLabs is a fully autonomous software development agency powered by AI agents. It takes ideas from any source — human conversation, Discord messages, GitHub issues — and transforms them into shipped, tested, merged code through a repeatable, measurable loop.
 
 The system doesn't just execute. It plans, challenges its own plans, breaks work into measurable pieces, delegates to specialized agents, monitors quality, and — critically — reflects on what it learned and feeds that back into better future work.
 
@@ -50,20 +50,13 @@ Production orchestration, auto-mode execution, and code quality. The Lead Engine
 | **Kai** (Backend)      | AI Agent    | Server-side features, API design, database, services                    |
 | **Auto-mode Agents**   | Sonnet/Opus | Feature implementation in isolated git worktrees                        |
 
-## Three Surfaces, Clear Separation
+## Two Surfaces, Clear Separation
 
-protoLabs operates across three systems that each own a distinct layer:
+protoLabs operates across two systems that each own a distinct layer:
 
-### Linear — Strategic Layer (Source of Truth)
+### protoLabs Board — Tactical Layer (Source of Truth)
 
-- Vision, goals, initiatives, projects, roadmap
-- Human reviews happen here
-- Clients see progress here
-- The "exec team" view
-
-### protoLabs Board — Tactical Layer
-
-- Features, agents, branches, PRs, task execution
+- Features, agents, branches, PRs, task execution, project tracking
 - Where code actually gets written
 - Agent worktrees, auto-mode, dependency chains
 - The "dev team" view
@@ -72,10 +65,10 @@ protoLabs operates across three systems that each own a distinct layer:
 
 - Async team coordination
 - Status updates, alerts, ceremonies
-- Josh ↔ Ava primary channel
+- Josh / Ava primary channel
 - The "office" view
 
-**Rule: Never mix the layers.** Linear doesn't track individual PRs. protoLabs doesn't own roadmap vision. Discord doesn't store state.
+**Rule: Never mix the layers.** The board owns all project state. Discord doesn't store state.
 
 ## The Flow
 
@@ -83,7 +76,7 @@ protoLabs operates across three systems that each own a distinct layer:
 
 Ideas arrive from anywhere:
 
-- Josh types in Discord or creates a Linear issue
+- Josh types in Discord or creates a board feature
 - Ava identifies operational improvements during execution
 - Jon identifies market opportunities from content/social
 - External stakeholders file GitHub issues
@@ -102,7 +95,7 @@ They challenge each other in a 3-stage sequential review. The output is a consol
 
 ### 3. Approval Gate
 
-Josh reviews the PRD in Linear. Two modes:
+Josh reviews the PRD. Two modes:
 
 - **Standard**: Josh reviews, comments, approves or requests changes
 - **preApproved**: Low-risk items (small scope, operational improvements) auto-pass based on trust boundaries
@@ -117,11 +110,11 @@ ProjM takes the approved PRD and does deep research:
 - Sets acceptance criteria
 - Estimates complexity
 
-Output: Milestones with ordered phases, posted to Linear for visibility.
+Output: Milestones with ordered phases, visible on the board.
 
 ### 5. Launch + Lead Engineer
 
-`launch_project` sets Linear status to "started" and kicks off auto-mode. The Lead Engineer auto-starts on the `project:lifecycle:launched` event and takes over production orchestration:
+`launch_project` sets the project to "started" and kicks off auto-mode. The Lead Engineer auto-starts on the `project:lifecycle:launched` event and takes over production orchestration:
 
 - Maintains comprehensive world state (board counts, features, agents, PRs, milestones)
 - Evaluates fast-path rules on every event — no LLM calls for routine decisions
@@ -178,6 +171,6 @@ No paid tiers, no subscriptions, no paywalls. Everything is open. Trust compound
 - **Not a copilot** — it's a team. Operations + Engineering branches with specialized agents, domain tools, and subagent delegation.
 - **Not one-shot** — it's a loop. Continuous improvement feeds learning back into planning.
 - **Not just code** — it's organizational. Antagonistic review, HITL gates, CI pipeline, and code quality checks form four layers of quality assurance.
-- **Not a black box** — it's observable. Linear for strategy, protoLabs board for tactics, Discord for communication. Langfuse for traces and costs. Full audit trail.
+- **Not a black box** — it's observable. protoLabs board for project tracking, Discord for communication. Langfuse for traces and costs. Full audit trail.
 - **Not static** — it's self-improving. The system upgrades itself through the same pipeline it uses for customer work.
 - **Not LLM-dependent** — fast-path rules handle routine orchestration decisions without API calls. LLM agents are reserved for creative work.

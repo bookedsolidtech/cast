@@ -3,6 +3,7 @@ export { KanbanColumn } from './kanban-column';
 export { SelectionActionBar } from './selection-action-bar';
 export { EmptyStateCard } from './empty-state-card';
 export { ViewToggle, type ViewMode } from './view-toggle';
+export { StatsPanel } from './stats-panel';
 
 // Board-specific form components
 export { DescriptionImageDropZone } from './description-image-dropzone';

@@ -24,7 +24,7 @@ features:
     details: Run it anywhere. Docker, systemd, bare metal. Your code stays on your infrastructure.
     link: /infra/
   - title: Integrations
-    details: Discord for team chat. Linear for roadmaps. GitHub for PRs. Claude Code CLI for terminal control.
+    details: Discord for team chat. Built-in board for project tracking. GitHub for PRs. Claude Code CLI for terminal control.
     link: /integrations/
   - title: Project Orchestration
     details: From PRD to shipped features. Define milestones, set dependencies, let auto-mode process the backlog.

@@ -22,7 +22,6 @@ Project Owner (CEO, Human)
 │   ├── Backend Engineer, Sonnet, Trust=2
 │   ├── Product Manager, Sonnet, Trust=1
 │   ├── Engineering Manager, Sonnet, Trust=1
-│   ├── Linear Specialist, Sonnet, Trust=2
 │   ├── PR Maintainer, Haiku, Trust=2
 │   └── Board Janitor, Haiku, Trust=1
 └── Jon, Sonnet, Trust=1 — Go-to-Market

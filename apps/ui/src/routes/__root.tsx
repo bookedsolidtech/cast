@@ -676,8 +676,8 @@ function RootLayoutContent() {
         return;
       }
       if (currentProject) {
-        // Project is selected, go to system view
-        navigate({ to: '/system-view' });
+        // Project is selected, go to the board
+        navigate({ to: '/board' });
       } else {
         // No project selected, go to dashboard
         navigate({ to: '/dashboard' });
@@ -714,7 +714,7 @@ function RootLayoutContent() {
         }
 
         if (isRootRoute) {
-          navigate({ to: '/system-view' });
+          navigate({ to: '/board' });
         }
       } catch (error) {
         logger.error('Auto-open project crashed:', error);

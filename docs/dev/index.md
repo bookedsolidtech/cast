@@ -12,13 +12,13 @@ Extend protoLabs. Architecture, packages, code standards, and how to contribute.
 ## AI Agent Infrastructure
 
 - **[Flows](./flows)** — LangGraph state graph primitives, coordinator pattern, Send() fan-out
-- **[Observability](./observability-package)** — Langfuse tracing, prompt versioning, cost tracking
-- **[Langfuse Integration](../integrations/langfuse)** — Tracing, prompt versioning, cost tracking
+- **[Observability](./observability-package)** — Langfuse tracing and cost tracking
+- **[Langfuse Integration](../integrations/langfuse)** — Tracing, scoring, cost tracking
 
 ## Pipeline & Orchestration
 
 - **[Idea to Production](./idea-to-production)** — The canonical 9-phase pipeline reference
-- **[Project Lifecycle](./project-lifecycle)** — Linear-driven project state machine
+- **[Project Lifecycle](./project-lifecycle)** — Board-driven project state machine
 - **[PR Remediation Loop](./pr-remediation-loop)** — Autonomous PR review feedback handling
 - **[Issue Management](./issue-management)** — Automated failure-to-issue pipeline
 

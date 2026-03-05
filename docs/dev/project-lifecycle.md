@@ -1,15 +1,15 @@
 # Project lifecycle
 
-Linear as the single source of truth for project state. Projects flow from idea to completion through a state machine managed by Linear project statuses and labels.
+The board is the single source of truth for project state. Projects flow from idea to completion through a state machine managed by project statuses and labels.
 
 ## State machine
 
 ```
-planned + "idea"          → User expanding the idea
-planned + "idea-approved" → PRD being generated/reviewed
-planned + "prd-approved"  → Milestones created, ready to launch
-started                   → Lead Engineer active, auto-mode running, agents implementing
-completed                 → All features done
+idea           → User expanding the idea
+idea-approved  → PRD being generated/reviewed
+prd-approved   → Milestones created, ready to launch
+started        → Lead Engineer active, auto-mode running, agents implementing
+completed      → All features done
 ```
 
 ### Relationship to features and milestones
@@ -17,7 +17,7 @@ completed                 → All features done
 A project decomposes into milestones, which decompose into phases, which become board features:
 
 ```
-Project (Linear project)
+Project
 ├── Milestone 1 (epic feature on board)
 │   ├── Phase 1.1 (board feature, isFoundation: true)
 │   ├── Phase 1.2 (board feature, depends on 1.1)
@@ -73,13 +73,13 @@ The project lifecycle operates at the **project level**. The [9-phase pipeline](
 | Tool                     | Description                                                        |
 | ------------------------ | ------------------------------------------------------------------ |
 | `process_idea`           | LangGraph flow to validate idea with optional HITL gate            |
-| `initiate_project`       | Dedup check + create Linear project + write idea doc               |
+| `initiate_project`       | Dedup check + create project + write idea doc                      |
 | `generate_project_prd`   | Check for existing PRD, suggest generation if missing              |
-| `approve_project_prd`    | Create board features from milestones + sync to Linear             |
-| `launch_project`         | Set Linear status to "started" + start auto-mode                   |
+| `approve_project_prd`    | Create board features from milestones                              |
+| `launch_project`         | Set project to "started" + start auto-mode                         |
 | `start_lead_engineer`    | Manually start Lead Engineer for a project (auto-starts on launch) |
-| `get_lifecycle_status`   | Read Linear + local state, return current phase + next actions     |
-| `collect_related_issues` | Move existing Linear issues into a project                         |
+| `get_lifecycle_status`   | Read local state, return current phase + next actions              |
+| `collect_related_issues` | Move existing issues into a project                                |
 
 ### MCP tool flow
 
@@ -101,7 +101,7 @@ All endpoints are under `POST /api/projects/lifecycle/`:
 
 | Endpoint           | Description                     | Required Input                 |
 | ------------------ | ------------------------------- | ------------------------------ |
-| `/initiate`        | Create project in Linear        | `projectPath`, `title`, `goal` |
+| `/initiate`        | Create project                  | `projectPath`, `title`, `goal` |
 | `/generate-prd`    | Check/return PRD status         | `projectPath`, `projectSlug`   |
 | `/approve-prd`     | Create features from milestones | `projectPath`, `projectSlug`   |
 | `/launch`          | Start auto-mode                 | `projectPath`, `projectSlug`   |
@@ -141,13 +141,11 @@ This enables launching existing projects that were set up before the lifecycle f
 
 ## Content storage
 
-Linear has no document API, so content is stored pragmatically:
-
 | Content    | Storage location                                       |
 | ---------- | ------------------------------------------------------ |
-| Idea doc   | Linear project `description` field (markdown)          |
+| Idea doc   | `.automaker/projects/{slug}/project.md`                |
 | PRD        | `.automaker/projects/{slug}/project.json`              |
-| Milestones | Both local project files and Linear project milestones |
+| Milestones | `.automaker/projects/{slug}/milestones/`               |
 | Phases     | `.automaker/projects/{slug}/milestones/{n}/phase-*.md` |
 
 ## Project file structure

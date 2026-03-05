@@ -25,8 +25,9 @@ interface HeaderMobileMenuProps {
   onAutoModeToggle: (enabled: boolean) => void;
   skipVerificationInAutoMode: boolean;
   onSkipVerificationChange: (value: boolean) => void;
-  // Plan button
+  // Plan button (gated behind Ava Anywhere flag)
   onOpenPlanDialog: () => void;
+  showPlanButton: boolean;
   // Usage bar visibility
   showClaudeUsage: boolean;
   showCodexUsage: boolean;
@@ -45,6 +46,7 @@ export function HeaderMobileMenu({
   skipVerificationInAutoMode,
   onSkipVerificationChange,
   onOpenPlanDialog,
+  showPlanButton,
   showClaudeUsage,
   showCodexUsage,
 }: HeaderMobileMenuProps) {
@@ -159,19 +161,21 @@ export function HeaderMobileMenu({
             />
           </div>
 
-          {/* Plan Button */}
-          <Button
-            variant="outline"
-            className="w-full justify-start"
-            onClick={() => {
-              onOpenPlanDialog();
-              onToggle();
-            }}
-            data-testid="mobile-plan-button"
-          >
-            <Wand2 className="w-4 h-4 mr-2" />
-            Plan
-          </Button>
+          {/* Plan Button - gated behind Ava Anywhere flag */}
+          {showPlanButton && (
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={() => {
+                onOpenPlanDialog();
+                onToggle();
+              }}
+              data-testid="mobile-plan-button"
+            >
+              <Wand2 className="w-4 h-4 mr-2" />
+              Plan
+            </Button>
+          )}
         </div>
       </HeaderActionsPanel>
     </>

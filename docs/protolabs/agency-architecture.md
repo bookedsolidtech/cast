@@ -6,7 +6,7 @@
 graph TB
     subgraph INTAKE["1. SIGNAL INTAKE"]
         D_MSG[Discord Message]
-        L_ISS[Linear Issue]
+        BOARD_ISS[Board Feature]
         GH_ISS[GitHub Issue]
         HUMAN[Human CLI/Chat]
         AGENT_SIG[Agent Signal<br/>retro findings, escalations]
@@ -21,11 +21,11 @@ graph TB
 
     subgraph PIPELINE["3. IDEA → PRODUCTION PIPELINE"]
         IDEA_PROC["process_idea<br/>LangGraph Flow"]
-        IDEA_PROC --> INITIATE["initiate_project<br/>Dedup + Linear project"]
+        IDEA_PROC --> INITIATE["initiate_project<br/>Dedup + create project"]
         INITIATE --> GEN_PRD["generate_project_prd<br/>SPARC PRD Creation"]
         GEN_PRD --> ANTAG["Antagonistic Review<br/>Ava (ops) + Jon (market)"]
-        ANTAG --> APPROVE["approve_project_prd<br/>Board features + Linear sync"]
-        APPROVE --> LAUNCH["launch_project<br/>Linear → started"]
+        ANTAG --> APPROVE["approve_project_prd<br/>Board features created"]
+        APPROVE --> LAUNCH["launch_project<br/>Project → started"]
     end
 
     subgraph PRODUCTION["4. PRODUCTION PHASE"]
@@ -104,13 +104,13 @@ Production orchestration, auto-mode execution, and code quality.
 - **Domain tools** — SharedTool system with Zod schemas, used across MCP/LangGraph/Express
 - **Antagonistic review** — Bridges ops (Ava feasibility) and engineering (Jon market value)
 - **HITL gates** — Human approval at milestone boundaries, optional interrupt-before in flows
-- **Langfuse observability** — Traces, costs, prompt versioning across all agent execution
+- **Langfuse observability** — Traces and cost tracking across all agent execution
 
 ## Agent Communication Topology
 
 ```
                     Josh (Human)
-                    ↕ Discord / Linear
+                    ↕ Discord / Board
                    Ava (CoS)
               ╱         │         ╲
       Operations    Cross-cut    Engineering
@@ -157,15 +157,12 @@ Ava is the hub. All strategic decisions flow through her. Communication channels
 | **PR pipeline**                 | `apps/server/src/services/git-workflow-service.ts`          | Create, push, merge                                     |
 | **CodeRabbit integration**      | Branch protection + `resolve_review_threads`                | Required check                                          |
 | **CI/CD**                       | `.github/workflows/`                                        | Build, test, format, audit                              |
-| **Linear sync**                 | `apps/server/src/services/linear-sync-service.ts`           | Feature → Linear issue push                             |
-| **Linear webhook**              | `apps/server/src/routes/linear/webhook.ts`                  | Receives mentions/delegations                           |
 | **Ceremony service**            | `apps/server/src/services/ceremony-service.ts`              | Standup, retro, project-retro                           |
 | **Lead Engineer rules**         | `apps/server/src/services/lead-engineer-rules.ts`           | 8 pure-function rules (no LLM, no service imports)      |
 | **Escalation pipeline**         | `apps/server/src/services/escalation-router.ts`             | 5 channels, SLA engine                                  |
 | **Signal accumulator**          | `apps/server/src/services/`                                 | Severity classification + briefing                      |
 | **Agent memory**                | `.automaker/memory/*.md`                                    | Per-agent learning files                                |
 | **Discord MCP**                 | `packages/mcp-server/plugins/automaker/`                    | Send, read, channels, webhooks                          |
-| **Conflict resolution UI**      | `apps/ui/src/`                                              | Linear sync conflict handling                           |
 | **Idea processing service**     | `apps/server/src/services/idea-processing-service.ts`       | Session management for LangGraph idea flow              |
 | **Content review pipeline**     | `libs/flows/src/content/subgraphs/antagonistic-reviewer.ts` | 8-dimension scoring for content quality                 |
 
@@ -187,7 +184,7 @@ Uses LangGraph flows with Langfuse tracing. 3-minute timeout for the entire pipe
 
 - Human scope review at milestone boundaries
 - Optional interrupt-before in LangGraph flows
-- Josh reviews PRDs in Linear (standard path)
+- Josh reviews PRDs (standard path)
 - preApproved path for low-risk operational items
 
 ### 3. CI Pipeline
@@ -213,12 +210,9 @@ Required checks on every PR before merge:
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│                    LINEAR (Strategic)                  │
-│  Projects, Milestones, Roadmap, Human Reviews         │
-│  ↕ Bidirectional sync (issue status, labels, fields)  │
-├──────────────────────────────────────────────────────┤
-│                 AUTOMAKER BOARD (Tactical)             │
-│  Features, Agents, Worktrees, Dependencies, Auto-mode │
+│           AUTOMAKER BOARD (Source of Truth)            │
+│  Projects, Features, Agents, Worktrees, Dependencies  │
+│  Auto-mode, Milestones, Roadmap                       │
 │  ↕ Git operations (branches, PRs, merges)             │
 ├──────────────────────────────────────────────────────┤
 │                    GITHUB (Code)                       │

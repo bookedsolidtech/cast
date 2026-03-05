@@ -1,6 +1,6 @@
 # Observability Package
 
-`@protolabsai/observability` provides Langfuse-based tracing, prompt management, and cost tracking for LLM operations. All tracing is transparent — application code works identically whether Langfuse is available or not.
+`@protolabsai/observability` provides Langfuse-based tracing and cost tracking for LLM operations. All tracing is transparent — application code works identically whether Langfuse is available or not.
 
 **Owner:** Sam (AI Agent Engineer)
 
@@ -135,93 +135,6 @@ await completeTracingContext(client, ctx, {
   usage: { promptTokens: 500, completionTokens: 1200, totalTokens: 1700 },
 });
 ```
-
-## Prompt Versioning
-
-Fetch prompts from Langfuse with version pinning and label support.
-
-```typescript
-import {
-  getLangfuseClient,
-  getRawPrompt,
-  prefetchPrompts,
-  pinPromptVersion,
-  pinPromptLabel,
-} from '@protolabsai/observability';
-
-const langfuse = getLangfuseClient('pk-...', 'sk-...');
-
-// Fetch latest version
-const prompt = await getRawPrompt(langfuse, { promptName: 'greeting' });
-// → { name, version, label, config, compiledPrompt }
-
-// Pin to a specific version
-const v2Config = pinPromptVersion('greeting', 2);
-const v2 = await getRawPrompt(langfuse, v2Config);
-
-// Pin to a label (e.g., 'production', 'staging')
-const prodConfig = pinPromptLabel('greeting', 'production');
-const prod = await getRawPrompt(langfuse, prodConfig);
-
-// Prefetch multiple prompts (validates all exist)
-const prompts = await prefetchPrompts(langfuse, [
-  pinPromptVersion('greeting', 2),
-  pinPromptLabel('system-prompt', 'production'),
-]);
-```
-
-## Prompt Caching
-
-`PromptCache` provides TTL-based local caching to avoid repeated Langfuse API calls.
-
-```typescript
-import { createPromptCache } from '@protolabsai/observability';
-
-const cache = createPromptCache({
-  defaultTtl: 5 * 60 * 1000, // 5 minutes (default)
-  maxSize: 100, // max entries (default)
-});
-
-// Get from cache or fetch from Langfuse
-const prompt = await cache.get(langfuseClient, { promptName: 'greeting' });
-
-// Check cache status
-cache.has({ promptName: 'greeting' }); // boolean
-cache.size(); // number of entries
-
-// Invalidation
-cache.invalidate({ promptName: 'greeting' }); // specific entry
-cache.invalidateByName('greeting'); // all versions/labels
-cache.clear(); // everything
-
-// Cleanup expired entries
-const removed = cache.cleanup();
-```
-
-## Tracked Prompt Execution
-
-`executeTrackedPrompt()` combines prompt fetching, variable injection, execution, and tracing in one call:
-
-```typescript
-import { executeTrackedPrompt, LangfuseClient } from '@protolabsai/observability';
-
-const result = await executeTrackedPrompt(client, 'greeting', {
-  version: 2,
-  fallbackPrompt: 'Hello {{NAME}}!', // used if Langfuse unavailable
-  variables: { NAME: 'World' },
-  executor: async (prompt, context) => {
-    // Your LLM call here
-    return await callLLM(prompt);
-  },
-  model: 'claude-sonnet-4-5',
-  traceName: 'greeting-generation',
-  tags: ['automated'],
-});
-
-// result: { output, traceId, generationId, latencyMs, promptConfig, error }
-```
-
-Variable injection replaces `{{VARIABLE_NAME}}` placeholders in the prompt template.
 
 ## Type Reference
 

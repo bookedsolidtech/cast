@@ -1,9 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1456" height="330" viewBox="0 0 1456 330" role="img" aria-label="protoLabs Studio Logo">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="330" viewBox="0 0 1200 330" role="img" aria-label="protoLabs Studio Logo">
   <!-- Dark background for contrast on all GitHub themes -->
-  <rect width="1456" height="330" rx="20" fill="#09090b" />
+  <rect width="1200" height="330" rx="20" fill="#09090b" />
 
   <!-- Logo Icon (Bot on rounded square) -->
-  <g transform="translate(80, 65)">
+  <g transform="translate(105, 65)">
     <!-- Rounded square background -->
     <rect width="200" height="200" rx="50" fill="#7c3aed" />
 
@@ -19,7 +19,7 @@
   </g>
 
   <!-- Text: proto (white) + Labs (brand violet) -->
-  <text x="320" y="215" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="160" font-weight="800" letter-spacing="-4" fill="#FFFFFF">
+  <text x="345" y="215" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="160" font-weight="800" letter-spacing="-4" fill="#FFFFFF">
     proto<tspan fill="#a78bfa">Labs</tspan>
   </text>
 </svg>

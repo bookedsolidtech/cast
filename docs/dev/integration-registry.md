@@ -25,7 +25,6 @@ Follows the `RoleRegistryService` pattern: in-memory Map, Zod validation, tier 0
 | Category         | Description            | Phase 1 Integrations |
 | ---------------- | ---------------------- | -------------------- |
 | `communication`  | Chat and notifications | Discord              |
-| `project-mgmt`   | Issue tracking         | Linear               |
 | `source-control` | Git and CI             | GitHub               |
 | `streaming`      | Live coding            | Twitch               |
 | `ai-provider`    | LLM providers          | Phase 2              |
