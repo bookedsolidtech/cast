@@ -1316,8 +1316,8 @@ export function TerminalView() {
             isActive={terminalState.activeSessionId === content.sessionId}
             onFocus={() => setActiveTerminalSession(content.sessionId)}
             onClose={() => killTerminal(content.sessionId)}
-            onSplitHorizontal={() => createTerminal('horizontal', content.sessionId)}
-            onSplitVertical={() => createTerminal('vertical', content.sessionId)}
+            onSplitHorizontal={() => createTerminal('vertical', content.sessionId)}
+            onSplitVertical={() => createTerminal('horizontal', content.sessionId)}
             onNewTab={createTerminalInNewTab}
             onNavigateUp={() => navigateToTerminal('up')}
             onNavigateDown={() => navigateToTerminal('down')}
@@ -1550,7 +1550,7 @@ export function TerminalView() {
               variant="ghost"
               size="sm"
               className="h-7 px-2 text-muted-foreground hover:text-foreground"
-              onClick={() => createTerminal('horizontal')}
+              onClick={() => createTerminal('vertical')}
               title="Split Right"
             >
               <SplitSquareHorizontal className="h-4 w-4" />
@@ -1559,7 +1559,7 @@ export function TerminalView() {
               variant="ghost"
               size="sm"
               className="h-7 px-2 text-muted-foreground hover:text-foreground"
-              onClick={() => createTerminal('vertical')}
+              onClick={() => createTerminal('horizontal')}
               title="Split Down"
             >
               <SplitSquareVertical className="h-4 w-4" />
@@ -1753,10 +1753,10 @@ export function TerminalView() {
                 onFocus={() => setActiveTerminalSession(terminalState.maximizedSessionId!)}
                 onClose={() => killTerminal(terminalState.maximizedSessionId!)}
                 onSplitHorizontal={() =>
-                  createTerminal('horizontal', terminalState.maximizedSessionId!)
+                  createTerminal('vertical', terminalState.maximizedSessionId!)
                 }
                 onSplitVertical={() =>
-                  createTerminal('vertical', terminalState.maximizedSessionId!)
+                  createTerminal('horizontal', terminalState.maximizedSessionId!)
                 }
                 onNewTab={createTerminalInNewTab}
                 onSessionInvalid={() => {

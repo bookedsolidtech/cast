@@ -189,7 +189,6 @@ export function BottomPanel() {
                 )}
               >
                 <HeartPulse className="h-3.5 w-3.5" />
-                <span className="font-medium">{peakPercent.toFixed(0)}%</span>
               </button>
             </TooltipTrigger>
             <TooltipContent side="top" className="text-xs">
