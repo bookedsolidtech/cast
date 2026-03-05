@@ -284,5 +284,20 @@
     "documentCount": 0,
     "createdAt": "2026-02-23T19:54:33.575Z",
     "deletedAt": "2026-03-03T20:50:18.584Z"
+  },
+  {
+    "slug": "qa-smoke-test-project",
+    "title": "QA Smoke Test Project",
+    "goal": "Temporary project created during Ava chat tools smoke test. Safe to delete after confirming create_project_plan tool is functional.",
+    "status": "drafting",
+    "milestoneCount": 0,
+    "phaseCount": 0,
+    "linkedPhaseCount": 0,
+    "featureCount": 0,
+    "updateCount": 0,
+    "linkCount": 0,
+    "documentCount": 0,
+    "createdAt": "2026-03-05T17:33:00.232Z",
+    "deletedAt": "2026-03-05T18:57:47.451Z"
   }
 ]
