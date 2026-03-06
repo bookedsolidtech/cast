@@ -1,5 +1,23 @@
 # @protolabsai/flows
 
+## 0.40.2
+
+### Patch Changes
+
+- ### Bug Fixes
+  - correct GitHub issue URL casing in bug report buttons
+  - prevent done features from bouncing to blocked via Lead Engineer
+
+  ### Refactors
+  - remove Langfuse prompt management, keep tracing only
+
+- Updated dependencies
+  - @protolabsai/types@0.40.2
+  - @protolabsai/utils@0.40.2
+  - @protolabsai/prompts@0.40.2
+  - @protolabsai/model-resolver@0.40.2
+  - @protolabsai/observability@0.40.2
+
 ## 0.40.1
 
 ### Patch Changes

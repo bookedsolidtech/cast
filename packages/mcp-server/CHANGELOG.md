@@ -1,5 +1,19 @@
 # @protolabsai/mcp-server
 
+## 0.40.2
+
+### Patch Changes
+
+- ### Bug Fixes
+  - correct GitHub issue URL casing in bug report buttons
+  - prevent done features from bouncing to blocked via Lead Engineer
+
+  ### Refactors
+  - remove Langfuse prompt management, keep tracing only
+
+- Updated dependencies
+  - @protolabsai/tools@0.40.2
+
 ## 0.40.1
 
 ### Patch Changes
