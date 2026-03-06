@@ -247,23 +247,17 @@ function convertToSdkFormat(server: MCPServerConfig): McpServerConfig {
  * Get prompt customization from global settings and merge with defaults.
  * Returns prompts merged with built-in defaults - custom prompts override defaults.
  *
- * Three-layer resolution (automatic when Langfuse credentials are configured):
+ * Two-layer resolution:
  *   1. User Override (settings.json promptCustomization, enabled=true)
- *   2. Langfuse Managed Prompt (label: "production")
- *   3. Hardcoded Default (libs/prompts/)
- *
- * Pass `null` for promptResolver to explicitly disable Langfuse layer.
- * When omitted (undefined), auto-discovers the PromptResolver singleton.
+ *   2. Hardcoded Default (libs/prompts/)
  *
  * @param settingsService - Optional settings service instance
  * @param logPrefix - Prefix for log messages
- * @param promptResolver - Optional PromptResolver (auto-discovered if omitted, pass null to disable)
  * @returns Promise resolving to merged prompts for all categories
  */
 export async function getPromptCustomization(
   settingsService?: SettingsService | null,
-  logPrefix = '[PromptHelper]',
-  promptResolver?: import('../services/prompt-resolver.js').PromptResolver | null
+  logPrefix = '[PromptHelper]'
 ): Promise<{
   autoMode: ReturnType<typeof mergeAutoModePrompts>;
   agent: ReturnType<typeof mergeAgentPrompts>;
@@ -287,24 +281,12 @@ export async function getPromptCustomization(
       logger.info(`${logPrefix} Loaded prompt customization from settings`);
     } catch (error) {
       logger.error(`${logPrefix} Failed to load prompt customization:`, error);
-      // Fall through to use empty customization (all defaults)
     }
   } else {
     logger.info(`${logPrefix} SettingsService not available, using default prompts`);
   }
 
-  // Auto-discover PromptResolver singleton when not explicitly provided
-  if (promptResolver === undefined) {
-    try {
-      const { getPromptResolver } = await import('./langfuse-singleton.js');
-      promptResolver = getPromptResolver();
-    } catch {
-      // Singleton not available (e.g., during testing) — continue without Langfuse layer
-    }
-  }
-
-  // Merge with defaults (Layer 1 user overrides + Layer 3 hardcoded defaults)
-  const merged = {
+  return {
     autoMode: mergeAutoModePrompts(customization.autoMode),
     agent: mergeAgentPrompts(customization.agent),
     backlogPlan: mergeBacklogPlanPrompts(customization.backlogPlan),
@@ -318,113 +300,6 @@ export async function getPromptCustomization(
     suggestions: mergeSuggestionsPrompts(customization.suggestions),
     taskExecution: mergeTaskExecutionPrompts(customization.taskExecution),
   };
-
-  // Layer 2: Overlay Langfuse managed prompts for non-user-overridden keys
-  if (promptResolver?.isAvailable()) {
-    // Helper to treat typed prompt objects as mutable string records for overlay
-    type AnyPromptObj = Record<string, string>;
-    const asRecord = (obj: object): AnyPromptObj => obj as AnyPromptObj;
-
-    type CustomObjMap = Record<string, { enabled?: boolean } | undefined>;
-    const asCustomObj = (obj: object | undefined): CustomObjMap | undefined =>
-      obj as CustomObjMap | undefined;
-
-    const categories: Array<{
-      name: string;
-      mergedObj: AnyPromptObj;
-      customObj?: CustomObjMap;
-    }> = [
-      {
-        name: 'autoMode',
-        mergedObj: asRecord(merged.autoMode),
-        customObj: asCustomObj(customization.autoMode),
-      },
-      {
-        name: 'agent',
-        mergedObj: asRecord(merged.agent),
-        customObj: asCustomObj(customization.agent),
-      },
-      {
-        name: 'backlogPlan',
-        mergedObj: asRecord(merged.backlogPlan),
-        customObj: asCustomObj(customization.backlogPlan),
-      },
-      {
-        name: 'enhancement',
-        mergedObj: asRecord(merged.enhancement),
-        customObj: asCustomObj(customization.enhancement),
-      },
-      {
-        name: 'commitMessage',
-        mergedObj: asRecord(merged.commitMessage),
-        customObj: asCustomObj(customization.commitMessage),
-      },
-      {
-        name: 'titleGeneration',
-        mergedObj: asRecord(merged.titleGeneration),
-        customObj: asCustomObj(customization.titleGeneration),
-      },
-      {
-        name: 'issueValidation',
-        mergedObj: asRecord(merged.issueValidation),
-        customObj: asCustomObj(customization.issueValidation),
-      },
-      {
-        name: 'ideation',
-        mergedObj: asRecord(merged.ideation),
-        customObj: asCustomObj(customization.ideation),
-      },
-      {
-        name: 'appSpec',
-        mergedObj: asRecord(merged.appSpec),
-        customObj: asCustomObj(customization.appSpec),
-      },
-      {
-        name: 'contextDescription',
-        mergedObj: asRecord(merged.contextDescription),
-        customObj: asCustomObj(customization.contextDescription),
-      },
-      {
-        name: 'suggestions',
-        mergedObj: asRecord(merged.suggestions),
-        customObj: asCustomObj(customization.suggestions),
-      },
-      {
-        name: 'taskExecution',
-        mergedObj: asRecord(merged.taskExecution),
-        customObj: asCustomObj(customization.taskExecution),
-      },
-    ];
-
-    // Resolve all non-overridden prompts through Langfuse concurrently
-    const resolvePromises: Promise<void>[] = [];
-    for (const { name, mergedObj, customObj } of categories) {
-      for (const key of Object.keys(mergedObj)) {
-        // Skip keys where the user has an enabled override
-        if (customObj?.[key]?.enabled) continue;
-
-        resolvePromises.push(
-          promptResolver
-            .resolve(`${name}.${key}`, mergedObj[key])
-            .then((result) => {
-              if (result.source === 'langfuse') {
-                mergedObj[key] = result.prompt;
-              }
-            })
-            .catch(() => {
-              // Graceful degradation — keep merged default
-            })
-        );
-      }
-    }
-
-    if (resolvePromises.length > 0) {
-      await Promise.all(resolvePromises);
-      logger.info(`${logPrefix} Langfuse prompt overlay applied`);
-    }
-  }
-
-  return merged;
 }
 
 /**

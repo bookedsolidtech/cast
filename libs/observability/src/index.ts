@@ -1,7 +1,7 @@
 /**
  * @protolabsai/observability
  *
- * Langfuse-based observability, tracing, and prompt management for AutoMaker.
+ * Langfuse-based observability and tracing for AutoMaker.
  */
 
 // Langfuse client

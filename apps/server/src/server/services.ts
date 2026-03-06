@@ -68,7 +68,6 @@ import { AntagonisticReviewService } from '../services/antagonistic-review-servi
 import { AgentScoringService } from '../services/agent-scoring-service.js';
 import { gitWorkflowService } from '../services/git-workflow-service.js';
 import { PipelineOrchestrator } from '../services/pipeline-orchestrator.js';
-import { PromptGitHubSyncService } from '../services/prompt-github-sync-service.js';
 import { TrustTierService } from '../services/trust-tier-service.js';
 import { LedgerService } from '../services/ledger-service.js';
 import { ArchivalService } from '../services/archival-service.js';
@@ -192,9 +191,6 @@ export interface ServiceContainer {
   pipelineOrchestrator: PipelineOrchestrator;
   pipelineService: typeof pipelineService;
   channelRouter: ChannelRouter;
-
-  // Prompt sync
-  promptGitHubSyncService: PromptGitHubSyncService | null;
 
   // Docs detection
   docsUpdateDetector: DocsUpdateDetector;
@@ -429,23 +425,6 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
 
   // Channel Router — routes HITL interactions to the originating channel
   const channelRouter = new ChannelRouter();
-
-  // Prompt GitHub Sync Service — syncs Langfuse prompts to GitHub
-  let promptGitHubSyncService: PromptGitHubSyncService | null = null;
-  const githubToken = process.env.GITHUB_TOKEN;
-  const githubRepoOwner = process.env.GITHUB_REPO_OWNER;
-  const githubRepoName = process.env.GITHUB_REPO_NAME;
-  if (githubToken && githubRepoOwner && githubRepoName) {
-    promptGitHubSyncService = new PromptGitHubSyncService({
-      owner: githubRepoOwner,
-      repo: githubRepoName,
-    });
-    logger.info('Prompt GitHub Sync Service initialized');
-  } else {
-    logger.info(
-      'Prompt GitHub Sync Service disabled (missing GITHUB_TOKEN, GITHUB_REPO_OWNER, or GITHUB_REPO_NAME)'
-    );
-  }
 
   // Docs Update Detector — creates docs update features after milestones
   const docsUpdateDetector = new DocsUpdateDetector(events, featureLoader, repoRoot);
@@ -734,7 +713,6 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
     pipelineOrchestrator,
     pipelineService,
     channelRouter,
-    promptGitHubSyncService,
     docsUpdateDetector,
     authorityService,
     auditService,

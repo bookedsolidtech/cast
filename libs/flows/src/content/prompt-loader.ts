@@ -1,9 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { LangfuseClient } from '@protolabsai/observability';
 import { createLogger } from '@protolabsai/utils';
-import { isLangfuseReady } from './langfuse-guard.js';
 
 const logger = createLogger('PromptLoader');
 
@@ -42,16 +40,6 @@ export interface CompilePromptOptions {
    * Variables to interpolate into the prompt template
    */
   variables?: PromptVariables;
-
-  /**
-   * Optional Langfuse version to fetch (defaults to latest)
-   */
-  version?: number;
-
-  /**
-   * Optional Langfuse client (if not provided, will use local fallback)
-   */
-  langfuseClient?: LangfuseClient;
 }
 
 /**
@@ -64,14 +52,9 @@ export interface CompiledPrompt {
   prompt: string;
 
   /**
-   * Source of the prompt (langfuse or local)
+   * Source of the prompt
    */
-  source: 'langfuse' | 'local';
-
-  /**
-   * Version number if from Langfuse
-   */
-  version?: number;
+  source: 'local';
 
   /**
    * Variables that were used for interpolation
@@ -82,17 +65,13 @@ export interface CompiledPrompt {
 /**
  * Compile a prompt template with variable interpolation.
  *
- * This function:
- * 1. Attempts to fetch the prompt from Langfuse (if client provided and available)
- * 2. Falls back to local markdown file if Langfuse unavailable or not found
- * 3. Interpolates {{variable}} placeholders with provided values
+ * Loads a local markdown prompt template and interpolates {{variable}} placeholders.
  *
  * @param options - Compilation options
  * @returns Compiled prompt with metadata
  *
  * @example
  * ```typescript
- * // Pure local mode (no Langfuse)
  * const prompt = await compilePrompt({
  *   name: 'research-synthesis',
  *   variables: {
@@ -101,64 +80,17 @@ export interface CompiledPrompt {
  *     scope: 'technical documentation'
  *   }
  * });
- *
- * // With Langfuse client
- * const langfuse = new LangfuseClient({
- *   publicKey: process.env.LANGFUSE_PUBLIC_KEY,
- *   secretKey: process.env.LANGFUSE_SECRET_KEY
- * });
- *
- * const prompt = await compilePrompt({
- *   name: 'section-writer',
- *   variables: {
- *     section_title: 'Getting Started',
- *     target_audience: 'beginners'
- *   },
- *   langfuseClient: langfuse
- * });
  * ```
  */
 export async function compilePrompt(options: CompilePromptOptions): Promise<CompiledPrompt> {
-  const { name, variables = {}, version, langfuseClient } = options;
+  const { name, variables = {} } = options;
 
-  let promptTemplate: string;
-  let source: 'langfuse' | 'local' = 'local';
-  let promptVersion: number | undefined;
-
-  // Try Langfuse first if client provided
-  if (isLangfuseReady(langfuseClient)) {
-    try {
-      logger.debug(`Attempting to fetch prompt from Langfuse: ${name}`, { version });
-      const langfusePrompt = await langfuseClient.getPrompt(name, version);
-
-      if (langfusePrompt && langfusePrompt.prompt) {
-        promptTemplate = langfusePrompt.prompt;
-        source = 'langfuse';
-        promptVersion = langfusePrompt.version;
-        logger.info(`Loaded prompt from Langfuse: ${name}`, {
-          version: promptVersion,
-          source,
-        });
-      } else {
-        logger.debug(`Prompt not found in Langfuse, falling back to local: ${name}`);
-        promptTemplate = await loadLocalPrompt(name);
-      }
-    } catch (error) {
-      logger.warn(`Error fetching prompt from Langfuse, falling back to local: ${name}`, error);
-      promptTemplate = await loadLocalPrompt(name);
-    }
-  } else {
-    logger.debug(`No Langfuse client available, using local prompt: ${name}`);
-    promptTemplate = await loadLocalPrompt(name);
-  }
-
-  // Interpolate variables using {{variable}} syntax
+  const promptTemplate = await loadLocalPrompt(name);
   const interpolatedPrompt = interpolateVariables(promptTemplate, variables);
 
   return {
     prompt: interpolatedPrompt,
-    source,
-    version: promptVersion,
+    source: 'local',
     variables,
   };
 }
@@ -180,48 +112,24 @@ async function loadLocalPrompt(name: PromptName): Promise<string> {
 }
 
 /**
- * Interpolate {{variable}} placeholders in template
- *
- * Supports:
- * - Simple variables: {{name}}
- * - Nested values: converts objects/arrays to formatted strings
- * - Undefined/null: replaced with empty string
- *
- * @param template - Template string with {{variable}} placeholders
- * @param variables - Object with variable values
- * @returns Template with variables replaced
+ * Interpolate {{variable}} placeholders in a prompt template
  */
 function interpolateVariables(template: string, variables: PromptVariables): string {
   let result = template;
 
-  // Replace all {{variable}} patterns
   for (const [key, value] of Object.entries(variables)) {
-    const pattern = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
-
-    // Convert value to string, handling various types
-    let replacement: string;
-
     if (value === null || value === undefined) {
-      replacement = '';
-    } else if (typeof value === 'object') {
-      // Format objects and arrays as readable strings
-      replacement = JSON.stringify(value, null, 2);
-    } else {
-      replacement = String(value);
+      continue;
     }
 
-    result = result.replace(pattern, replacement);
+    const pattern = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'g');
+    result = result.replace(pattern, String(value));
   }
 
-  // Log warning for any remaining unreplaced variables
-  const unreplacedPattern = /\{\{([^}]+)\}\}/g;
-  const unreplacedMatches = [...result.matchAll(unreplacedPattern)];
-
-  if (unreplacedMatches.length > 0) {
-    const unreplacedVars = unreplacedMatches.map((m) => m[1]);
-    logger.warn('Prompt contains unreplaced variables', {
-      variables: unreplacedVars,
-    });
+  // Log any remaining uninterpolated variables as warnings
+  const remaining = result.match(/\{\{\s*\w+\s*\}\}/g);
+  if (remaining) {
+    logger.warn(`Uninterpolated variables in prompt: ${remaining.join(', ')}`);
   }
 
   return result;
@@ -232,38 +140,13 @@ function interpolateVariables(template: string, variables: PromptVariables): str
  * Useful for inspecting raw templates.
  *
  * @param name - Prompt template name
- * @param langfuseClient - Optional Langfuse client
  * @returns Raw prompt template
  */
 export async function loadPromptTemplate(
-  name: PromptName,
-  langfuseClient?: LangfuseClient
-): Promise<{ template: string; source: 'langfuse' | 'local'; version?: number }> {
-  let template: string;
-  let source: 'langfuse' | 'local' = 'local';
-  let version: number | undefined;
-
-  // Try Langfuse first if client provided
-  if (isLangfuseReady(langfuseClient)) {
-    try {
-      const langfusePrompt = await langfuseClient.getPrompt(name);
-
-      if (langfusePrompt && langfusePrompt.prompt) {
-        template = langfusePrompt.prompt;
-        source = 'langfuse';
-        version = langfusePrompt.version;
-      } else {
-        template = await loadLocalPrompt(name);
-      }
-    } catch (error) {
-      logger.warn(`Error fetching prompt from Langfuse: ${name}`, error);
-      template = await loadLocalPrompt(name);
-    }
-  } else {
-    template = await loadLocalPrompt(name);
-  }
-
-  return { template, source, version };
+  name: PromptName
+): Promise<{ template: string; source: 'local' }> {
+  const template = await loadLocalPrompt(name);
+  return { template, source: 'local' };
 }
 
 /**
