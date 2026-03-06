@@ -1,5 +1,13 @@
 # @protolabsai/types
 
+## 0.40.1
+
+### Patch Changes
+
+- ### Refactors
+  - Server-side compaction safety net (#1863)
+  - Wire providerOptions for context management (#1860)
+
 ## 0.40.0
 
 ### Minor Changes
