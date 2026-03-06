@@ -457,7 +457,6 @@ export async function technicalReviewerNode(
           'Examples should follow current best practices',
         ].join('\n- '),
       },
-      langfuseClient,
     });
 
     // Create Langfuse generation trace if available
@@ -591,7 +590,6 @@ export async function styleReviewerNode(
         seo_keywords: 'N/A',
         internal_links: 'N/A',
       },
-      langfuseClient,
     });
 
     // Create Langfuse generation trace if available
@@ -768,7 +766,6 @@ export async function factCheckerNode(
         sources: researchFindings || 'No research findings provided',
         critical_claims: 'All factual and statistical claims',
       },
-      langfuseClient,
     });
 
     // Create Langfuse generation trace if available

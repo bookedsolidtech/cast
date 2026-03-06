@@ -4,12 +4,12 @@
  * All routes use POST (Express 5 convention). Each route proxies to
  * the corresponding Langfuse public API endpoint using Basic Auth
  * (publicKey:secretKey).
+ *
+ * Tracing and scoring only — prompt management is handled by libs/prompts.
  */
 
 import { Router } from 'express';
 import { createLogger } from '@protolabsai/utils';
-import type { PromptGitHubSyncService } from '../../services/prompt-github-sync-service.js';
-import { createWebhookHandler } from './webhook.js';
 
 const logger = createLogger('LangfuseRoutes');
 
@@ -73,9 +73,7 @@ async function langfuseProxy(
   return { ok: response.ok, status: response.status, data };
 }
 
-export function createLangfuseRoutes(
-  promptGitHubSyncService: PromptGitHubSyncService | null
-): Router {
+export function createLangfuseRoutes(): Router {
   const router = Router();
 
   /**
@@ -175,29 +173,6 @@ export function createLangfuseRoutes(
   });
 
   /**
-   * POST /api/langfuse/prompts
-   * List all managed prompts.
-   * Body: { page?, limit?, name?, label? }
-   */
-  router.post('/prompts', async (req, res) => {
-    try {
-      const { page, limit, name, label, version } = req.body;
-
-      const result = await langfuseProxy('GET', '/api/public/v2/prompts', {
-        page: page ?? 1,
-        limit: limit ?? 50,
-        name,
-        label,
-        version,
-      });
-      res.status(result.status).json(result.data);
-    } catch (error) {
-      logger.error('Failed to list prompts:', error);
-      res.status(500).json({ error: 'Failed to list prompts' });
-    }
-  });
-
-  /**
    * POST /api/langfuse/scores
    * Create a score on a trace.
    * Body: { traceId, name, value, comment? }
@@ -278,51 +253,6 @@ export function createLangfuseRoutes(
     } catch (error) {
       logger.error('Failed to add dataset item:', error);
       res.status(500).json({ error: 'Failed to add dataset item' });
-    }
-  });
-
-  /**
-   * POST /api/langfuse/webhook/prompt
-   * Receives Langfuse prompt-version webhooks
-   * Filters by label (default: 'production') and dispatches to sync service
-   */
-  router.post('/webhook/prompt', createWebhookHandler(promptGitHubSyncService));
-
-  /**
-   * POST /api/langfuse/prompts/seed
-   * Upload default prompt baselines to Langfuse for version tracking and A/B experiments.
-   *
-   * Body: { labels?: string[], force?: boolean }
-   * - labels: Langfuse labels to apply (default: ["production"])
-   * - force: Create new version even if prompt exists (default: false)
-   */
-  router.post('/prompts/seed', async (req, res) => {
-    try {
-      const { PromptSeedService } = await import('../../services/prompt-seed-service.js');
-      const { labels, force } = req.body ?? {};
-      const summary = await PromptSeedService.getInstance().seedDefaults(
-        labels ?? ['production'],
-        force ?? false
-      );
-      res.json(summary);
-    } catch (error) {
-      logger.error('Failed to seed prompts:', error);
-      res.status(500).json({ error: 'Failed to seed prompts' });
-    }
-  });
-
-  /**
-   * POST /api/langfuse/prompts/catalog
-   * Returns the prompt catalog (names and tags) without seeding.
-   */
-  router.post('/prompts/catalog', async (_req, res) => {
-    try {
-      const { PromptSeedService } = await import('../../services/prompt-seed-service.js');
-      const catalog = PromptSeedService.getInstance().getCatalog();
-      res.json({ catalog });
-    } catch (error) {
-      logger.error('Failed to get prompt catalog:', error);
-      res.status(500).json({ error: 'Failed to get prompt catalog' });
     }
   });
 

@@ -1257,15 +1257,6 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
         toStartTime: args.toStartTime,
       });
 
-    case 'langfuse_list_prompts':
-      return apiCall('/langfuse/prompts', {
-        page: args.page,
-        limit: args.limit,
-        name: args.name,
-        label: args.label,
-        version: args.version,
-      });
-
     case 'langfuse_score_trace':
       return apiCall('/langfuse/scores', {
         traceId: args.traceId,
@@ -1286,12 +1277,6 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
         traceId: args.traceId,
         observationId: args.observationId,
         metadata: args.metadata,
-      });
-
-    case 'langfuse_seed_prompts':
-      return apiCall('/langfuse/prompts/seed', {
-        labels: args.labels,
-        force: args.force,
       });
 
     // Twitch Integration

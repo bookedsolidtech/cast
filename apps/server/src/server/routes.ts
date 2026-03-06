@@ -147,7 +147,6 @@ export function registerRoutes(app: Express, services: ServiceContainer): void {
     pipelineCheckpointService,
     gtmAgent,
     completionDetectorService,
-    promptGitHubSyncService,
     antagonisticReviewService,
     projectPlanningService,
     contentFlowService,
@@ -381,7 +380,7 @@ export function registerRoutes(app: Express, services: ServiceContainer): void {
       settingsService
     )
   );
-  app.use('/api/langfuse', createLangfuseRoutes(promptGitHubSyncService));
+  app.use('/api/langfuse', createLangfuseRoutes());
   app.use(
     '/api/flows',
     createFlowsRoutes(antagonisticReviewService, projectPlanningService ?? undefined)

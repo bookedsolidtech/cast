@@ -70,49 +70,6 @@ export class LangfuseClient {
   }
 
   /**
-   * Get a prompt from Langfuse by name and optional version/label.
-   * Returns a Langfuse prompt object with `prompt`, `version`, and `config` properties.
-   *
-   * @param name - Prompt name in Langfuse
-   * @param version - Optional specific version number
-   * @param options - Optional settings (label for environment pinning, e.g. "production")
-   */
-  async getPrompt(
-    name: string,
-    version?: number,
-    options?: { label?: string }
-  ): Promise<{ prompt: string; version: number; config?: Record<string, any> } | null> {
-    if (!this.isAvailable()) {
-      logger.debug(`Langfuse unavailable, cannot fetch prompt: ${name}`);
-      return null;
-    }
-
-    try {
-      const prompt = await this.client!.getPrompt(
-        name,
-        version,
-        options?.label ? { label: options.label } : undefined
-      );
-      logger.debug(`Fetched prompt from Langfuse: ${name}`, { version, label: options?.label });
-      return {
-        prompt: prompt.prompt as string,
-        version: prompt.version,
-        config: prompt.config as Record<string, any> | undefined,
-      };
-    } catch (error) {
-      // "Prompt not found" is expected when prompts haven't been seeded to Langfuse —
-      // the three-layer resolver falls back to hardcoded defaults gracefully.
-      const isNotFound = error instanceof Error && error.message.includes('Prompt not found');
-      if (isNotFound) {
-        logger.debug(`Prompt not in Langfuse: ${name} (will use default)`);
-      } else {
-        logger.error(`Failed to fetch prompt from Langfuse: ${name}`, error);
-      }
-      return null;
-    }
-  }
-
-  /**
    * Create a trace in Langfuse
    */
   createTrace(options: CreateTraceOptions) {
@@ -218,43 +175,6 @@ export class LangfuseClient {
       return span;
     } catch (error) {
       logger.error('Failed to create span in Langfuse', error);
-      return null;
-    }
-  }
-
-  /**
-   * Create or update a text prompt in Langfuse.
-   *
-   * If a prompt with the same name already exists, a new version is created.
-   * Returns the created prompt metadata (name, version, labels).
-   */
-  async createPrompt(options: {
-    name: string;
-    prompt: string;
-    labels?: string[];
-    tags?: string[];
-    commitMessage?: string;
-    config?: Record<string, any>;
-  }): Promise<{ name: string; version: number; labels: string[] } | null> {
-    if (!this.isAvailable()) {
-      logger.debug('Langfuse unavailable, skipping prompt creation');
-      return null;
-    }
-
-    try {
-      const result = await this.client!.api.promptsCreate({
-        type: 'text',
-        name: options.name,
-        prompt: options.prompt,
-        labels: options.labels ?? [],
-        tags: options.tags ?? [],
-        commitMessage: options.commitMessage,
-        config: options.config,
-      });
-      logger.info(`Created prompt in Langfuse: ${options.name} (v${result.version})`);
-      return { name: result.name, version: result.version, labels: result.labels };
-    } catch (error) {
-      logger.error(`Failed to create prompt in Langfuse: ${options.name}`, error);
       return null;
     }
   }

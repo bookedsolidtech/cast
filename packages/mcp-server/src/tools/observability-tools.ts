@@ -182,20 +182,6 @@ export const observabilityTools: Tool[] = [
     },
   },
   {
-    name: 'langfuse_list_prompts',
-    description: 'List all managed prompts in Langfuse with versions and labels.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        page: { type: 'number', description: 'Page number (default: 1)' },
-        limit: { type: 'number', description: 'Results per page (default: 50)' },
-        name: { type: 'string', description: 'Filter by prompt name' },
-        label: { type: 'string', description: 'Filter by label (e.g., "production")' },
-        version: { type: 'number', description: 'Filter by specific version number' },
-      },
-    },
-  },
-  {
     name: 'langfuse_score_trace',
     description:
       'Score a trace (name, value 0-1, optional comment). Use for manual quality review of agent outputs.',
@@ -244,25 +230,6 @@ export const observabilityTools: Tool[] = [
         metadata: { type: 'object', description: 'Optional metadata for the dataset item' },
       },
       required: ['datasetName', 'traceId'],
-    },
-  },
-  {
-    name: 'langfuse_seed_prompts',
-    description:
-      'Upload default prompt baselines to Langfuse for version tracking and A/B experiments. Seeds key prompts (auto-mode, task execution, agent, planning) as managed Langfuse prompts. Skips prompts that already exist unless force=true.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        labels: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'Labels to apply to seeded prompts (default: ["production"])',
-        },
-        force: {
-          type: 'boolean',
-          description: 'Create new version even if prompt already exists (default: false)',
-        },
-      },
     },
   },
 ];
