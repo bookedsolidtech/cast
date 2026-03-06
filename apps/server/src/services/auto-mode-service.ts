@@ -87,6 +87,7 @@ import {
   FeatureScheduler,
   type SchedulerCallbacks,
   type PipelineRunner,
+  type DispatchResult,
 } from './feature-scheduler.js';
 import { ConcurrencyManager } from './auto-mode/concurrency-manager.js';
 import { ensureCleanWorktree } from '../lib/worktree-guard.js';
@@ -310,11 +311,21 @@ export class AutoModeService {
 
     // Initialize FeatureScheduler with callbacks back into this service
     const schedulerRunner: PipelineRunner = {
-      run: async (projectPath: string, featureId: string) => {
+      run: async (projectPath: string, featureId: string): Promise<DispatchResult> => {
         if (!this.leadEngineerService) {
           throw new Error('LeadEngineerService not wired yet — cannot dispatch feature');
         }
-        await this.leadEngineerService.process(projectPath, featureId);
+        const result = await this.leadEngineerService.process(projectPath, featureId);
+        switch (result.outcome) {
+          case 'completed':
+            return { outcome: 'completed' };
+          case 'escalated':
+            return { outcome: 'escalated', errorInfo: classifyError(new Error(result.reason)) };
+          case 'blocked':
+            return { outcome: 'blocked' };
+          case 'needs_retry':
+            return { outcome: 'needs_retry', retryAfterMs: result.retryAfterMs };
+        }
       },
     };
     const schedulerCallbacks: SchedulerCallbacks = {

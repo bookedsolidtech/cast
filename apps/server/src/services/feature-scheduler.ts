@@ -55,7 +55,7 @@ const SLEEP_INTERVAL_ERROR_MS = 5000;
 
 /** Structured outcome from an auto-loop feature dispatch attempt. */
 export interface DispatchResult {
-  outcome: 'completed' | 'escalated' | 'needs_retry';
+  outcome: 'completed' | 'escalated' | 'blocked' | 'needs_retry';
   retryAfterMs?: number;
   errorInfo?: ReturnType<typeof classifyError>;
 }
@@ -65,7 +65,7 @@ export interface DispatchResult {
  * FeatureScheduler calls run() when it decides a feature should be executed.
  */
 export interface PipelineRunner {
-  run(projectPath: string, featureId: string): Promise<void>;
+  run(projectPath: string, featureId: string): Promise<DispatchResult>;
 }
 
 /**
@@ -394,12 +394,10 @@ export class FeatureScheduler {
           // Start feature execution in background.
           // All features route through the PipelineRunner.
           // Model selection is handled inside IntakeProcessor.
-          const executionPromise = this.runner.run(projectPath, nextFeature.id);
-
-          // Convert the raw execution promise into a structured DispatchResult so all
-          // outcomes — success, escalation, and retryable failures — are handled uniformly.
-          const dispatchResultPromise: Promise<DispatchResult> = executionPromise
-            .then((): DispatchResult => ({ outcome: 'completed' }))
+          // The runner returns a structured DispatchResult so all outcomes —
+          // success, escalation, blocked, and retryable failures — are handled uniformly.
+          const dispatchResultPromise: Promise<DispatchResult> = this.runner
+            .run(projectPath, nextFeature.id)
             .catch((error: unknown): DispatchResult => {
               const errorInfo = classifyError(error);
               if (errorInfo.isRateLimit) {
@@ -434,6 +432,10 @@ export class FeatureScheduler {
                 }
                 break;
               }
+              case 'blocked':
+                projectState.startingFeatures.delete(nextFeature.id);
+                logger.warn(`[AutoLoop] Feature ${nextFeature.id} blocked by pipeline`);
+                break;
               case 'needs_retry': {
                 const delay = result.retryAfterMs ?? SLEEP_INTERVAL_ERROR_MS;
                 logger.info(
