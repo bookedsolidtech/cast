@@ -156,12 +156,59 @@ This enables launching existing projects that were set up before the lifecycle f
 
 ## Content storage
 
-| Content    | Storage location                                       |
-| ---------- | ------------------------------------------------------ |
-| Idea doc   | `.automaker/projects/{slug}/project.md`                |
-| PRD        | `.automaker/projects/{slug}/project.json`              |
-| Milestones | `.automaker/projects/{slug}/milestones/`               |
-| Phases     | `.automaker/projects/{slug}/milestones/{n}/phase-*.md` |
+| Content        | Storage location                                       |
+| -------------- | ------------------------------------------------------ |
+| Idea doc       | `.automaker/projects/{slug}/project.md`                |
+| PRD            | `.automaker/projects/{slug}/project.json`              |
+| Milestones     | `.automaker/projects/{slug}/milestones/`               |
+| Phases         | `.automaker/projects/{slug}/milestones/{n}/phase-*.md` |
+| Deletion stats | `.automaker/projects/stats.json`                       |
+
+### Deletion stats
+
+When a project is deleted, a slim `ProjectStats` record is appended to `.automaker/projects/stats.json`. This preserves key metrics (milestone/phase/feature counts, dates) even after the project files are removed.
+
+```typescript
+interface ProjectStats {
+  slug: string;
+  title: string;
+  goal: string;
+  status: ProjectStatus;
+  milestoneCount: number;
+  phaseCount: number;
+  featureCount: number;
+  createdAt: string;
+  deletedAt: string;
+}
+```
+
+**Type definition:** `libs/types/src/project.ts` -> `ProjectStats`
+
+## Project artifacts
+
+`ProjectArtifactService` persists structured artifacts alongside project files:
+
+```text
+{projectPath}/.automaker/projects/{slug}/artifacts/
+├── index.json                      # Artifact index (id, type, timestamp)
+├── ceremony-report/
+│   └── {id}.json                   # Ceremony retro or standup report
+├── escalation/
+│   └── {id}.json                   # Escalation events with project context
+├── changelog/
+│   └── {id}.json                   # Project changelog entries
+└── standup/
+    └── {id}.json                   # Standup report artifacts
+```
+
+Artifacts are saved automatically by:
+
+- `CeremonyService` — saves `ceremony-report` artifacts after milestone and project retros
+- `EventLedgerService` — saves `escalation` artifacts when `escalation:signal-received` events have project context
+
+**Service:** `apps/server/src/services/project-artifact-service.ts`
+
+**Types:** `ArtifactType`, `ArtifactIndexEntry`, `ArtifactIndex`, `ProjectArtifact` from `@protolabsai/types`
 
 ## Project artifacts
 
