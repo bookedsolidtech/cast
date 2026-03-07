@@ -322,7 +322,7 @@ temporary-reason: '...'
 
 ### Current Commands (17)
 
-`/auto-mode`, `/ava`, `/board`, `/calendar-assistant`, `/context`, `/create-project`, `/deep-research`, `/due-diligence`, `/headsdown`, `/improve-prompts`, `/orchestrate`, `/plan-project`, `/setuplab`, `/ship`, `/sparc-prd`, `/upgrade-plugin`
+`/auto-mode`, `/ava`, `/board`, `/calendar-assistant`, `/context`, `/deep-research`, `/due-diligence`, `/headsdown`, `/improve-prompts`, `/orchestrate`, `/plan-project`, `/promote`, `/setuplab`, `/ship`, `/sparc-prd`, `/update-plugin`, `/welcome`
 
 ## Session Lifecycle
 

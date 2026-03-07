@@ -1,6 +1,6 @@
 ---
-name: upgrade-plugin
-description: Upgrade the protoLabs Claude Code plugin from an older version to current. Handles uninstall, reinstall, env migration, and verification.
+name: update-plugin
+description: Update the protoLabs Claude Code plugin to the current version. Handles uninstall, reinstall, env migration, and verification.
 argument-hint: (no arguments)
 temporary: true
 temporary-reason: Early tester onboarding — remove once all testers are on v0.15.x+
@@ -156,7 +156,7 @@ Key changes in the plugin overhaul:
 - **Version synced** to monorepo (was 1.1.1, now tracks monorepo version)
 - **Hooks synced**: post-edit-typecheck (TypeScript error checking on save) and evaluate-session (session quality tracking) now active
 - **Orphaned files removed**: .orphaned_at
-- **9 new commands**: /ship, /headsdown, /create-project, /calendar-assistant, /due-diligence, /deep-research, /sparc-prd, /improve-prompts, /upgrade-plugin
+- **9 new commands**: /ship, /headsdown, /create-project, /calendar-assistant, /due-diligence, /deep-research, /sparc-prd, /improve-prompts, /update-plugin
 - **Tool count**: ~159 MCP tools (up from documented 135)
 
 ## Error Recovery

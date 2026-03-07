@@ -321,7 +321,14 @@ export type EventType =
   // Server lifecycle events
   | 'server:shutdown'
   // CRDT sync events (multi-instance feature store sync via Automerge)
-  | 'crdt:remote-changes';
+  | 'crdt:remote-changes'
+  // Sync mesh partition and peer health events
+  | 'sync:partition-recovered'
+  | 'sync:peer-unreachable'
+  // Work-stealing handshake events (cross-instance feature assignment)
+  | 'work_stealing:request'
+  | 'work_stealing:offer'
+  | 'work_stealing:accept';
 
 export type EventCallback = (type: EventType, payload: unknown) => void;
 

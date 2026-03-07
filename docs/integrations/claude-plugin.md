@@ -81,7 +81,6 @@ That's it! You now have access to ~170 MCP tools and slash commands for managing
 | `/plan-project`       | Full project orchestration pipeline               |
 | `/ship`               | Stage, commit, push, create PR, auto-merge        |
 | `/headsdown`          | Deep work mode — process features autonomously    |
-| `/create-project`     | Project orchestration from research to features   |
 | `/calendar-assistant` | Calendar and scheduling operations                |
 | `/due-diligence`      | Validate approaches with evidence-based research  |
 | `/deep-research`      | Research codebase before planning                 |
@@ -89,7 +88,7 @@ That's it! You now have access to ~170 MCP tools and slash commands for managing
 | `/improve-prompts`    | Analyze and improve LLM prompts                   |
 | `/ava`                | Autonomous operator with multi-project delegation |
 | `/setuplab`           | 7-phase project onboarding pipeline               |
-| `/upgrade-plugin`     | Guided plugin version upgrade                     |
+| `/update-plugin`      | Guided plugin version upgrade                     |
 
 See [Plugin Commands](./plugin-commands.md) for full command reference and examples.
 

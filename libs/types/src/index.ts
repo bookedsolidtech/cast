@@ -115,11 +115,13 @@ export type { EventBus, EventSubscription } from './event-bus.js';
 
 // Hivemind types (multi-instance mesh coordination)
 export type {
+  CompactionDiagnosticsSnapshot,
   InstanceCapacity,
   HivemindDomain,
   InstanceIdentity,
   HivemindPeer,
   HivemindConfig,
+  PeerCapacitySummary,
   SyncRole,
   SyncServerStatus,
 } from './hivemind.js';
@@ -890,6 +892,7 @@ export {
   ProtoHiveSchema,
   ProtoInstanceSchema,
   ProtoAssignmentSchema,
+  ProtoWorkStealingSchema,
   SharedSettingsSchema,
 } from './proto-config.js';
 export type {
@@ -902,6 +905,7 @@ export type {
   ProtoHive,
   ProtoInstance,
   ProtoAssignment,
+  ProtoWorkStealing,
   SharedSettings,
 } from './proto-config.js';
 
