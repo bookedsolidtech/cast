@@ -12,6 +12,23 @@ import { CompletionDetectorService } from '@/services/completion-detector-servic
 import type { Feature, Milestone, Project } from '@protolabsai/types';
 import type { EventType } from '@protolabsai/types';
 
+/** Poll until fn() stops throwing, or timeout (default 5s). */
+async function poll(fn: () => void, timeout = 5000, interval = 50): Promise<void> {
+  const deadline = Date.now() + timeout;
+  while (true) {
+    try {
+      fn();
+      return;
+    } catch (err) {
+      if (Date.now() > deadline) throw err;
+      await new Promise((r) => setTimeout(r, interval));
+    }
+  }
+}
+
+/** Wait long enough for async cascades to settle (negative assertions). */
+const settle = () => new Promise((r) => setTimeout(r, 200));
+
 // ────────────────────────── Mocks ──────────────────────────
 
 function createMockEvents() {
@@ -71,12 +88,6 @@ function createMockProjectService(project: Partial<Project> | null = null) {
   };
 }
 
-function createMockSettingsService() {
-  return {
-    getProjectSettings: vi.fn().mockResolvedValue({}),
-  };
-}
-
 // ────────────────────────── Tests ──────────────────────────
 
 describe('CompletionDetectorService', () => {
@@ -84,35 +95,23 @@ describe('CompletionDetectorService', () => {
   let events: ReturnType<typeof createMockEvents>;
   let featureLoader: ReturnType<typeof createMockFeatureLoader>;
   let projectService: ReturnType<typeof createMockProjectService>;
-  let settingsService: ReturnType<typeof createMockSettingsService>;
 
   beforeEach(() => {
     service = new CompletionDetectorService();
     events = createMockEvents();
     featureLoader = createMockFeatureLoader();
     projectService = createMockProjectService();
-    settingsService = createMockSettingsService();
     vi.clearAllMocks();
   });
 
   describe('initialization', () => {
     it('should initialize and subscribe to events', () => {
-      service.initialize(
-        events as any,
-        featureLoader as any,
-        projectService as any,
-        settingsService as any
-      );
+      service.initialize(events as any, featureLoader as any, projectService as any);
       expect(events.subscribe).toHaveBeenCalledOnce();
     });
 
     it('should cleanup on destroy', () => {
-      service.initialize(
-        events as any,
-        featureLoader as any,
-        projectService as any,
-        settingsService as any
-      );
+      service.initialize(events as any, featureLoader as any, projectService as any);
       expect(() => service.destroy()).not.toThrow();
     });
   });
@@ -129,14 +128,8 @@ describe('CompletionDetectorService', () => {
       const child2 = createTestFeature({ id: 'child-2', epicId: 'epic-1', status: 'done' });
 
       featureLoader = createMockFeatureLoader([epic, child1, child2]);
-      service.initialize(
-        events as any,
-        featureLoader as any,
-        projectService as any,
-        settingsService as any
-      );
+      service.initialize(events as any, featureLoader as any, projectService as any);
 
-      // Simulate feature:status-changed for child-2 moving to done
       events._fire('feature:status-changed', {
         projectPath: '/test/path',
         featureId: 'child-2',
@@ -144,16 +137,18 @@ describe('CompletionDetectorService', () => {
         newStatus: 'done',
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      expect(featureLoader.update).toHaveBeenCalledWith('/test/path', 'epic-1', { status: 'done' });
-      expect(events.emit).toHaveBeenCalledWith(
-        'feature:completed',
-        expect.objectContaining({
-          featureId: 'epic-1',
-          isEpic: true,
-        })
-      );
+      await poll(() => {
+        expect(featureLoader.update).toHaveBeenCalledWith('/test/path', 'epic-1', {
+          status: 'done',
+        });
+        expect(events.emit).toHaveBeenCalledWith(
+          'feature:completed',
+          expect.objectContaining({
+            featureId: 'epic-1',
+            isEpic: true,
+          })
+        );
+      });
     });
 
     it('should NOT mark epic done when some children are not done', async () => {
@@ -164,15 +159,14 @@ describe('CompletionDetectorService', () => {
         isEpic: true,
       });
       const child1 = createTestFeature({ id: 'child-1', epicId: 'epic-1', status: 'done' });
-      const child2 = createTestFeature({ id: 'child-2', epicId: 'epic-1', status: 'in_progress' });
+      const child2 = createTestFeature({
+        id: 'child-2',
+        epicId: 'epic-1',
+        status: 'in_progress',
+      });
 
       featureLoader = createMockFeatureLoader([epic, child1, child2]);
-      service.initialize(
-        events as any,
-        featureLoader as any,
-        projectService as any,
-        settingsService as any
-      );
+      service.initialize(events as any, featureLoader as any, projectService as any);
 
       events._fire('feature:status-changed', {
         projectPath: '/test/path',
@@ -181,7 +175,7 @@ describe('CompletionDetectorService', () => {
         newStatus: 'done',
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await settle();
 
       expect(featureLoader.update).not.toHaveBeenCalled();
     });
@@ -191,12 +185,7 @@ describe('CompletionDetectorService', () => {
       const child1 = createTestFeature({ id: 'child-1', epicId: 'epic-1', status: 'done' });
 
       featureLoader = createMockFeatureLoader([epic, child1]);
-      service.initialize(
-        events as any,
-        featureLoader as any,
-        projectService as any,
-        settingsService as any
-      );
+      service.initialize(events as any, featureLoader as any, projectService as any);
 
       events._fire('feature:status-changed', {
         projectPath: '/test/path',
@@ -205,7 +194,7 @@ describe('CompletionDetectorService', () => {
         newStatus: 'done',
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await settle();
 
       expect(featureLoader.update).not.toHaveBeenCalled();
     });
@@ -259,12 +248,7 @@ describe('CompletionDetectorService', () => {
 
       featureLoader = createMockFeatureLoader([feature1, feature2]);
       projectService = createMockProjectService(project as Project);
-      service.initialize(
-        events as any,
-        featureLoader as any,
-        projectService as any,
-        settingsService as any
-      );
+      service.initialize(events as any, featureLoader as any, projectService as any);
 
       events._fire('feature:status-changed', {
         projectPath: '/test/path',
@@ -273,17 +257,17 @@ describe('CompletionDetectorService', () => {
         newStatus: 'done',
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      expect(events.emit).toHaveBeenCalledWith(
-        'milestone:completed',
-        expect.objectContaining({
-          projectPath: '/test/path',
-          projectTitle: 'Test Project',
-          projectSlug: 'proj',
-          milestoneTitle: 'Foundation',
-        })
-      );
+      await poll(() => {
+        expect(events.emit).toHaveBeenCalledWith(
+          'milestone:completed',
+          expect.objectContaining({
+            projectPath: '/test/path',
+            projectTitle: 'Test Project',
+            projectSlug: 'proj',
+            milestoneTitle: 'Foundation',
+          })
+        );
+      });
     });
 
     it('should NOT emit milestone:completed when phases lack featureId', async () => {
@@ -324,12 +308,7 @@ describe('CompletionDetectorService', () => {
 
       featureLoader = createMockFeatureLoader([feature1]);
       projectService = createMockProjectService(project as Project);
-      service.initialize(
-        events as any,
-        featureLoader as any,
-        projectService as any,
-        settingsService as any
-      );
+      service.initialize(events as any, featureLoader as any, projectService as any);
 
       events._fire('feature:status-changed', {
         projectPath: '/test/path',
@@ -338,7 +317,7 @@ describe('CompletionDetectorService', () => {
         newStatus: 'done',
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await settle();
 
       expect(events.emit).not.toHaveBeenCalledWith('milestone:completed', expect.anything());
     });
@@ -388,12 +367,7 @@ describe('CompletionDetectorService', () => {
 
       featureLoader = createMockFeatureLoader([feature1, feature2]);
       projectService = createMockProjectService(project as Project);
-      service.initialize(
-        events as any,
-        featureLoader as any,
-        projectService as any,
-        settingsService as any
-      );
+      service.initialize(events as any, featureLoader as any, projectService as any);
 
       events._fire('feature:status-changed', {
         projectPath: '/test/path',
@@ -402,7 +376,7 @@ describe('CompletionDetectorService', () => {
         newStatus: 'done',
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await settle();
 
       expect(events.emit).not.toHaveBeenCalledWith('milestone:completed', expect.anything());
     });
@@ -420,24 +394,20 @@ describe('CompletionDetectorService', () => {
      * having the epic/feature look up their milestone association from the project.
      */
     it('should NOT cascade to milestone when milestoneSlug is missing from feature and epic (BUG)', async () => {
-      // Feature and epic both lack milestoneSlug — milestone cascade WILL NOT fire
       const epic = createTestFeature({
         id: 'epic-1',
         title: 'Epic Without Milestone Slug',
         status: 'in_progress',
         isEpic: true,
         projectSlug: 'proj',
-        // intentionally NO milestoneSlug — this is the bug condition
       });
       const child = createTestFeature({
         id: 'child-1',
         epicId: 'epic-1',
         status: 'done',
         projectSlug: 'proj',
-        // intentionally NO milestoneSlug — this is the bug condition
       });
 
-      // Milestone exists and has the child as a phase — but cascade won't reach it
       const milestone = createTestMilestone({
         slug: 'ms-1',
         phases: [
@@ -461,12 +431,7 @@ describe('CompletionDetectorService', () => {
 
       featureLoader = createMockFeatureLoader([epic, child]);
       projectService = createMockProjectService(project as Project);
-      service.initialize(
-        events as any,
-        featureLoader as any,
-        projectService as any,
-        settingsService as any
-      );
+      service.initialize(events as any, featureLoader as any, projectService as any);
 
       events._fire('feature:status-changed', {
         projectPath: '/test/path',
@@ -475,30 +440,27 @@ describe('CompletionDetectorService', () => {
         newStatus: 'done',
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // Epic WILL complete (epicId-based lookup works fine)
-      expect(featureLoader.update).toHaveBeenCalledWith('/test/path', 'epic-1', { status: 'done' });
-      expect(events.emit).toHaveBeenCalledWith(
-        'feature:completed',
-        expect.objectContaining({ featureId: 'epic-1', isEpic: true })
-      );
+      // Wait for epic completion first
+      await poll(() => {
+        expect(featureLoader.update).toHaveBeenCalledWith('/test/path', 'epic-1', {
+          status: 'done',
+        });
+        expect(events.emit).toHaveBeenCalledWith(
+          'feature:completed',
+          expect.objectContaining({ featureId: 'epic-1', isEpic: true })
+        );
+      });
 
       // BUT milestone cascade will NOT fire — milestoneSlug is missing from both feature and epic
       expect(events.emit).not.toHaveBeenCalledWith('milestone:completed', expect.anything());
     });
 
-    /**
-     * TARGET BEHAVIOR: When milestoneSlug IS set on the feature, milestone cascade fires.
-     * This is the expected (working) path — already covered by the main happy-path test above,
-     * but included here explicitly alongside the bug test for contrast.
-     */
     it('should cascade to milestone when milestoneSlug is set on feature (target behavior)', async () => {
       const feature = createTestFeature({
         id: 'f1',
         status: 'done',
         projectSlug: 'proj',
-        milestoneSlug: 'ms-1', // milestoneSlug IS set — cascade works
+        milestoneSlug: 'ms-1',
         costUsd: 1.5,
       });
 
@@ -525,12 +487,7 @@ describe('CompletionDetectorService', () => {
 
       featureLoader = createMockFeatureLoader([feature]);
       projectService = createMockProjectService(project as Project);
-      service.initialize(
-        events as any,
-        featureLoader as any,
-        projectService as any,
-        settingsService as any
-      );
+      service.initialize(events as any, featureLoader as any, projectService as any);
 
       events._fire('feature:status-changed', {
         projectPath: '/test/path',
@@ -539,17 +496,16 @@ describe('CompletionDetectorService', () => {
         newStatus: 'done',
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // Milestone cascade DOES fire when milestoneSlug is present
-      expect(events.emit).toHaveBeenCalledWith(
-        'milestone:completed',
-        expect.objectContaining({
-          projectPath: '/test/path',
-          projectSlug: 'proj',
-          milestoneTitle: 'Foundation',
-        })
-      );
+      await poll(() => {
+        expect(events.emit).toHaveBeenCalledWith(
+          'milestone:completed',
+          expect.objectContaining({
+            projectPath: '/test/path',
+            projectSlug: 'proj',
+            milestoneTitle: 'Foundation',
+          })
+        );
+      });
     });
 
     it('should deduplicate milestone completion events', async () => {
@@ -583,12 +539,7 @@ describe('CompletionDetectorService', () => {
 
       featureLoader = createMockFeatureLoader([feature1]);
       projectService = createMockProjectService(project as Project);
-      service.initialize(
-        events as any,
-        featureLoader as any,
-        projectService as any,
-        settingsService as any
-      );
+      service.initialize(events as any, featureLoader as any, projectService as any);
 
       // Fire twice
       events._fire('feature:status-changed', {
@@ -598,7 +549,9 @@ describe('CompletionDetectorService', () => {
         newStatus: 'done',
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await poll(() => {
+        expect(events.emit).toHaveBeenCalledWith('milestone:completed', expect.anything());
+      });
 
       events._fire('feature:status-changed', {
         projectPath: '/test/path',
@@ -607,7 +560,7 @@ describe('CompletionDetectorService', () => {
         newStatus: 'done',
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await settle();
 
       const milestoneCalls = events.emit.mock.calls.filter(
         (c: unknown[]) => c[0] === 'milestone:completed'
@@ -651,12 +604,7 @@ describe('CompletionDetectorService', () => {
 
       featureLoader = createMockFeatureLoader([feature1]);
       projectService = createMockProjectService(project as Project);
-      service.initialize(
-        events as any,
-        featureLoader as any,
-        projectService as any,
-        settingsService as any
-      );
+      service.initialize(events as any, featureLoader as any, projectService as any);
 
       events._fire('feature:status-changed', {
         projectPath: '/test/path',
@@ -665,16 +613,16 @@ describe('CompletionDetectorService', () => {
         newStatus: 'done',
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      expect(events.emit).toHaveBeenCalledWith(
-        'project:completed',
-        expect.objectContaining({
-          projectPath: '/test/path',
-          projectTitle: 'Test Project',
-          projectSlug: 'proj',
-        })
-      );
+      await poll(() => {
+        expect(events.emit).toHaveBeenCalledWith(
+          'project:completed',
+          expect.objectContaining({
+            projectPath: '/test/path',
+            projectTitle: 'Test Project',
+            projectSlug: 'proj',
+          })
+        );
+      });
     });
 
     it('should deduplicate project completion events', async () => {
@@ -708,12 +656,7 @@ describe('CompletionDetectorService', () => {
 
       featureLoader = createMockFeatureLoader([feature1]);
       projectService = createMockProjectService(project as Project);
-      service.initialize(
-        events as any,
-        featureLoader as any,
-        projectService as any,
-        settingsService as any
-      );
+      service.initialize(events as any, featureLoader as any, projectService as any);
 
       events._fire('feature:status-changed', {
         projectPath: '/test/path',
@@ -722,7 +665,9 @@ describe('CompletionDetectorService', () => {
         newStatus: 'done',
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await poll(() => {
+        expect(events.emit).toHaveBeenCalledWith('project:completed', expect.anything());
+      });
 
       events._fire('feature:status-changed', {
         projectPath: '/test/path',
@@ -731,7 +676,7 @@ describe('CompletionDetectorService', () => {
         newStatus: 'done',
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await settle();
 
       const projectCalls = events.emit.mock.calls.filter(
         (c: unknown[]) => c[0] === 'project:completed'
@@ -744,12 +689,7 @@ describe('CompletionDetectorService', () => {
     it('should trigger cascade on auto_mode_feature_complete with passes=true', async () => {
       const feature1 = createTestFeature({ id: 'f1', status: 'done' });
       featureLoader = createMockFeatureLoader([feature1]);
-      service.initialize(
-        events as any,
-        featureLoader as any,
-        projectService as any,
-        settingsService as any
-      );
+      service.initialize(events as any, featureLoader as any, projectService as any);
 
       events._fire('auto-mode:event', {
         type: 'auto_mode_feature_complete',
@@ -758,19 +698,13 @@ describe('CompletionDetectorService', () => {
         passes: true,
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // Should have called get to load the feature
-      expect(featureLoader.get).toHaveBeenCalledWith('/test/path', 'f1');
+      await poll(() => {
+        expect(featureLoader.get).toHaveBeenCalledWith('/test/path', 'f1');
+      });
     });
 
     it('should NOT trigger on auto_mode_feature_complete with passes=false', async () => {
-      service.initialize(
-        events as any,
-        featureLoader as any,
-        projectService as any,
-        settingsService as any
-      );
+      service.initialize(events as any, featureLoader as any, projectService as any);
 
       events._fire('auto-mode:event', {
         type: 'auto_mode_feature_complete',
@@ -779,7 +713,7 @@ describe('CompletionDetectorService', () => {
         passes: false,
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await settle();
 
       expect(featureLoader.get).not.toHaveBeenCalled();
     });
@@ -808,12 +742,7 @@ describe('CompletionDetectorService', () => {
 
       featureLoader = createMockFeatureLoader([feature1]);
       projectService = createMockProjectService(project as Project);
-      service.initialize(
-        events as any,
-        featureLoader as any,
-        projectService as any,
-        settingsService as any
-      );
+      service.initialize(events as any, featureLoader as any, projectService as any);
 
       events._fire('feature:status-changed', {
         projectPath: '/test/path',
@@ -822,7 +751,7 @@ describe('CompletionDetectorService', () => {
         newStatus: 'done',
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await settle();
 
       expect(events.emit).not.toHaveBeenCalledWith('milestone:completed', expect.anything());
     });
