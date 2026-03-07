@@ -51,36 +51,210 @@ All types are in `libs/types/src/setup.ts` and exported from `@protolabsai/types
 
 ### Key Types
 
-- `RepoResearchResult` — Everything detected about a repo (git, monorepo, frontend, backend, testing, CI, etc.)
+- `RepoResearchResult` — Everything detected about a repo (git, monorepo, frontend, backend, agents, testing, CI, automation, python, structure)
 - `GapAnalysisReport` — Gaps and compliance items with an alignment score
 - `GapItem` — A single gap with severity, current state, target state, and effort estimate
 - `AlignmentProposal` — Milestones with features ready for board creation
-- `ProtolabConfig` — The `protolab.config` file schema
+- `ProtolabConfig` — The `protolab.config` file schema (JSON format)
 
-## Templates
+### `RepoResearchResult` Shape
 
-Templates live in `apps/server/src/templates/` and are used during Phase 3 (Initialize) to generate context files tailored to the detected tech stack.
+```typescript
+interface RepoResearchResult {
+  projectPath: string;
+  projectName: string;
+  /** Raw scripts from root package.json */
+  scripts?: Record<string, string>;
 
-### CI/CD Templates (`templates/cicd/`)
+  git: {
+    isRepo: boolean;
+    remoteUrl?: string;
+    defaultBranch?: string;
+    provider?: 'github' | 'gitlab' | 'bitbucket';
+  };
 
-- `github-actions/build.yml` — pnpm install + build
-- `github-actions/test.yml` — pnpm test
-- `github-actions/format-check.yml` — prettier --check
-- `github-actions/security-audit.yml` — pnpm audit
-- `branch-protection/main.json` — Standard ruleset
+  monorepo: {
+    isMonorepo: boolean;
+    tool?: 'turbo' | 'nx' | 'lerna' | 'npm-workspaces' | 'pnpm-workspaces';
+    packageManager: 'pnpm' | 'npm' | 'yarn' | 'bun' | 'unknown';
+    workspaceGlobs?: string[];
+    packages: { name: string; path: string; type: 'app' | 'package' }[];
+  };
 
-### Context Templates (`templates/context/`)
+  frontend: {
+    framework?: 'react' | 'vue' | 'svelte' | 'none';
+    metaFramework?: 'nextjs' | 'remix' | 'vite' | 'none';
+    hasShadcn: boolean;
+    hasStorybook: boolean;
+    hasTailwind: boolean;
+    hasRadix: boolean;
+    // ...version fields
+  };
 
-- `claude-md/base.md` — Base CLAUDE.md for any project
-- `claude-md/monorepo.md` — Monorepo-specific section
-- `claude-md/react.md` — React-specific section
-- `claude-md/python.md` — Python service section
-- `coding-rules/typescript.md` — TypeScript rules
-- `coding-rules/react.md` — React rules
-- `coding-rules/python.md` — Python rules
-- `spec.md` — Project specification template
+  backend: {
+    hasPayload: boolean;
+    database?: 'postgres' | 'neo4j' | 'sqlite' | 'mongodb' | 'none';
+    hasExpress: boolean;
+    hasFastAPI: boolean;
+  };
 
-Templates use `{{variable}}` interpolation.
+  /** Agent/AI tooling detected in the repo */
+  agents: {
+    hasMCPServers: boolean;
+    mcpPackages: string[];
+    hasLangGraph: boolean;
+    hasClaudeSDK: boolean;
+    hasAgentFolder: boolean;
+  };
+
+  testing: {
+    hasVitest: boolean;
+    hasPlaywright: boolean;
+    hasJest: boolean;
+    hasPytest: boolean;
+    testDirs: string[];
+  };
+
+  codeQuality: {
+    hasESLint: boolean;
+    hasPrettier: boolean;
+    hasTypeScript: boolean;
+    tsStrict: boolean;
+    hasCompositeConfig: boolean;
+    hasHusky: boolean;
+    hasLintStaged: boolean;
+  };
+
+  ci: {
+    hasCI: boolean;
+    provider?: 'github-actions' | 'gitlab-ci' | 'circleci';
+    workflows: string[];
+    hasBuildCheck: boolean;
+    hasTestCheck: boolean;
+    hasFormatCheck: boolean;
+    hasSecurityAudit: boolean;
+    hasCodeRabbit: boolean;
+    /** True if branch protection rules or rulesets are configured */
+    hasBranchProtection: boolean;
+  };
+
+  automation: {
+    hasAutomaker: boolean;
+    hasDiscordIntegration: boolean;
+    hasProtolabConfig: boolean;
+    hasAnalytics: boolean;
+    analyticsProvider?: 'umami' | 'plausible' | 'google-analytics' | 'other';
+  };
+
+  python: {
+    hasPythonServices: boolean;
+    services: { name: string; path: string; framework?: string }[];
+    hasRuff: boolean;
+    hasBlack: boolean;
+    hasPytest: boolean;
+    hasPoetry: boolean;
+    hasPyproject: boolean;
+  };
+
+  /** Top-level directory/file structure */
+  structure: {
+    topDirs: string[];
+    configFiles: string[];
+    entryPoints: string[];
+  };
+}
+```
+
+## Phase 1: Repo Research
+
+`RepoResearchService` (`apps/server/src/services/repo-research-service.ts`) scans the target repo with pure heuristics — no AI calls. It is fast and deterministic.
+
+### Detection Details
+
+- **Package manager**: detected via lockfile presence (`pnpm-lock.yaml`, `yarn.lock`, `bun.lockb`, `package-lock.json`)
+- **Monorepo**: detected via `turbo.json`, `nx.json`, `lerna.json`, `pnpm-workspace.yaml`, or `workspaces` in `package.json`
+- **Framework/stack**: scanned across all workspace `package.json` files
+- **Agents**: checks for `mcp`/`model-context-protocol` packages, `@langchain/langgraph`, `@anthropic-ai/sdk`, and `packages/mcp-server` or `agents/` directories
+- **Branch protection**: checks GitHub branch protection rules via `gh` CLI; falls back to checking rulesets (modern GitHub protection)
+- **Analytics**: detects Umami, Plausible, and Google Analytics via package deps, then env file variables (`.env`, `.env.example`, `.env.local`)
+- **Scripts**: extracts root-level `package.json` scripts for `proto.config.yaml` generation
+
+## Phase 3: Initialize
+
+`POST /api/setup/project` (`apps/server/src/routes/setup/routes/project.ts`) initializes a repo with Automaker tooling. It accepts an optional `research` payload from Phase 1.
+
+### Files Created
+
+| File                                 | Condition                                               |
+| ------------------------------------ | ------------------------------------------------------- |
+| `.automaker/`                        | Always — base directory                                 |
+| `.automaker/features/`               | Always                                                  |
+| `.automaker/context/`                | Always                                                  |
+| `.automaker/memory/`                 | Always                                                  |
+| `.automaker/.backups/`               | Always                                                  |
+| `protolab.config`                    | If not already present                                  |
+| `.automaker/context/CLAUDE.md`       | If not already present                                  |
+| `.automaker/context/coding-rules.md` | If research shows TypeScript, ESLint, Prettier, or Ruff |
+| `proto.config.yaml`                  | If not already present                                  |
+
+### Research-Aware Content Generation
+
+When `research` is passed:
+
+**CLAUDE.md** is generated with:
+
+- Tech stack summary (TypeScript version, framework, metaframework, database)
+- Monorepo structure and package list
+- Common commands using the detected package manager
+- Testing section (Vitest, Jest, Playwright)
+- Import conventions for workspace packages
+
+**coding-rules.md** is generated when any of these are detected:
+
+- TypeScript (with strict mode and composite config notes)
+- Prettier (formatting reminder)
+- ESLint (version-aware — flat config for v9+)
+- Husky + lint-staged (pre-commit hook note)
+- Testing frameworks
+- Python Ruff
+
+**proto.config.yaml** is generated from research via `buildProtoConfig` → `writeProtoConfig`:
+
+- `techStack`: language, framework, metaframework, database, packageManager, monorepoTool
+- `commands`: build, test, dev, start, lint, format (from root package.json `scripts`)
+- `git`: defaultBranch, provider, remoteUrl
+
+## `proto.config.yaml` Schema
+
+Defined in `libs/types/src/proto-config.ts` and exported from both `@protolabsai/types` and `@protolabsai/platform`.
+
+```yaml
+name: my-project
+techStack:
+  language: typescript
+  framework: react
+  metaFramework: nextjs
+  packageManager: pnpm
+  monorepoTool: turbo
+  database: postgres
+commands:
+  build: pnpm build
+  test: pnpm test
+  dev: pnpm dev
+  lint: pnpm lint
+  format: pnpm format
+git:
+  defaultBranch: main
+  provider: github
+  remoteUrl: https://github.com/org/repo
+```
+
+Load/write via:
+
+```typescript
+import { loadProtoConfig, writeProtoConfig } from '@protolabsai/platform';
+import type { ProtoConfig } from '@protolabsai/platform';
+```
 
 ## Gap Checks
 
@@ -121,6 +295,7 @@ Templates use `{{variable}}` interpolation.
 | File                                                       | Purpose                      |
 | ---------------------------------------------------------- | ---------------------------- |
 | `libs/types/src/setup.ts`                                  | All setup pipeline types     |
+| `libs/types/src/proto-config.ts`                           | proto.config.yaml schema     |
 | `apps/server/src/services/repo-research-service.ts`        | Heuristic repo scanning      |
 | `apps/server/src/services/gap-analysis-service.ts`         | Gap comparison engine        |
 | `apps/server/src/services/alignment-proposal-service.ts`   | Gap-to-feature conversion    |
@@ -134,9 +309,32 @@ Templates use `{{variable}}` interpolation.
 
 ### Modified Files
 
-| File                                                         | Change                |
-| ------------------------------------------------------------ | --------------------- |
-| `libs/types/src/index.ts`                                    | Export setup types    |
-| `apps/server/src/routes/setup/index.ts`                      | Register 5 new routes |
-| `packages/mcp-server/src/index.ts`                           | Add 6 new MCP tools   |
-| `packages/mcp-server/plugins/automaker/commands/setuplab.md` | Full rewrite          |
+| File                                                         | Change                                                 |
+| ------------------------------------------------------------ | ------------------------------------------------------ |
+| `libs/types/src/index.ts`                                    | Export setup types + ProtoConfig schema types          |
+| `libs/platform/src/index.ts`                                 | Export writeProtoConfig, loadProtoConfig               |
+| `libs/types/src/project.ts`                                  | Added DiscordChannelMapping interface                  |
+| `apps/server/src/routes/setup/routes/project.ts`             | Generate CLAUDE.md, coding-rules.md, proto.config.yaml |
+| `apps/server/src/routes/setup/index.ts`                      | Register 5 new routes                                  |
+| `packages/mcp-server/src/index.ts`                           | Add 6 new MCP tools                                    |
+| `packages/mcp-server/plugins/automaker/commands/setuplab.md` | Full rewrite                                           |
+
+## Related Types
+
+### `DiscordChannelMapping` (in `libs/types/src/project.ts`)
+
+Tracks which Discord channels were created for a project:
+
+```typescript
+interface DiscordChannelMapping {
+  projectSlug: string;
+  categoryId?: string;
+  categoryName?: string;
+  channels: Array<{
+    id: string;
+    name: string;
+    purpose?: string;
+  }>;
+  createdAt: string;
+}
+```
