@@ -1,5 +1,17 @@
 # @protolabsai/flows
 
+## 0.40.6
+
+### Patch Changes
+
+- Maintenance release.
+- Updated dependencies
+  - @protolabsai/types@0.40.6
+  - @protolabsai/utils@0.40.6
+  - @protolabsai/prompts@0.40.6
+  - @protolabsai/model-resolver@0.40.6
+  - @protolabsai/observability@0.40.6
+
 ## 0.40.5
 
 ### Patch Changes

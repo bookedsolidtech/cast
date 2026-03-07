@@ -1,5 +1,13 @@
 # @protolabsai/ui
 
+## 0.40.6
+
+### Patch Changes
+
+- Maintenance release.
+- Updated dependencies
+  - @protolabsai/types@0.40.6
+
 ## 0.40.5
 
 ### Patch Changes
