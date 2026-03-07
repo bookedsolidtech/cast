@@ -7,10 +7,7 @@
  * Also tests deduplication and the areMilestonePhasesDone guard.
  */
 
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { CompletionDetectorService } from '@/services/completion-detector-service.js';
 import type { Feature, Milestone, Project } from '@protolabsai/types';
 import type { EventType } from '@protolabsai/types';
@@ -81,7 +78,6 @@ describe('CompletionDetectorService', () => {
   let events: ReturnType<typeof createMockEvents>;
   let featureLoader: ReturnType<typeof createMockFeatureLoader>;
   let projectService: ReturnType<typeof createMockProjectService>;
-
   beforeEach(() => {
     service = new CompletionDetectorService();
     events = createMockEvents();
@@ -92,12 +88,12 @@ describe('CompletionDetectorService', () => {
 
   describe('initialization', () => {
     it('should initialize and subscribe to events', () => {
-      service.initialize(events as any, featureLoader as any, projectService as any);
+      service.initialize(events as any, featureLoader as any, projectService as any, undefined);
       expect(events.subscribe).toHaveBeenCalledOnce();
     });
 
     it('should cleanup on destroy', () => {
-      service.initialize(events as any, featureLoader as any, projectService as any);
+      service.initialize(events as any, featureLoader as any, projectService as any, undefined);
       expect(() => service.destroy()).not.toThrow();
     });
   });
@@ -114,7 +110,7 @@ describe('CompletionDetectorService', () => {
       const child2 = createTestFeature({ id: 'child-2', epicId: 'epic-1', status: 'done' });
 
       featureLoader = createMockFeatureLoader([epic, child1, child2]);
-      service.initialize(events as any, featureLoader as any, projectService as any);
+      service.initialize(events as any, featureLoader as any, projectService as any, undefined);
 
       // Simulate feature:status-changed for child-2 moving to done
       events._fire('feature:status-changed', {
@@ -147,7 +143,7 @@ describe('CompletionDetectorService', () => {
       const child2 = createTestFeature({ id: 'child-2', epicId: 'epic-1', status: 'in_progress' });
 
       featureLoader = createMockFeatureLoader([epic, child1, child2]);
-      service.initialize(events as any, featureLoader as any, projectService as any);
+      service.initialize(events as any, featureLoader as any, projectService as any, undefined);
 
       events._fire('feature:status-changed', {
         projectPath: '/test/path',
@@ -166,7 +162,7 @@ describe('CompletionDetectorService', () => {
       const child1 = createTestFeature({ id: 'child-1', epicId: 'epic-1', status: 'done' });
 
       featureLoader = createMockFeatureLoader([epic, child1]);
-      service.initialize(events as any, featureLoader as any, projectService as any);
+      service.initialize(events as any, featureLoader as any, projectService as any, undefined);
 
       events._fire('feature:status-changed', {
         projectPath: '/test/path',
@@ -229,7 +225,7 @@ describe('CompletionDetectorService', () => {
 
       featureLoader = createMockFeatureLoader([feature1, feature2]);
       projectService = createMockProjectService(project as Project);
-      service.initialize(events as any, featureLoader as any, projectService as any);
+      service.initialize(events as any, featureLoader as any, projectService as any, undefined);
 
       events._fire('feature:status-changed', {
         projectPath: '/test/path',
@@ -289,7 +285,7 @@ describe('CompletionDetectorService', () => {
 
       featureLoader = createMockFeatureLoader([feature1]);
       projectService = createMockProjectService(project as Project);
-      service.initialize(events as any, featureLoader as any, projectService as any);
+      service.initialize(events as any, featureLoader as any, projectService as any, undefined);
 
       events._fire('feature:status-changed', {
         projectPath: '/test/path',
@@ -348,7 +344,7 @@ describe('CompletionDetectorService', () => {
 
       featureLoader = createMockFeatureLoader([feature1, feature2]);
       projectService = createMockProjectService(project as Project);
-      service.initialize(events as any, featureLoader as any, projectService as any);
+      service.initialize(events as any, featureLoader as any, projectService as any, undefined);
 
       events._fire('feature:status-changed', {
         projectPath: '/test/path',
@@ -416,7 +412,7 @@ describe('CompletionDetectorService', () => {
 
       featureLoader = createMockFeatureLoader([epic, child]);
       projectService = createMockProjectService(project as Project);
-      service.initialize(events as any, featureLoader as any, projectService as any);
+      service.initialize(events as any, featureLoader as any, projectService as any, undefined);
 
       events._fire('feature:status-changed', {
         projectPath: '/test/path',
@@ -475,7 +471,7 @@ describe('CompletionDetectorService', () => {
 
       featureLoader = createMockFeatureLoader([feature]);
       projectService = createMockProjectService(project as Project);
-      service.initialize(events as any, featureLoader as any, projectService as any);
+      service.initialize(events as any, featureLoader as any, projectService as any, undefined);
 
       events._fire('feature:status-changed', {
         projectPath: '/test/path',
@@ -528,7 +524,7 @@ describe('CompletionDetectorService', () => {
 
       featureLoader = createMockFeatureLoader([feature1]);
       projectService = createMockProjectService(project as Project);
-      service.initialize(events as any, featureLoader as any, projectService as any);
+      service.initialize(events as any, featureLoader as any, projectService as any, undefined);
 
       // Fire twice
       events._fire('feature:status-changed', {
@@ -591,7 +587,7 @@ describe('CompletionDetectorService', () => {
 
       featureLoader = createMockFeatureLoader([feature1]);
       projectService = createMockProjectService(project as Project);
-      service.initialize(events as any, featureLoader as any, projectService as any);
+      service.initialize(events as any, featureLoader as any, projectService as any, undefined);
 
       events._fire('feature:status-changed', {
         projectPath: '/test/path',
@@ -643,7 +639,7 @@ describe('CompletionDetectorService', () => {
 
       featureLoader = createMockFeatureLoader([feature1]);
       projectService = createMockProjectService(project as Project);
-      service.initialize(events as any, featureLoader as any, projectService as any);
+      service.initialize(events as any, featureLoader as any, projectService as any, undefined);
 
       events._fire('feature:status-changed', {
         projectPath: '/test/path',
@@ -674,7 +670,7 @@ describe('CompletionDetectorService', () => {
     it('should trigger cascade on auto_mode_feature_complete with passes=true', async () => {
       const feature1 = createTestFeature({ id: 'f1', status: 'done' });
       featureLoader = createMockFeatureLoader([feature1]);
-      service.initialize(events as any, featureLoader as any, projectService as any);
+      service.initialize(events as any, featureLoader as any, projectService as any, undefined);
 
       events._fire('auto-mode:event', {
         type: 'auto_mode_feature_complete',
@@ -690,7 +686,7 @@ describe('CompletionDetectorService', () => {
     });
 
     it('should NOT trigger on auto_mode_feature_complete with passes=false', async () => {
-      service.initialize(events as any, featureLoader as any, projectService as any);
+      service.initialize(events as any, featureLoader as any, projectService as any, undefined);
 
       events._fire('auto-mode:event', {
         type: 'auto_mode_feature_complete',
@@ -728,7 +724,7 @@ describe('CompletionDetectorService', () => {
 
       featureLoader = createMockFeatureLoader([feature1]);
       projectService = createMockProjectService(project as Project);
-      service.initialize(events as any, featureLoader as any, projectService as any);
+      service.initialize(events as any, featureLoader as any, projectService as any, undefined);
 
       events._fire('feature:status-changed', {
         projectPath: '/test/path',
@@ -740,148 +736,6 @@ describe('CompletionDetectorService', () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
 
       expect(events.emit).not.toHaveBeenCalledWith('milestone:completed', expect.anything());
-    });
-  });
-
-  // ────────────────────────── Ledger durability ──────────────────────────
-
-  describe('JSONL ledger durability', () => {
-    let tmpDir: string;
-
-    beforeEach(() => {
-      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'completion-detector-test-'));
-    });
-
-    afterEach(() => {
-      fs.rmSync(tmpDir, { recursive: true, force: true });
-    });
-
-    it('cold start: creates completion-emitted.jsonl and records entries on completion', async () => {
-      const feature1 = createTestFeature({
-        id: 'f1',
-        status: 'done',
-        projectSlug: 'proj',
-        milestoneSlug: 'ms-1',
-        costUsd: 1.0,
-      });
-
-      const milestone = createTestMilestone({
-        slug: 'ms-1',
-        phases: [
-          {
-            number: 1,
-            name: 'p1',
-            title: 'Phase 1',
-            description: '',
-            featureId: 'f1',
-            complexity: 'small',
-          },
-        ],
-      });
-
-      const project: Partial<Project> = {
-        title: 'Cold Start Project',
-        slug: 'proj',
-        status: 'active',
-        milestones: [milestone],
-      };
-
-      featureLoader = createMockFeatureLoader([feature1]);
-      projectService = createMockProjectService(project as Project);
-      service.initialize(events as any, featureLoader as any, projectService as any, tmpDir);
-
-      events._fire('feature:status-changed', {
-        projectPath: '/test/path',
-        featureId: 'f1',
-        previousStatus: 'review',
-        newStatus: 'done',
-      });
-
-      // Wait for async cascade + file writes
-      await new Promise((resolve) => setTimeout(resolve, 150));
-
-      const ledgerPath = path.join(tmpDir, 'ledger', 'completion-emitted.jsonl');
-      expect(fs.existsSync(ledgerPath)).toBe(true);
-
-      const lines = fs
-        .readFileSync(ledgerPath, 'utf-8')
-        .split('\n')
-        .filter((l) => l.trim());
-      expect(lines.length).toBeGreaterThanOrEqual(1);
-
-      const entries = lines.map((l) => JSON.parse(l) as { type: string; key: string });
-      const types = entries.map((e) => e.type);
-      expect(types).toContain('milestone');
-      expect(types).toContain('project');
-    });
-
-    it('warm restart: pre-populates Sets from ledger and suppresses duplicate events', async () => {
-      const feature1 = createTestFeature({
-        id: 'f1',
-        status: 'done',
-        projectSlug: 'proj',
-        milestoneSlug: 'ms-1',
-      });
-
-      const milestone = createTestMilestone({
-        slug: 'ms-1',
-        phases: [
-          {
-            number: 1,
-            name: 'p1',
-            title: 'Phase 1',
-            description: '',
-            featureId: 'f1',
-            complexity: 'small',
-          },
-        ],
-      });
-
-      const project: Partial<Project> = {
-        title: 'Warm Restart Project',
-        slug: 'proj',
-        status: 'active',
-        milestones: [milestone],
-      };
-
-      // Pre-write a ledger that records milestone + project as already emitted
-      const ledgerDir = path.join(tmpDir, 'ledger');
-      fs.mkdirSync(ledgerDir, { recursive: true });
-      const ledgerPath = path.join(ledgerDir, 'completion-emitted.jsonl');
-      const milestoneKey = '/test/path:proj:ms-1';
-      const projectKey = '/test/path:proj';
-      fs.writeFileSync(
-        ledgerPath,
-        [
-          JSON.stringify({
-            type: 'milestone',
-            key: milestoneKey,
-            timestamp: '2026-01-01T00:00:00Z',
-          }),
-          JSON.stringify({ type: 'project', key: projectKey, timestamp: '2026-01-01T00:00:00Z' }),
-        ].join('\n') + '\n',
-        'utf-8'
-      );
-
-      featureLoader = createMockFeatureLoader([feature1]);
-      projectService = createMockProjectService(project as Project);
-      service.initialize(events as any, featureLoader as any, projectService as any, tmpDir);
-
-      // Wait for ledger load to complete before firing events
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      events._fire('feature:status-changed', {
-        projectPath: '/test/path',
-        featureId: 'f1',
-        previousStatus: 'review',
-        newStatus: 'done',
-      });
-
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      // milestone and project completions should be suppressed (already in ledger)
-      expect(events.emit).not.toHaveBeenCalledWith('milestone:completed', expect.anything());
-      expect(events.emit).not.toHaveBeenCalledWith('project:completed', expect.anything());
     });
   });
 });

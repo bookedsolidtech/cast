@@ -149,6 +149,12 @@ export type {
   LifecycleStatus,
   LifecycleCollectResult,
   ProjectStats,
+  ArtifactType,
+  ArtifactIndexEntry,
+  ArtifactIndex,
+  ProjectArtifact,
+  MilestoneSummary,
+  ProjectSummary,
 } from './project.js';
 
 // Calendar types
@@ -866,6 +872,24 @@ export type {
   SensorConfig,
   SensorReading,
 } from './sensor.js';
+
+// ProtoConfig types and schema (proto.config.yaml structure)
+export {
+  ProtoConfigSchema,
+  ProtoTechStackSchema,
+  ProtoCommandsSchema,
+  ProtoGitSchema,
+  ProtoLabSchema,
+  ProtoDefaultsSchema,
+} from './proto-config.js';
+export type {
+  ProtoConfig,
+  ProtoTechStack,
+  ProtoCommands,
+  ProtoGit,
+  ProtoLab,
+  ProtoDefaults,
+} from './proto-config.js';
 
 // PenFile types (vector graphics format v2.8)
 export type {
