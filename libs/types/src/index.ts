@@ -7,6 +7,7 @@
 export type {
   AvaChannelContext,
   AvaChatMessage,
+  AvaChatRole,
   AvaChannelDocument,
   PostMessageOptions,
   GetMessagesOptions,
