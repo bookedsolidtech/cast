@@ -23,7 +23,9 @@ function createMockEmitter() {
     }),
     subscribe: vi.fn(),
     on: vi.fn(),
-    broadcast: vi.fn(),
+    broadcast: vi.fn((type: string, payload: unknown) => {
+      emitted.push({ type, payload });
+    }),
     _emitted: emitted,
   };
 }
@@ -222,15 +224,15 @@ describe('FeatureLoader.update() — statusHistory and event auto-emission', () 
       ).resolves.toBeDefined();
 
       // Our mock emitter never called — bare loader has no emitter
-      expect(mockEmitter.emit).not.toHaveBeenCalled();
+      expect(mockEmitter.broadcast).not.toHaveBeenCalled();
     });
 
     it('fires exactly once per status change — not twice', async () => {
       await loader.update(testProjectPath, featureId, { status: 'review' });
 
       // Ensure there is only 1 emission even if callers previously added manual emissions
-      expect(mockEmitter.emit).toHaveBeenCalledTimes(1);
-      expect(mockEmitter.emit).toHaveBeenCalledWith(
+      expect(mockEmitter.broadcast).toHaveBeenCalledTimes(1);
+      expect(mockEmitter.broadcast).toHaveBeenCalledWith(
         'feature:status-changed',
         expect.objectContaining({ newStatus: 'review' })
       );
@@ -277,7 +279,7 @@ describe('FeatureLoader.update() — statusHistory and event auto-emission', () 
         callOrder.push('disk-write');
         return undefined;
       });
-      mockEmitter.emit.mockImplementation((type: string) => {
+      mockEmitter.broadcast.mockImplementation((type: string) => {
         if (type === 'feature:status-changed') {
           callOrder.push('event-emit');
         }
