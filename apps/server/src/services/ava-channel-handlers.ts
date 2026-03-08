@@ -68,8 +68,7 @@ const CoordinationHandler: ReactorHandler = {
   async handle(_message, _classification, ctx) {
     const { runningAgents, maxAgents, backlogCount } = ctx.getCapacity();
 
-    const content =
-      `[Coordination] Capacity: ${runningAgents}/${maxAgents} agents, ${backlogCount} in backlog`;
+    const content = `[Coordination] Capacity: ${runningAgents}/${maxAgents} agents, ${backlogCount} in backlog`;
 
     await ctx.avaChannelService.postMessage(content, 'ava', {
       instanceName: ctx.instanceName,
@@ -88,8 +87,7 @@ const SystemAlertHandler: ReactorHandler = {
   async handle(message, _classification, ctx) {
     if (message.source !== 'system') return false;
 
-    const content =
-      `[Alert] Acknowledged system alert. Instance ${ctx.instanceName} operational.`;
+    const content = `[Alert] Acknowledged system alert. Instance ${ctx.instanceName} operational.`;
 
     await ctx.avaChannelService.postMessage(content, 'ava', {
       instanceName: ctx.instanceName,
@@ -108,8 +106,7 @@ const EscalationHandler: ReactorHandler = {
   async handle(message, _classification, ctx) {
     if (message.source === 'system') return false;
 
-    const content =
-      `[Escalation] Acknowledged escalation from ${message.instanceName}. Will investigate.`;
+    const content = `[Escalation] Acknowledged escalation from ${message.instanceName}. Will investigate.`;
 
     await ctx.avaChannelService.postMessage(content, 'ava', {
       instanceName: ctx.instanceName,

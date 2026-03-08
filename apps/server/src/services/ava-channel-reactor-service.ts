@@ -128,9 +128,7 @@ export class AvaChannelReactorService {
     this.scheduleMidnightRotation();
 
     this.active = true;
-    logger.info(
-      `Reactor started — instance=${this.deps.instanceName} shard=${dateKey}`
-    );
+    logger.info(`Reactor started — instance=${this.deps.instanceName} shard=${dateKey}`);
   }
 
   stop(): void {
@@ -208,7 +206,9 @@ export class AvaChannelReactorService {
       );
 
       this.resubscribeAttempt = 0;
-      logger.debug(`Subscribed to shard ${dateKey} (${this.knownMessageIds.size} existing messages)`);
+      logger.debug(
+        `Subscribed to shard ${dateKey} (${this.knownMessageIds.size} existing messages)`
+      );
     } catch (err) {
       this.errorCount++;
       logger.error(`Failed to subscribe to shard ${dateKey}:`, err);
@@ -238,7 +238,9 @@ export class AvaChannelReactorService {
     );
     this.resubscribeAttempt++;
 
-    logger.info(`Scheduling resubscription to shard ${dateKey} in ${delay}ms (attempt ${this.resubscribeAttempt})`);
+    logger.info(
+      `Scheduling resubscription to shard ${dateKey} in ${delay}ms (attempt ${this.resubscribeAttempt})`
+    );
 
     this.resubscribeTimer = setTimeout(() => {
       this.resubscribeTimer = null;
@@ -309,9 +311,7 @@ export class AvaChannelReactorService {
     );
 
     if (!classification.shouldRespond) {
-      logger.debug(
-        `Skipping message ${message.id} — classifier: ${classification.reason}`
-      );
+      logger.debug(`Skipping message ${message.id} — classifier: ${classification.reason}`);
       return;
     }
 
@@ -325,7 +325,9 @@ export class AvaChannelReactorService {
     // Layer 3: Busy gate
     if (this.isBusy) {
       this.pendingQueue.push({ message, classification });
-      logger.debug(`Queued message ${message.id} — reactor busy (queue size: ${this.pendingQueue.length})`);
+      logger.debug(
+        `Queued message ${message.id} — reactor busy (queue size: ${this.pendingQueue.length})`
+      );
       return;
     }
 
@@ -356,7 +358,7 @@ export class AvaChannelReactorService {
         // Future: extend PostMessageOptions if threaded replies are needed.
         logger.debug(
           `Dispatched response ${posted.id} for message ${message.id} ` +
-          `(type=${classification.type}, depth=${conversationDepth})`
+            `(type=${classification.type}, depth=${conversationDepth})`
         );
 
         this.responsesSent++;
@@ -404,7 +406,9 @@ export class AvaChannelReactorService {
     // Re-evaluate cooldown — the thread may have entered cooldown while queued
     const threadKey = next.message.inReplyTo ?? next.message.id;
     if (this.cooldownTimers.has(threadKey)) {
-      logger.debug(`Dequeued message ${next.message.id} skipped — thread ${threadKey} now in cooldown`);
+      logger.debug(
+        `Dequeued message ${next.message.id} skipped — thread ${threadKey} now in cooldown`
+      );
       this.drainPendingQueue();
       return;
     }
@@ -417,14 +421,11 @@ export class AvaChannelReactorService {
   // ---------------------------------------------------------------------------
 
   private rebuildClassifierChain(): void {
-    const { rules, context } = createClassifierChain(
-      this.deps.instanceId,
-      {
-        maxConversationDepth: this.settings.maxConversationDepth,
-        staleThresholdMs: this.settings.staleMessageThresholdMs,
-        ...this.getCapacitySnapshot(),
-      }
-    );
+    const { rules, context } = createClassifierChain(this.deps.instanceId, {
+      maxConversationDepth: this.settings.maxConversationDepth,
+      staleThresholdMs: this.settings.staleMessageThresholdMs,
+      ...this.getCapacitySnapshot(),
+    });
     this.classifierRules = rules;
     this.classifierContext = context;
   }
@@ -469,10 +470,8 @@ function todayDateKey(): string {
 /** Compute milliseconds from now until next midnight UTC. */
 function computeMsUntilMidnightUTC(): number {
   const now = new Date();
-  const tomorrow = new Date(Date.UTC(
-    now.getUTCFullYear(),
-    now.getUTCMonth(),
-    now.getUTCDate() + 1
-  ));
+  const tomorrow = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)
+  );
   return tomorrow.getTime() - now.getTime();
 }

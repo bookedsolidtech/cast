@@ -70,7 +70,7 @@ export class AvaChannelFrictionTracker {
   async autoFileFeature(pattern: FrictionPattern): Promise<void> {
     if (!this.deps.createFeature) {
       logger.warn(
-        `Friction pattern "${pattern.key}" hit threshold (${pattern.count}) but no createFeature dep available`,
+        `Friction pattern "${pattern.key}" hit threshold (${pattern.count}) but no createFeature dep available`
       );
       return;
     }
