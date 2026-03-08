@@ -81,16 +81,10 @@ export function ProtoLabsReportResults({
                 {report.summary.critical} critical
               </Badge>
             )}
-            {report.summary.recommended > 0 && (
+            {report.summary.required > 0 && (
               <Badge variant="secondary" className="gap-1 bg-yellow-500/10 text-yellow-600">
                 <Info className="size-3" />
-                {report.summary.recommended} recommended
-              </Badge>
-            )}
-            {report.summary.optional > 0 && (
-              <Badge variant="outline" className="gap-1">
-                <Info className="size-3" />
-                {report.summary.optional} optional
+                {report.summary.required} required
               </Badge>
             )}
             {report.summary.compliant > 0 && (

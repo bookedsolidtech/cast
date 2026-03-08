@@ -6,6 +6,7 @@ import { createLogger } from '@protolabsai/utils';
 import { ensureAutomakerDir, writeProtoConfig, type ProtoConfig } from '@protolabsai/platform';
 import { SettingsService } from '../../../services/settings-service.js';
 import type { RepoResearchResult } from '@protolabsai/types';
+import { generateSpecMd, researchRepo } from '../../../services/repo-research-service.js';
 
 const logger = createLogger('setup:project');
 
@@ -168,6 +169,19 @@ export function createSetupProjectHandler(
         const protoConfig = buildProtoConfig(projectName, research);
         await writeProtoConfig(realPath, protoConfig);
         filesCreated.push('proto.config.yaml');
+      }
+
+      // 3d. Generate spec.md skeleton with detected project info
+      const specMdPath = path.join(realPath, 'spec.md');
+      try {
+        await fs.access(specMdPath);
+        filesCreated.push('spec.md (already exists)');
+      } catch {
+        // File doesn't exist — generate from research (run research if not provided)
+        const researchData = research ?? (await researchRepo(realPath));
+        const specMdContent = await generateSpecMd(realPath, researchData);
+        await fs.writeFile(specMdPath, specMdContent, 'utf-8');
+        filesCreated.push('spec.md');
       }
 
       // 4. Add project to Automaker settings if not already present

@@ -78,6 +78,9 @@ export class CrdtSyncService {
   private promotionPending = false;
   private _eventBus: EventEmitter | null = null;
   private _settingsCallback: ((settings: Record<string, unknown>) => void) | null = null;
+  private _remoteFeatureCallback:
+    | ((eventType: string, payload: Record<string, unknown>) => void)
+    | null = null;
   private _capacityProvider: (() => InstanceCapacity) | null = null;
   private _compactionDiagnosticsProvider: (() => CompactionDiagnosticsSnapshot) | null = null;
   /** ISO timestamp when this instance last lost sync connectivity (network partition) */
@@ -96,6 +99,17 @@ export class CrdtSyncService {
    */
   onSettingsReceived(callback: (settings: Record<string, unknown>) => void): void {
     this._settingsCallback = callback;
+  }
+
+  /**
+   * Register a callback invoked when a remote peer sends a feature event.
+   * Used to persist remote feature changes locally (create/update/delete/status-change).
+   * Call this before `start()`.
+   */
+  onRemoteFeatureEvent(
+    callback: (eventType: string, payload: Record<string, unknown>) => void
+  ): void {
+    this._remoteFeatureCallback = callback;
   }
 
   /**
@@ -791,9 +805,19 @@ export class CrdtSyncService {
         if (msg.instanceId === this.instanceId) break;
         if (!this._eventBus) break;
 
-        logger.debug(
+        logger.info(
           `[CRDT] Received remote feature event: ${msg.eventType} from ${msg.instanceId}`
         );
+
+        // Persist the remote feature change locally before emitting.
+        if (this._remoteFeatureCallback) {
+          try {
+            this._remoteFeatureCallback(msg.eventType, msg.payload as Record<string, unknown>);
+          } catch (err) {
+            logger.error(`[CRDT] Error persisting remote feature event: ${err}`);
+          }
+        }
+
         // Use emit() NOT broadcast() to avoid re-publishing to peers.
         this._eventBus.emit(msg.eventType, msg.payload);
 

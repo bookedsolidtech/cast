@@ -706,7 +706,7 @@ export class FeatureLoader implements FeatureStore {
       this.events &&
       !options?.skipEventEmission
     ) {
-      this.events.emit('feature:status-changed', {
+      this.events.broadcast('feature:status-changed', {
         featureId,
         projectPath,
         oldStatus: feature.status,
@@ -716,6 +716,7 @@ export class FeatureLoader implements FeatureStore {
           typeof updates.statusChangeReason === 'string'
             ? updates.statusChangeReason
             : 'status updated',
+        feature: updatedFeature,
       });
     }
 

@@ -15,7 +15,7 @@ import type { Tool } from 'ai';
 import { z } from 'zod';
 import fs from 'fs/promises';
 import path from 'path';
-import type { EventEmitter } from 'events';
+import type { EventEmitter, EventType } from '../../lib/events.js';
 import type { NotesWorkspace, CanUseTool } from '@protolabsai/types';
 import {
   getNotesWorkspacePath,
@@ -374,7 +374,7 @@ export function buildAvaTools(
           priority: priority as 0 | 1 | 2 | 3 | 4 | undefined,
           status,
         });
-        services.events?.emit('feature:created', { projectPath, feature });
+        services.events?.broadcast('feature:created', { projectPath, feature });
         return feature;
       },
     });
@@ -403,7 +403,7 @@ export function buildAvaTools(
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const feature = await services.featureLoader.update(projectPath, featureId, updates as any);
-        services.events?.emit('feature:updated', { projectPath, feature });
+        services.events?.broadcast('feature:updated', { projectPath, feature });
         return feature;
       },
     });
@@ -419,7 +419,13 @@ export function buildAvaTools(
         const feature = await services.featureLoader.update(projectPath, featureId, {
           status,
         });
-        services.events?.emit('feature:moved', { projectPath, featureId, status, feature });
+        services.events?.emit('feature:status-changed' as EventType, {
+          projectPath,
+          featureId,
+          oldStatus: undefined,
+          newStatus: status,
+          feature,
+        });
         return { featureId, newStatus: feature.status };
       },
     });
@@ -433,7 +439,7 @@ export function buildAvaTools(
       execute: async ({ featureId }) => {
         const success = await services.featureLoader.delete(projectPath, featureId);
         if (success) {
-          services.events?.emit('feature:deleted', { projectPath, featureId });
+          services.events?.broadcast('feature:deleted', { projectPath, featureId });
         }
         return { success, featureId };
       },
