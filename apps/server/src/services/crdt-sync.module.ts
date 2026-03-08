@@ -24,10 +24,10 @@ export async function register(container: ServiceContainer): Promise<void> {
   // This handler runs BEFORE the event is re-emitted on the local bus, so downstream
   // subscribers (UI WebSocket, IntegrationService, etc.) see already-persisted data.
   container.crdtSyncService.onRemoteFeatureEvent((eventType, payload) => {
-    // Remap remote projectPath to local — each instance has its own filesystem path
-    // (e.g. Mac sends /Users/kj/dev/automaker, staging expects /home/josh/dev/ava)
-    const projectPath = container.repoRoot;
+    // Remap remote projectPath to local repoRoot — each instance has its own filesystem
+    // path (e.g. /Users/kj/dev/automaker on Mac vs /root/dev/automaker on staging).
     if (!payload.projectPath) return;
+    const projectPath = container.repoRoot;
 
     const featureLoader = container.featureLoader;
 
@@ -59,12 +59,19 @@ export async function register(container: ServiceContainer): Promise<void> {
           .update(projectPath, featureId, feature, undefined, undefined, undefined, {
             skipEventEmission: true,
           })
-          .catch((err) => {
-            if (String(err).includes('not found')) {
-              logger.info(`[CRDT] Feature ${featureId} not found locally, creating from remote`);
-              return featureLoader.create(projectPath, { ...feature, id: featureId });
+          .catch(async (err) => {
+            if (String(err).includes('not found') && feature) {
+              logger.info(
+                `[CRDT] Feature ${featureId} not found locally, creating from remote state`
+              );
+              await featureLoader
+                .create(projectPath, { ...feature, id: featureId })
+                .catch((createErr) => {
+                  logger.error(`[CRDT] Fallback create also failed for ${featureId}: ${createErr}`);
+                });
+            } else {
+              logger.error(`[CRDT] Failed to persist remote ${eventType} ${featureId}: ${err}`);
             }
-            logger.error(`[CRDT] Failed to persist remote ${eventType} ${featureId}: ${err}`);
           });
         break;
       }

@@ -19,6 +19,7 @@ import type {
   SyncServerStatus,
   CrdtFeatureEvent,
   CompactionDiagnosticsSnapshot,
+  AvaChatMessage,
 } from '@protolabsai/types';
 import { CRDT_SYNCED_EVENT_TYPES } from '@protolabsai/types';
 import type { EventEmitter } from '../lib/events.js';
