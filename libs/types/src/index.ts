@@ -7,11 +7,9 @@
 export type {
   AvaChannelContext,
   AvaChatMessage,
-  AvaChatRole,
   AvaChannelDocument,
   PostMessageOptions,
   GetMessagesOptions,
-  AvaChannelQueryOptions,
 } from './ava-channel.js';
 
 // Event Ledger types — append-only JSONL event persistence layer

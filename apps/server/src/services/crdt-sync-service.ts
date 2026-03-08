@@ -22,7 +22,9 @@ import type {
 } from '@protolabsai/types';
 import { CRDT_SYNCED_EVENT_TYPES } from '@protolabsai/types';
 import type { EventEmitter } from '../lib/events.js';
-import type { AvaChannelService } from './ava-channel-service.js';
+import type { CRDTStore } from '@protolabsai/crdt';
+import type { CalendarService } from './calendar-service.js';
+import type { TodoService } from './todo-service.js';
 
 const logger = createLogger('CrdtSyncService');
 
@@ -84,11 +86,20 @@ export class CrdtSyncService {
     | null = null;
   private _capacityProvider: (() => InstanceCapacity) | null = null;
   private _compactionDiagnosticsProvider: (() => CompactionDiagnosticsSnapshot) | null = null;
-  private _avaChannelService: AvaChannelService | null = null;
   /** ISO timestamp when this instance last lost sync connectivity (network partition) */
   private partitionSince: string | null = null;
   /** Event messages queued for replay while disconnected from the sync mesh */
   private outboundQueue: string[] = [];
+  /**
+   * Optional callback for posting bug reports to the Ava Channel.
+   * Invoked when a 'bug:reported' event is received on the EventBus.
+   */
+  private _avaChannelBugReportCallback:
+    | ((content: string, featureId?: string) => Promise<void>)
+    | null = null;
+  private _crdtStore: CRDTStore | null = null;
+  private _calendarService: CalendarService | null = null;
+  private _todoService: TodoService | null = null;
 
   constructor() {
     this.instanceId = os.hostname();
@@ -133,13 +144,44 @@ export class CrdtSyncService {
   }
 
   /**
-   * Register an AvaChannelService to auto-post bug reports as system messages.
-   * When a 'bug:reported' event is emitted on the EventBus, a system message
-   * is appended to today's Ava Channel shard with the bug report details.
-   * Must be called after attachEventBus() to ensure the bus is registered.
+   * Register a callback that posts bug reports to the Ava Channel as system messages.
+   * When set, any 'bug:reported' event on the attached EventBus will invoke this callback
+   * with the report content and optional featureId.
+   *
+   * Must be called before or after attachEventBus(); safe to call multiple times.
    */
-  setAvaChannelService(service: AvaChannelService): void {
-    this._avaChannelService = service;
+  attachAvaChannelBugReporter(
+    callback: (content: string, featureId?: string) => Promise<void>
+  ): void {
+    this._avaChannelBugReportCallback = callback;
+  }
+
+  /**
+   * Register a CalendarService and CRDTStore for doc:calendar sync.
+   * When set, CalendarService will route all read/write operations through
+   * the CRDT layer so events propagate to all connected peers automatically.
+   * Safe to call before or after start().
+   */
+  setCalendarService(service: CalendarService, store: CRDTStore): void {
+    this._calendarService = service;
+    this._crdtStore = store;
+    service.setCrdtStore(store);
+    logger.info('[CRDT] CalendarService wired to CRDT store — doc:calendar sync enabled');
+  }
+
+  /**
+   * Register a TodoService and CRDTStore for doc:todos sync.
+   * When set, TodoService will route all read/write operations through
+   * the CRDT layer so todo lists and items propagate to all connected peers
+   * automatically. Permission enforcement (user/ava-instance/shared tiers)
+   * remains at the service layer.
+   * Safe to call before or after start().
+   */
+  setTodoService(service: TodoService, store: CRDTStore): void {
+    this._todoService = service;
+    this._crdtStore = store;
+    service.setCrdtStore(store);
+    logger.info('[CRDT] TodoService wired to CRDT store — doc:todos sync enabled');
   }
 
   /**
@@ -185,6 +227,17 @@ export class CrdtSyncService {
   attachEventBus(bus: EventEmitter): void {
     this._eventBus = bus;
 
+    // Subscribe to 'bug:reported' events and forward to the Ava Channel as system messages.
+    // This handler uses bus.on() for a targeted subscription rather than a global listener.
+    bus.on('bug:reported', (payload) => {
+      if (!this._avaChannelBugReportCallback) return;
+      this._avaChannelBugReportCallback(payload.content, payload.featureId).catch(
+        (err: unknown) => {
+          logger.error('[CRDT] Failed to post bug report to Ava Channel:', err);
+        }
+      );
+    });
+
     bus.setRemoteBroadcaster((type, payload) => {
       if (!CRDT_SYNCED_EVENT_TYPES.has(type)) return;
       if (!this.started) return;
@@ -210,22 +263,6 @@ export class CrdtSyncService {
       } else {
         // Disconnected — queue for replay when partition heals
         this.outboundQueue.push(raw);
-      }
-    });
-
-    // Auto-post bug reports from Discord #bug-reports as system messages
-    bus.on('bug:reported', (payload) => {
-      if (!this._avaChannelService) return;
-      try {
-        this._avaChannelService.postMessage(
-          `Bug report from ${payload.reportedBy}: ${payload.content}`,
-          'system',
-          this.instanceId,
-          this.instanceId,
-          payload.featureId ? { featureId: payload.featureId } : undefined
-        );
-      } catch (err) {
-        logger.error('[CRDT] Failed to post bug report to Ava Channel:', err);
       }
     });
   }
@@ -398,6 +435,10 @@ export class CrdtSyncService {
   /**
    * Returns all known peers (including offline).
    */
+  getInstanceId(): string {
+    return this.instanceId;
+  }
+
   getPeers(): HivemindPeer[] {
     return [...this.peers.values()].map(
       ({ ws: _ws, priority: _priority, ...peer }) => peer as HivemindPeer

@@ -30,7 +30,15 @@ export interface CRDTDocumentRoot {
 /**
  * Supported domain namespaces for grouping CRDT documents.
  */
-export type DomainName = 'features' | 'projects' | 'config' | 'settings' | 'ava-channel';
+export type DomainName =
+  | 'features'
+  | 'projects'
+  | 'config'
+  | 'settings'
+  | 'capacity'
+  | 'ava-channel'
+  | 'calendar'
+  | 'todos';
 
 /**
  * Configuration for a WebSocket sync peer (typically a Tailscale peer).
