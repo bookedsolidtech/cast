@@ -166,8 +166,7 @@ describe('validation-storage.ts', () => {
     });
 
     it('should return true for validation older than 24 hours', () => {
-      const oldDate = new Date();
-      oldDate.setHours(oldDate.getHours() - 25); // 25 hours ago
+      const oldDate = new Date(Date.now() - 25 * 60 * 60 * 1000); // 25 hours ago
 
       const validation = createMockValidation({
         validatedAt: oldDate.toISOString(),
@@ -267,8 +266,7 @@ describe('validation-storage.ts', () => {
     });
 
     it('should not count stale validations', async () => {
-      const oldDate = new Date();
-      oldDate.setHours(oldDate.getHours() - 25);
+      const oldDate = new Date(Date.now() - 25 * 60 * 60 * 1000);
 
       const validation1 = createMockValidation({ issueNumber: 1 });
       const validation2 = createMockValidation({
