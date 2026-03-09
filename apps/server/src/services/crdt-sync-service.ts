@@ -15,6 +15,7 @@ import type {
   HivemindPeer,
   HivemindConfig,
   InstanceCapacity,
+  InstanceRole,
   SyncRole,
   SyncServerStatus,
   CrdtFeatureEvent,
@@ -34,6 +35,12 @@ const TTL_CHECK_INTERVAL_MS = 10_000;
 interface PeerMessage {
   type: 'heartbeat' | 'goodbye' | 'identity' | 'promote';
   instanceId: string;
+  /** Human-readable display name from proto.config.yaml instance.name */
+  name?: string;
+  /** Primary work focus role from proto.config.yaml instance.role */
+  role?: InstanceRole;
+  /** Additional capability tags from proto.config.yaml instance.tags */
+  tags?: string[];
   url?: string;
   timestamp: string;
   priority?: number;
@@ -83,6 +90,12 @@ export class CrdtSyncService {
   private reconnectTimer: ReturnType<typeof setInterval> | null = null;
   private started = false;
   private instanceId: string;
+  /** Human-readable display name from proto.config.yaml instance.name */
+  private instanceName: string | undefined;
+  /** Primary work focus role from proto.config.yaml instance.role */
+  private instanceRole: InstanceRole | undefined;
+  /** Additional capability tags from proto.config.yaml instance.tags */
+  private instanceTags: string[] | undefined;
   private instanceUrl: string | null = null;
   /** Project name from proto.config.yaml — used to scope CRDT sync to same-project peers */
   private projectName: string | null = null;
@@ -297,6 +310,14 @@ export class CrdtSyncService {
     const protolab = protoConfig?.['protolab'] as
       | { role?: string; syncPort?: number; instanceId?: string; instanceUrl?: string }
       | undefined;
+
+    // Load instance profile (name, role, tags) from proto.config.yaml
+    const instanceProfile = protoConfig?.['instance'] as
+      | { name?: string; role?: string; tags?: string[] }
+      | undefined;
+    if (instanceProfile?.name) this.instanceName = instanceProfile.name;
+    if (instanceProfile?.role) this.instanceRole = instanceProfile.role as InstanceRole;
+    if (instanceProfile?.tags) this.instanceTags = instanceProfile.tags;
 
     this.role = (protolab?.role as SyncRole | undefined) ?? 'worker';
     this.syncPort = protolab?.syncPort ?? DEFAULT_SYNC_PORT;
@@ -768,6 +789,16 @@ export class CrdtSyncService {
     }
   }
 
+  /** Build common peer message fields (instanceId, name, role, tags) */
+  private _peerFields(): Pick<PeerMessage, 'instanceId' | 'name' | 'role' | 'tags'> {
+    return {
+      instanceId: this.instanceId,
+      name: this.instanceName,
+      role: this.instanceRole,
+      tags: this.instanceTags,
+    };
+  }
+
   // ─── Private: Heartbeat ───────────────────────────────────────────────────
 
   private _startHeartbeat(): void {
@@ -775,7 +806,7 @@ export class CrdtSyncService {
     this.heartbeatTimer = setInterval(() => {
       const beat: SyncMessage = {
         type: 'heartbeat',
-        instanceId: this.instanceId,
+        ...this._peerFields(),
         url: this.instanceUrl ?? undefined,
         timestamp: new Date().toISOString(),
         capacity: this._capacityProvider ? this._capacityProvider() : undefined,
@@ -974,10 +1005,16 @@ export class CrdtSyncService {
       existing.identity.status = 'online';
       if (msg.url) existing.identity.url = msg.url;
       if (msg.capacity) existing.identity.capacity = msg.capacity;
+      if (msg.name) existing.identity.name = msg.name;
+      if (msg.role) existing.identity.role = msg.role;
+      if (msg.tags) existing.identity.tags = msg.tags;
     } else {
       this.peers.set(msg.instanceId, {
         identity: {
           instanceId: msg.instanceId,
+          name: msg.name,
+          role: msg.role,
+          tags: msg.tags,
           url: msg.url,
           capacity: msg.capacity ?? {
             cores: 0,

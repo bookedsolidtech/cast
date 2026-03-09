@@ -541,7 +541,7 @@ export interface EventPayloadMap {
     newTitle?: string;
     previousDescription?: string;
     newDescription?: string;
-    /** Full feature object — included when emitted by AutomergeFeatureStore after a CRDT write */
+    /** Full feature object — included when emitted by FeatureLoader after a write */
     feature?: unknown;
   };
 

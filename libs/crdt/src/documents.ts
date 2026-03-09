@@ -10,54 +10,6 @@ import type { CRDTDocumentRoot, SchemaNormalizer } from './types.js';
 import type { CalendarEvent, TodoList } from '@protolabsai/types';
 
 // ---------------------------------------------------------------------------
-// Feature domain
-// ---------------------------------------------------------------------------
-
-export interface FeatureDocument extends CRDTDocumentRoot {
-  schemaVersion: 1;
-  id: string;
-  title: string;
-  description: string;
-  status: string;
-  complexity?: string;
-  createdAt: string;
-}
-
-export const normalizeFeatureDocument: SchemaNormalizer<FeatureDocument> = (raw) => {
-  const doc = raw as Partial<FeatureDocument>;
-
-  let schemaVersion = doc.schemaVersion ?? 1;
-  if (typeof schemaVersion !== 'number' || schemaVersion < 1) {
-    schemaVersion = 1;
-  }
-
-  const _meta = doc._meta ?? {
-    instanceId: 'unknown',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-
-  let status = doc.status ?? 'backlog';
-  // Normalize legacy statuses (same pattern as FeatureLoader)
-  if (status === 'pending' || status === 'ready') status = 'backlog';
-  if (status === 'running') status = 'in_progress';
-  if (status === 'completed' || status === 'verified' || status === 'waiting_approval')
-    status = 'done';
-  if (status === 'failed') status = 'blocked';
-
-  return {
-    schemaVersion: 1,
-    _meta,
-    id: doc.id ?? '',
-    title: doc.title ?? '',
-    description: doc.description ?? '',
-    status,
-    complexity: doc.complexity,
-    createdAt: doc.createdAt ?? _meta.createdAt,
-  };
-};
-
-// ---------------------------------------------------------------------------
 // Project domain
 // ---------------------------------------------------------------------------
 
@@ -101,35 +53,6 @@ export const normalizeProjectDocument: SchemaNormalizer<ProjectDocument> = (raw)
     prd: doc.prd ?? '',
     milestoneCount: doc.milestoneCount ?? 0,
     createdAt: doc.createdAt ?? _meta.createdAt,
-  };
-};
-
-// ---------------------------------------------------------------------------
-// Config domain
-// ---------------------------------------------------------------------------
-
-export interface ConfigDocument extends CRDTDocumentRoot {
-  schemaVersion: 1;
-  key: string;
-  value: unknown;
-  updatedAt: string;
-}
-
-export const normalizeConfigDocument: SchemaNormalizer<ConfigDocument> = (raw) => {
-  const doc = raw as Partial<ConfigDocument>;
-
-  const _meta = doc._meta ?? {
-    instanceId: 'unknown',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-
-  return {
-    schemaVersion: 1,
-    _meta,
-    key: doc.key ?? '',
-    value: doc.value ?? null,
-    updatedAt: doc.updatedAt ?? _meta.updatedAt,
   };
 };
 
@@ -418,9 +341,7 @@ export const normalizeMetricsDocument: SchemaNormalizer<MetricsDocument> = (raw)
 // ---------------------------------------------------------------------------
 
 type AnyDocument =
-  | FeatureDocument
   | ProjectDocument
-  | ConfigDocument
   | SharedSettingsDocument
   | CapacityDocument
   | AvaChannelDocument
@@ -429,9 +350,7 @@ type AnyDocument =
   | MetricsDocument;
 
 const NORMALIZERS: Record<string, SchemaNormalizer<AnyDocument>> = {
-  features: normalizeFeatureDocument as SchemaNormalizer<AnyDocument>,
   projects: normalizeProjectDocument as SchemaNormalizer<AnyDocument>,
-  config: normalizeConfigDocument as SchemaNormalizer<AnyDocument>,
   settings: normalizeSharedSettingsDocument as SchemaNormalizer<AnyDocument>,
   capacity: normalizeCapacityDocument as SchemaNormalizer<AnyDocument>,
   'ava-channel': normalizeAvaChannelDocument as SchemaNormalizer<AnyDocument>,

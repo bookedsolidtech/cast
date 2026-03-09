@@ -1,6 +1,6 @@
 # Distributed Sync
 
-How protoLabs synchronizes state across multiple instances using Automerge CRDTs, partition detection, reconnection resilience, and fleet-wide feature scheduling.
+How protoLabs synchronizes state across multiple instances using Automerge CRDTs, partition detection, reconnection resilience, and pull-based work intake.
 
 ## Architecture Overview
 
@@ -11,7 +11,7 @@ protoLabs uses a two-layer WebSocket sync mesh when hivemind mode is enabled:
 | **Sync mesh**        | `CrdtSyncService`               | `:4444` (default)    | Peer heartbeat, leader election, event broadcast |
 | **CRDT binary sync** | `CRDTStore` (crdt-store.module) | `:4445` (syncPort+1) | Automerge binary protocol for document state     |
 
-One instance acts as **primary** and others connect as **workers**. All instances exchange CRDT changes (feature events, project events, settings) in real time.
+One instance acts as **primary** and others connect as **workers**. Instances exchange CRDT changes for **projects and coordination data** in real time. Features are always instance-local — they never cross the wire.
 
 ```
 Worker A ──────┐
@@ -21,7 +21,7 @@ Worker B ────▶ Primary (:4444 CrdtSyncService / :4445 CRDTStore)
 Worker C ──────┘
 ```
 
-Fleet coordination (work assignment, capacity advertising, escalations, scheduling) is layered on top via the Ava Channel — a daily-sharded CRDT document that all instances write to and the `AvaChannelReactorService` subscribes to.
+Fleet coordination (capacity advertising, escalations, scheduling) is layered on top via the Ava Channel — a daily-sharded CRDT document that all instances write to and the `AvaChannelReactorService` subscribes to. Work distribution uses a **pull-based intake model**: instances claim phases from shared project documents rather than pushing features to each other.
 
 ### Layered Services
 
@@ -69,7 +69,7 @@ hivemind:
 - `CalendarService` — shared calendar events synced under `doc:calendar/shared`
 - `TodoService` — shared todo workspace synced under `doc:todos/workspace`
 
-Features and projects do **not** use the CRDT store directly; they rely on EventBus-based sync handled by `crdt-sync.module.ts`.
+Projects use EventBus-based sync handled by `crdt-sync.module.ts` (project events only). Features are instance-local and are **not** synced via CRDT — they are created locally from claimed project phases.
 
 ## Registry Sync (Split-Brain Prevention)
 
@@ -342,18 +342,50 @@ interface AvaChannelContext {
 
 The reactor classifies incoming messages via a rule chain of `MessageClassifierRule` patterns and dispatches appropriate responses. Loop prevention is enforced at three layers: (1) classifier chain (`shouldRespond` result), (2) per-thread cooldown timer, and (3) a busy gate that queues one pending message while a response is in-flight.
 
-**Protocol message filtering**: Messages with `source='system'` that start with a `[bracket_prefix]` (e.g. `[capacity_heartbeat]`, `[work_request]`, `[schedule_assignment]`, `[dora_report]`) are intercepted by `handleWorkStealProtocol()` before reaching the classifier chain. These machine-to-machine protocol messages are dispatched directly to their typed handlers and never generate a classifier response.
+**Protocol message filtering**: Messages with `source='system'` that start with a `[bracket_prefix]` (e.g. `[capacity_heartbeat]`, `[schedule_assignment]`, `[dora_report]`) are intercepted before reaching the classifier chain. These machine-to-machine protocol messages are dispatched directly to their typed handlers and never generate a classifier response.
 
-### Work-Stealing Protocol
+### Work Intake Protocol
 
-When a fleet instance finishes its assigned features and has spare capacity, it advertises itself and requests more work:
+Work distribution uses a **pull-based intake model** via `WorkIntakeService`. Each instance independently claims phases from shared project documents — no centralized coordinator pushes work.
 
-1. Every 60s, each reactor broadcasts a `CapacityHeartbeat` with its current load.
-2. An idle instance posts a `WorkRequest` (requesting up to 2 features).
-3. The primary (or any instance with spare inventory) responds with a `WorkOffer`.
-4. The requesting instance accepts the offer and begins work.
+**How it works:**
 
-This allows the fleet to self-balance without any centralized coordinator — any instance can fulfill a `WorkRequest`. Epics are excluded from work-stealing; only leaf features are eligible.
+1. `WorkIntakeService` runs on a configurable tick (default 30s) when auto-mode is active.
+2. Each tick, the service reads shared project docs (local Automerge replica) and finds claimable phases using pure functions from `@protolabsai/utils`.
+3. Phases are claimable when: unclaimed, dependencies satisfied, and role/tag affinity matches.
+4. The instance writes `claimedBy=myInstanceId` to the shared project doc via Automerge.
+5. After a 200ms settle delay, it verifies the claim survived Automerge merge (LWW resolution).
+6. If the claim is held, the phase is materialized as a **local feature** on the instance's board.
+7. On completion, the shared phase is updated: `executionStatus='done'`, `prUrl=...`.
+
+**Features never cross the wire.** Phases are the coordination unit. Each instance creates local features from claimed phases and executes them independently.
+
+**Pure functions** (in `libs/utils/src/work-intake.ts`):
+
+| Function                                                    | Purpose                                               |
+| ----------------------------------------------------------- | ----------------------------------------------------- |
+| `getClaimablePhases(project, instanceId, role, tags)`       | Filter phases this instance can claim                 |
+| `roleMatchesPhase(role, tags, phase)`                       | Check role/tag affinity against `phase.filesToModify` |
+| `holdsClaim(phase, instanceId)`                             | Verify claim survived Automerge merge                 |
+| `materializeFeature(project, milestone, phase, instanceId)` | Convert phase to local Feature data                   |
+| `phaseDepsAreSatisfied(phase, milestone, project)`          | Check all phase deps are `done`                       |
+| `isReclaimable(phase, peerStatus, claimTimeoutMs)`          | Check if stale claim can be reclaimed                 |
+| `phasePriority(project, milestone, phase)`                  | Scoring for claim sort order                          |
+
+**Stale claim recovery:** If an instance crashes mid-work, the phase stays claimed. Other instances check the claiming instance's heartbeat status. If offline for longer than `claimTimeoutMs` (default 30min), the phase becomes reclaimable — `claimedBy` is cleared and `executionStatus` reset to `unclaimed`.
+
+**Instance roles** influence work routing but don't hard-block assignments:
+
+| Role        | Primary Focus            |
+| ----------- | ------------------------ |
+| `fullstack` | Takes any work (default) |
+| `frontend`  | Prefers UI/client paths  |
+| `backend`   | Prefers server/API paths |
+| `infra`     | CI/CD, deployment, ops   |
+| `docs`      | Documentation, content   |
+| `qa`        | Testing, validation      |
+
+Roles are configured in `proto.config.yaml` under `instance.role`. A `frontend` instance picks up backend work if no backend-focused instance is available.
 
 ### Escalation Protocol (Blocked Feature Handoff)
 
@@ -379,7 +411,7 @@ interface HealthAlert {
 }
 ```
 
-Peers that receive a `HealthAlert` pause work-stealing from the degraded instance for 5 minutes.
+Peers that receive a `HealthAlert` avoid claiming work from the degraded instance for 5 minutes.
 
 ### Self-Healing Subscription
 
@@ -495,12 +527,10 @@ Messages are posted as free-form strings with a `[type]` prefix so the reactor c
 | `[schedule_conflict]`   | `ScheduleConflict`   | Conflict broadcast: two instances claimed the same feature |
 | `[project_progress]`    | `ProjectProgress`    | Phase status update (`in_progress` / `done` / `failed`)    |
 | `[capacity_heartbeat]`  | `CapacityHeartbeat`  | Per-instance CPU/memory/agent capacity broadcast (60 s)    |
-| `[work_request]`        | `WorkRequest`        | Idle instance requests features from a peer with backlog   |
-| `[work_offer]`          | `WorkOffer`          | Peer offers features in response to a work_request         |
-| `[escalation_request]`  | `EscalationRequest`  | Feature blocked (failCount ≥ 2) — requesting new owner     |
+| `[escalation_request]`  | `EscalationRequest`  | Feature blocked (failCount >= 2) — requesting new owner    |
 | `[escalation_offer]`    | `EscalationOffer`    | Peer offers to take ownership of escalated feature         |
 | `[escalation_accept]`   | `EscalationAccept`   | Originator accepts offer; delegates ownership              |
-| `[health_alert]`        | `HealthAlert`        | Memory/CPU threshold exceeded — peers pause work-stealing  |
+| `[health_alert]`        | `HealthAlert`        | Memory/CPU threshold exceeded — peers pause work intake    |
 | `[dora_report]`         | `DoraReport`         | Hourly DORA metrics broadcast                              |
 | `[pattern_resolved]`    | `PatternResolved`    | System Improvement done — peers clear friction counters    |
 
@@ -610,7 +640,7 @@ On subscription failure the reactor implements exponential backoff:
 
 The reactor delegates fleet-level operations to `FleetSchedulerService`:
 
-- Work-steal requests → `WorkRequest` / `WorkOffer` protocol
+- Work intake → phase claiming via shared project documents
 - Escalation → `EscalationRequest` / `EscalationAccept` protocol
 - Project progress → `ProjectProgress` broadcast
 

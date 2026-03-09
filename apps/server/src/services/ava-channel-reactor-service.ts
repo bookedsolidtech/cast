@@ -477,11 +477,18 @@ export class AvaChannelReactorService {
           );
           return this.deps.reactiveSpawnerService!.spawnForMessage(message);
         })
-        .then(() => {
-          logger.info(
-            `dispatchResponse: spawned session for request message ${message.id} ` +
-              `(depth=${conversationDepth})`
-          );
+        .then((result) => {
+          if (result && (result as { spawned?: boolean }).spawned) {
+            logger.info(
+              `[dispatchResponse] Successfully spawned session for message ${message.id} ` +
+                `(type=${classification.type}, depth=${conversationDepth})`
+            );
+          } else {
+            const skippedReason = result && (result as { skippedReason?: string }).skippedReason;
+            logger.debug(
+              `[dispatchResponse] Spawn skipped for message ${message.id}: reason=${skippedReason ?? 'unknown'}`
+            );
+          }
           this.responsesSent++;
           this.setCooldown(message.inReplyTo ?? message.id);
         })

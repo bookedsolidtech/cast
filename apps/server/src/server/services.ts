@@ -8,7 +8,6 @@ import { createEventEmitter, type EventEmitter } from '../lib/events.js';
 
 import { AgentService } from '../services/agent-service.js';
 import { FeatureLoader } from '../services/feature-loader.js';
-import { AutomergeFeatureStore } from '../services/automerge-feature-store.js';
 import { UserIdentityService } from '../services/user-identity-service.js';
 import { AutoModeService } from '../services/auto-mode-service.js';
 import { getTerminalService } from '../services/terminal-service.js';
@@ -109,7 +108,6 @@ import * as projectPmModule from '../services/project-pm.module.js';
 import { CrdtSyncService } from '../services/crdt-sync-service.js';
 import { AvaChannelService } from '../services/ava-channel-service.js';
 import { TodoService } from '../services/todo-service.js';
-import type { WorkStealingService } from '../services/work-stealing-service.js';
 import type { AvaChannelReactorService } from '../services/ava-channel-reactor-service.js';
 import type { FleetSchedulerService } from '../services/fleet-scheduler-service.js';
 
@@ -269,9 +267,6 @@ export interface ServiceContainer {
   // Ava Channel (private multi-instance Ava communication)
   avaChannelService: AvaChannelService;
 
-  // Work-stealing (cross-instance feature redistribution)
-  workStealingService?: WorkStealingService;
-
   // Todo workspace (per-project todo lists synced via CRDT)
   todoService: TodoService;
 
@@ -316,9 +311,9 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
   // Wire settingsService into the contentFlowService singleton for model resolution
   contentFlowService.setSettingsService(settingsService);
   const userIdentityService = new UserIdentityService(settingsService);
-  // AutomergeFeatureStore extends FeatureLoader: uses CRDT when proto.config.yaml is present,
-  // falls back to plain filesystem reads/writes when it is absent (single-instance mode).
-  const featureLoader = new AutomergeFeatureStore(events);
+  // Features are local to each instance — no CRDT sync.
+  const featureLoader = new FeatureLoader();
+  featureLoader.setEventEmitter(events);
 
   // Trust Tier Service for quarantine pipeline
   const trustTierService = new TrustTierService(dataDir);

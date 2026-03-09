@@ -85,6 +85,12 @@ export interface HivemindDomain {
 export interface InstanceIdentity {
   /** Unique instance identifier (defaults to os.hostname()) */
   instanceId: string;
+  /** Human-readable display name (from proto.config.yaml instance.name) */
+  name?: string;
+  /** Primary work focus role (from proto.config.yaml instance.role) */
+  role?: import('./proto-config.js').InstanceRole;
+  /** Additional capability tags (from proto.config.yaml instance.tags) */
+  tags?: string[];
   /** URL where this instance's API is reachable */
   url?: string;
   /** Current capacity metrics */

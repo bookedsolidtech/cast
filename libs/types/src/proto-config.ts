@@ -93,31 +93,53 @@ export const ProtoDefaultsSchema = z.object({
 export type ProtoDefaults = z.infer<typeof ProtoDefaultsSchema>;
 
 // ---------------------------------------------------------------------------
-// Work stealing — cross-instance feature assignment
+// Instance role — primary work focus for work routing
 // ---------------------------------------------------------------------------
 
-export const ProtoWorkStealingSchema = z.object({
-  /**
-   * Work stealing assignment strategy.
-   *
-   * - capacity: Steal from the busiest instance (most running agents relative to capacity).
-   * - domain: Only offer features to instances whose registered domains cover filesToModify.
-   * - manual: Disable automatic stealing; features must be explicitly assigned via API.
-   */
-  strategy: z.enum(['capacity', 'domain', 'manual']).default('capacity'),
-  /**
-   * Maximum number of features this instance may steal per cycle (per idle trigger).
-   * Prevents a single idle instance from draining all work from busy peers at once.
-   */
-  stealMax: z.number().int().min(1).default(3),
-  /**
-   * TTL in milliseconds for pending WORK_REQUEST and WORK_OFFER records in the
-   * assignments document. Records older than this are ignored on reconnect.
-   */
-  offerTtlMs: z.number().int().min(1000).default(60_000),
+/**
+ * Role influences work routing but doesn't hard-block.
+ * A frontend instance picks up backend work if nothing else is available.
+ */
+export type InstanceRole = 'fullstack' | 'frontend' | 'backend' | 'infra' | 'docs' | 'qa';
+
+export const InstanceRoleSchema = z.enum([
+  'fullstack',
+  'frontend',
+  'backend',
+  'infra',
+  'docs',
+  'qa',
+]);
+
+// ---------------------------------------------------------------------------
+// Instance profile — identity and role for mesh coordination
+// ---------------------------------------------------------------------------
+
+export const ProtoInstanceProfileSchema = z.object({
+  /** Human-readable display name for this instance */
+  name: z.string().optional(),
+  /** Primary work focus (default: fullstack) */
+  role: InstanceRoleSchema.default('fullstack'),
+  /** Additional capabilities beyond the primary role */
+  tags: z.array(z.string()).optional(),
 });
 
-export type ProtoWorkStealing = z.infer<typeof ProtoWorkStealingSchema>;
+export type ProtoInstanceProfile = z.infer<typeof ProtoInstanceProfileSchema>;
+
+// ---------------------------------------------------------------------------
+// Work intake — pull-based phase claiming from shared projects
+// ---------------------------------------------------------------------------
+
+export const ProtoWorkIntakeSchema = z.object({
+  /** Whether work intake is enabled (default: true when mesh is active) */
+  enabled: z.boolean().default(true),
+  /** Tick interval in ms for checking claimable phases (default: 30000) */
+  tickIntervalMs: z.number().int().min(5000).default(30_000),
+  /** Timeout in ms before a stale claim becomes reclaimable (default: 1800000 = 30min) */
+  claimTimeoutMs: z.number().int().min(60_000).default(1_800_000),
+});
+
+export type ProtoWorkIntake = z.infer<typeof ProtoWorkIntakeSchema>;
 
 // ---------------------------------------------------------------------------
 // Hive identity — multi-instance mesh coordination
@@ -220,8 +242,10 @@ export const ProtoConfigSchema = z.object({
   instances: z.array(ProtoInstanceSchema).optional(),
   /** Work assignment strategy across instances */
   assignment: ProtoAssignmentSchema.optional(),
-  /** Cross-instance work stealing configuration */
-  workStealing: ProtoWorkStealingSchema.optional(),
+  /** Instance identity and role for mesh coordination */
+  instance: ProtoInstanceProfileSchema.optional(),
+  /** Pull-based work intake configuration */
+  workIntake: ProtoWorkIntakeSchema.optional(),
   /**
    * Shared settings defaults — lowest-priority layer in config resolution.
    * These values are overridden by shared CRDT settings and local overrides.

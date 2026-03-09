@@ -8,7 +8,7 @@ The `AvaChannelReactorService` subscribes to the CRDT-backed Ava Channel and aut
 
 - **Message classification** — rule-based chain determines whether a message warrants a response
 - **Loop prevention** — three independent layers prevent infinite message cycles
-- **Fleet coordination** — work-stealing, capacity heartbeats, and escalation protocol
+- **Fleet coordination** — capacity heartbeats, work intake, and escalation protocol
 - **Health monitoring** — pauses work acquisition from degraded peers
 - **DORA reporting** — hourly broadcast of local DORA metrics to the mesh
 - **Friction tracking** — receives and de-duplicates recurring failure pattern reports
@@ -23,7 +23,7 @@ CRDT shard change (new message arrives)
     --> Layer 2: Per-thread cooldown (30s default, prevents rapid replies)
     --> Layer 3: Busy gate (one response at a time, pending queue)
     --> Specialized handler dispatch:
-          work_request / work_offer   --> WorkStealingHandler
+          phase claims                --> WorkIntakeService (pull-based)
           capacity_heartbeat          --> PeerCapacityTracker
           escalation_*                --> EscalationCoordinator
           health_alert                --> HealthAlertHandler
@@ -77,29 +77,15 @@ interface CapacityHeartbeat {
 }
 ```
 
-Peer instances receive these and update their local `peerCapacities` map. The capacity map drives work-stealing and health alert decisions.
+Peer instances receive these and update their local `peerCapacities` map. The capacity map drives health alert decisions.
 
-**Note:** `[capacity_heartbeat]` messages have `source: 'system'` and are intercepted by `handleWorkStealProtocol()` before the classifier chain runs — they never trigger a classifier response.
+**Note:** `[capacity_heartbeat]` messages have `source: 'system'` and are intercepted before the classifier chain runs — they never trigger a classifier response.
 
-### Work-Stealing
+### Work Intake
 
-When a peer broadcasts a `work_request` and this instance has capacity:
+Work distribution uses a **pull-based intake model** via `WorkIntakeService`. Each instance independently claims phases from shared project documents. Features never cross the wire — instances create local features from claimed phases.
 
-```
-work_request (from peer with backlogSize > 0, runningAgents < maxAgents)
-  --> Has local capacity? (running < max, not degraded)
-  --> Acquire up to MAX_STEAL_PER_CYCLE (2) features from FleetSchedulerService
-  --> Send work_offer with featureIds[]
-  --> Peer accepts → FleetSchedulerService.assignFeatures(featureIds, peerId)
-```
-
-The reactor sends its own `work_request` when local backlog is low and peers have available capacity.
-
-**Limits:**
-
-| Constant              | Default | Description                              |
-| --------------------- | ------- | ---------------------------------------- |
-| `MAX_STEAL_PER_CYCLE` | `2`     | Maximum features acquired per work-steal |
+The `WorkIntakeService` runs on a configurable tick (default 30s) when auto-mode is active. See [distributed-sync.md](../dev/distributed-sync.md#work-intake-protocol) for the full protocol, pure functions, and instance role descriptions.
 
 ### Escalation Protocol
 
@@ -134,7 +120,7 @@ interface HealthAlert {
 | Memory   | > 85%     |
 | CPU      | > 90%     |
 
-While a peer is marked degraded (has sent a recent `health_alert`), work-stealing from that peer is paused for 5 minutes. There is a single threshold level (no warning/critical distinction).
+While a peer is marked degraded (has sent a recent `health_alert`), work intake from that peer is paused for 5 minutes. There is a single threshold level (no warning/critical distinction).
 
 ### DORA Reports
 

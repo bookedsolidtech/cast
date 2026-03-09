@@ -117,6 +117,23 @@ export interface Phase {
 
   /** Feature ID after scaffolding (links phase to created feature) */
   featureId?: string;
+
+  // --- Phase claim fields (mesh coordination) ---
+
+  /** Instance ID that owns execution of this phase */
+  claimedBy?: string;
+
+  /** ISO timestamp when the phase was claimed */
+  claimedAt?: string;
+
+  /** Execution status for mesh coordination */
+  executionStatus?: 'unclaimed' | 'claimed' | 'in_progress' | 'done' | 'failed';
+
+  /** PR URL created by the executing instance */
+  prUrl?: string;
+
+  /** Error message if execution failed */
+  lastError?: string;
 }
 
 /**
