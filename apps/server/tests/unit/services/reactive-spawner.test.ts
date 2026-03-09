@@ -170,7 +170,7 @@ describe('AvaChannelReactorService — reactiveSpawnerService wiring', () => {
       (msg) => msg.includes('dispatchResponse') && msg.includes(message.id)
     );
     expect(spawnLog).toBeDefined();
-    expect(spawnLog).toContain('spawned session for request message');
+    expect(spawnLog).toContain('Successfully spawned session for message');
   });
 
   it('falls back to text-only response when reactiveSpawnerService is not provided', async () => {
