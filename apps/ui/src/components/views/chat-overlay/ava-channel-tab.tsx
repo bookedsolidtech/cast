@@ -10,6 +10,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, ChevronDown, ChevronUp, Send, RefreshCw } from 'lucide-react';
 import { Button } from '@protolabsai/ui/atoms';
+import { ChatMessageMarkdown } from '@protolabsai/ui/ai';
 import { cn } from '@/lib/utils';
 import { useAvaChannelStore, useAvaChannelLiveUpdates } from '@/store/ava-channel-store';
 import type { AvaChatMessage } from '@protolabsai/types';
@@ -119,9 +120,10 @@ function ChannelMessage({ message, isProtocol }: { message: AvaChatMessage; isPr
           {formatRelativeTime(message.timestamp)}
         </span>
       </div>
-      <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-        {message.content}
-      </p>
+      <ChatMessageMarkdown
+        content={message.content}
+        className="text-sm text-foreground leading-relaxed"
+      />
     </div>
   );
 }
