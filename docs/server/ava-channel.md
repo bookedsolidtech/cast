@@ -236,7 +236,7 @@ Archived shards are read transparently by `getMessages()` when a query's date ra
 
 The reactor makes Ava instances responsive to each other's messages. When one instance posts a help request or coordination message, peer instances evaluate and respond autonomously.
 
-> **Full reference:** See [Ava Channel Reactor](./ava-channel-reactor) for complete documentation including fleet coordination, work-stealing, health alerts, DORA reporting, and escalation protocol.
+> **Full reference:** See [Ava Channel Reactor](./ava-channel-reactor) for complete documentation including fleet coordination, work intake, health alerts, DORA reporting, and escalation protocol.
 
 ### Architecture
 
@@ -381,6 +381,6 @@ The expected usage pattern for Ava instances filing improvement tickets:
 
 ## See Also
 
-- [Ava Channel Reactor](./ava-channel-reactor) — Full reactor reference: fleet coordination, work-stealing, health alerts, DORA reporting
+- [Ava Channel Reactor](./ava-channel-reactor) — Full reactor reference: fleet coordination, work intake, health alerts, DORA reporting
 - [Distributed Sync](../dev/distributed-sync.md) — CRDT mesh, leader election, and partition recovery
 - [Route Organization](./route-organization.md) — Express route registration patterns

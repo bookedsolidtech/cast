@@ -1,11 +1,19 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "stream",
+  "remoteCache": {
+    "enabled": true,
+    "signature": true
+  },
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["src/**", "tsconfig.json", "tsup.config.*", "package.json"],
       "outputs": ["dist/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build"],
+      "inputs": ["src/**", "tsconfig*.json"]
     },
     "lint": {
       "dependsOn": ["^build"],

@@ -92,10 +92,10 @@ The fresh-state model is foundational for **hivemind** — protoLabs's multi-ins
 
 ### Why Fresh State Enables This
 
-1. **No state conflicts** — each instance has its own board, its own task queue. No distributed consensus needed for operational state.
-2. **Domain isolation** — Instance A works on frontend features, Instance B on backend. Features route by domain, not by a shared pool.
+1. **No state conflicts** — each instance has its own board, its own task queue. No distributed consensus needed for feature state.
+2. **Role-based routing** — Instance A (role: `frontend`) prefers UI work, Instance B (role: `backend`) prefers API work. Instances pull phases matching their role from shared project documents.
 3. **Independent scaling** — spin up a new VM, run setupLab, it joins the mesh. No migration of state from another instance.
-4. **Crash resilience** — if Instance B dies, its operational state dies with it. The work (code, PRs) lives in git. Another instance can pick up where it left off by creating new features from the same project plan.
+4. **Crash resilience** — if Instance B dies, its operational state dies with it. The work (code, PRs) lives in git. Stale phase claims are automatically reclaimed by other instances after timeout (default 30min).
 
 ### Hivemind Phases
 

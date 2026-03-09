@@ -18,7 +18,7 @@ import os from 'node:os';
 import { WebSocketServer } from 'ws';
 import { WebSocketServerAdapter } from '@automerge/automerge-repo-network-websocket';
 import { CRDTStore } from '../crdt-store.js';
-import type { FeatureDocument } from '../documents.js';
+import type { ProjectDocument } from '../documents.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -73,11 +73,13 @@ describe('CRDTStore — single node', () => {
   });
 
   it('creates a document with schemaVersion=1 and _meta', async () => {
-    const handle = await store.getOrCreate<FeatureDocument>('features', 'feat-1', {
-      id: 'feat-1',
+    const handle = await store.getOrCreate<ProjectDocument>('projects', 'proj-1', {
+      id: 'proj-1',
       title: 'Hello',
-      description: '',
-      status: 'backlog',
+      goal: 'Test goal',
+      status: 'active',
+      prd: '',
+      milestoneCount: 0,
       createdAt: new Date().toISOString(),
     });
 
@@ -89,19 +91,21 @@ describe('CRDTStore — single node', () => {
   });
 
   it('change() mutates the document and updates attribution', async () => {
-    await store.getOrCreate<FeatureDocument>('features', 'feat-2', {
-      id: 'feat-2',
+    await store.getOrCreate<ProjectDocument>('projects', 'proj-2', {
+      id: 'proj-2',
       title: 'Original',
-      description: '',
-      status: 'backlog',
+      goal: '',
+      status: 'active',
+      prd: '',
+      milestoneCount: 0,
       createdAt: new Date().toISOString(),
     });
 
-    await store.change<FeatureDocument>('features', 'feat-2', (doc) => {
+    await store.change<ProjectDocument>('projects', 'proj-2', (doc) => {
       doc.title = 'Updated';
     });
 
-    const handle = await store.getOrCreate<FeatureDocument>('features', 'feat-2');
+    const handle = await store.getOrCreate<ProjectDocument>('projects', 'proj-2');
     const doc = handle.doc()!;
 
     expect(doc.title).toBe('Updated');
@@ -110,23 +114,25 @@ describe('CRDTStore — single node', () => {
   });
 
   it('subscribe() fires callback on change', async () => {
-    await store.getOrCreate<FeatureDocument>('features', 'feat-sub', {
-      id: 'feat-sub',
+    await store.getOrCreate<ProjectDocument>('projects', 'proj-sub', {
+      id: 'proj-sub',
       title: 'Watch',
-      description: '',
-      status: 'backlog',
+      goal: '',
+      status: 'active',
+      prd: '',
+      milestoneCount: 0,
       createdAt: new Date().toISOString(),
     });
 
     const received: string[] = [];
-    const unsub = store.subscribe<FeatureDocument>('features', 'feat-sub', (doc) => {
+    const unsub = store.subscribe<ProjectDocument>('projects', 'proj-sub', (doc) => {
       received.push(doc.title);
     });
 
     // Wait briefly for subscribe setup to complete
     await new Promise((r) => setTimeout(r, 20));
 
-    await store.change<FeatureDocument>('features', 'feat-sub', (doc) => {
+    await store.change<ProjectDocument>('projects', 'proj-sub', (doc) => {
       doc.title = 'Changed';
     });
 
@@ -138,23 +144,27 @@ describe('CRDTStore — single node', () => {
   });
 
   it('getOrCreate() returns same handle on subsequent calls', async () => {
-    const h1 = await store.getOrCreate<FeatureDocument>('features', 'feat-same', {
-      id: 'feat-same',
+    const h1 = await store.getOrCreate<ProjectDocument>('projects', 'proj-same', {
+      id: 'proj-same',
       title: 'X',
-      description: '',
-      status: 'backlog',
+      goal: '',
+      status: 'active',
+      prd: '',
+      milestoneCount: 0,
       createdAt: new Date().toISOString(),
     });
-    const h2 = await store.getOrCreate<FeatureDocument>('features', 'feat-same');
+    const h2 = await store.getOrCreate<ProjectDocument>('projects', 'proj-same');
     expect(h1).toBe(h2);
   });
 
   it('persists registry.json to storageDir', async () => {
-    await store.getOrCreate<FeatureDocument>('features', 'feat-reg', {
-      id: 'feat-reg',
+    await store.getOrCreate<ProjectDocument>('projects', 'proj-reg', {
+      id: 'proj-reg',
       title: 'Persist',
-      description: '',
-      status: 'backlog',
+      goal: '',
+      status: 'active',
+      prd: '',
+      milestoneCount: 0,
       createdAt: new Date().toISOString(),
     });
 
@@ -162,15 +172,17 @@ describe('CRDTStore — single node', () => {
     expect(fs.existsSync(registryPath)).toBe(true);
 
     const registry = JSON.parse(fs.readFileSync(registryPath, 'utf-8'));
-    expect(registry['features:feat-reg']).toMatch(/^automerge:/);
+    expect(registry['projects:proj-reg']).toMatch(/^automerge:/);
   });
 
   it('compact() creates checkpoint files in storageDir/checkpoints/', async () => {
-    await store.getOrCreate<FeatureDocument>('features', 'feat-compact', {
-      id: 'feat-compact',
+    await store.getOrCreate<ProjectDocument>('projects', 'proj-compact', {
+      id: 'proj-compact',
       title: 'Compaction test',
-      description: '',
-      status: 'backlog',
+      goal: '',
+      status: 'active',
+      prd: '',
+      milestoneCount: 0,
       createdAt: new Date().toISOString(),
     });
 
@@ -191,18 +203,20 @@ describe('CRDTStore — single node', () => {
     let hydrationCalled = false;
     await hydratedStore.init(async (ctx) => {
       hydrationCalled = true;
-      await ctx.createDocument<FeatureDocument>('features', 'hydrated-1', {
+      await ctx.createDocument<ProjectDocument>('projects', 'hydrated-1', {
         id: 'hydrated-1',
         title: 'From filesystem',
-        description: '',
-        status: 'backlog',
+        goal: '',
+        status: 'active',
+        prd: '',
+        milestoneCount: 0,
         createdAt: new Date().toISOString(),
       });
     });
 
     expect(hydrationCalled).toBe(true);
 
-    const handle = await hydratedStore.getOrCreate<FeatureDocument>('features', 'hydrated-1');
+    const handle = await hydratedStore.getOrCreate<ProjectDocument>('projects', 'hydrated-1');
     expect(handle.doc()!.title).toBe('From filesystem');
 
     await hydratedStore.close();
@@ -235,37 +249,41 @@ describe('CRDTStore — single node', () => {
 // ---------------------------------------------------------------------------
 
 describe('Schema-on-read normalization', () => {
-  it('normalizeFeatureDocument converts legacy statuses', async () => {
-    const { normalizeFeatureDocument } = await import('../documents.js');
+  it('normalizeProjectDocument converts legacy statuses', async () => {
+    const { normalizeProjectDocument } = await import('../documents.js');
 
     const legacyDoc = {
       schemaVersion: 1 as const,
       _meta: { instanceId: 'x', createdAt: 'now', updatedAt: 'now' },
-      id: 'f1',
+      id: 'p1',
       title: 'Test',
-      description: '',
-      status: 'running', // legacy
+      goal: '',
+      status: 'draft', // legacy
+      prd: '',
+      milestoneCount: 0,
       createdAt: 'now',
     };
 
-    const normalized = normalizeFeatureDocument(legacyDoc);
-    expect(normalized.status).toBe('in_progress');
+    const normalized = normalizeProjectDocument(legacyDoc);
+    expect(normalized.status).toBe('drafting');
   });
 
-  it('normalizeFeatureDocument normalizes "completed" to "done"', async () => {
-    const { normalizeFeatureDocument } = await import('../documents.js');
+  it('normalizeProjectDocument normalizes "complete" to "completed"', async () => {
+    const { normalizeProjectDocument } = await import('../documents.js');
 
     const doc = {
       schemaVersion: 1 as const,
       _meta: { instanceId: 'x', createdAt: 'now', updatedAt: 'now' },
-      id: 'f2',
+      id: 'p2',
       title: 'Test',
-      description: '',
-      status: 'completed',
+      goal: '',
+      status: 'complete',
+      prd: '',
+      milestoneCount: 0,
       createdAt: 'now',
     };
 
-    expect(normalizeFeatureDocument(doc).status).toBe('done');
+    expect(normalizeProjectDocument(doc).status).toBe('completed');
   });
 
   it('normalizeDocument dispatches by domain', async () => {
@@ -274,30 +292,34 @@ describe('Schema-on-read normalization', () => {
     const raw = {
       schemaVersion: 1 as const,
       _meta: { instanceId: 'x', createdAt: 'now', updatedAt: 'now' },
-      id: 'f3',
+      id: 'p3',
       title: '',
-      description: '',
-      status: 'failed', // legacy
+      goal: '',
+      status: 'draft', // legacy
+      prd: '',
+      milestoneCount: 0,
       createdAt: 'now',
     };
 
-    const result = normalizeDocument<FeatureDocument>('features', raw);
-    expect(result.status).toBe('blocked');
+    const result = normalizeDocument<ProjectDocument>('projects', raw);
+    expect(result.status).toBe('drafting');
   });
 
   it('normalizeDocument fills in missing schemaVersion', async () => {
-    const { normalizeFeatureDocument } = await import('../documents.js');
+    const { normalizeProjectDocument } = await import('../documents.js');
 
     const raw = {
       _meta: { instanceId: 'x', createdAt: 'now', updatedAt: 'now' },
-      id: 'f4',
+      id: 'p4',
       title: '',
-      description: '',
-      status: 'backlog',
+      goal: '',
+      status: 'active',
+      prd: '',
+      milestoneCount: 0,
       createdAt: 'now',
     };
 
-    const result = normalizeFeatureDocument(raw as Parameters<typeof normalizeFeatureDocument>[0]);
+    const result = normalizeProjectDocument(raw as Parameters<typeof normalizeProjectDocument>[0]);
     expect(result.schemaVersion).toBe(1);
   });
 });
@@ -347,25 +369,27 @@ describe('CRDTStore — two-node sync', () => {
     await new Promise((r) => setTimeout(r, 100));
 
     // Create and populate doc on A
-    await storeA.getOrCreate<FeatureDocument>('features', 'sync-feat', {
-      id: 'sync-feat',
+    await storeA.getOrCreate<ProjectDocument>('projects', 'sync-proj', {
+      id: 'sync-proj',
       title: 'Initial',
-      description: '',
-      status: 'backlog',
+      goal: '',
+      status: 'active',
+      prd: '',
+      milestoneCount: 0,
       createdAt: new Date().toISOString(),
     });
 
-    await storeA.change<FeatureDocument>('features', 'sync-feat', (doc) => {
+    await storeA.change<ProjectDocument>('projects', 'sync-proj', (doc) => {
       doc.title = 'From A';
     });
 
-    const url = storeA.getDocumentUrl('features', 'sync-feat')!;
+    const url = storeA.getDocumentUrl('projects', 'sync-proj')!;
     expect(url).toBeTruthy();
 
     // Node B requests the doc from Node A by URL and records the request time
-    storeB.registerDocumentUrl('features', 'sync-feat', url);
+    storeB.registerDocumentUrl('projects', 'sync-proj', url);
     const syncStart = Date.now();
-    const handleB = await storeB.findByUrl<FeatureDocument>(url);
+    const handleB = await storeB.findByUrl<ProjectDocument>(url);
 
     // findByUrl resolves when the doc is available from the peer
     const syncMs = Date.now() - syncStart;
@@ -380,40 +404,42 @@ describe('CRDTStore — two-node sync', () => {
     await new Promise((r) => setTimeout(r, 100));
 
     // Create initial doc on A
-    await storeA.getOrCreate<FeatureDocument>('features', 'conflict-feat', {
-      id: 'conflict-feat',
+    await storeA.getOrCreate<ProjectDocument>('projects', 'conflict-proj', {
+      id: 'conflict-proj',
       title: 'Base',
-      description: 'base desc',
-      status: 'backlog',
+      goal: 'base goal',
+      status: 'active',
+      prd: '',
+      milestoneCount: 0,
       createdAt: new Date().toISOString(),
     });
 
-    const url = storeA.getDocumentUrl('features', 'conflict-feat')!;
-    storeB.registerDocumentUrl('features', 'conflict-feat', url);
+    const url = storeA.getDocumentUrl('projects', 'conflict-proj')!;
+    storeB.registerDocumentUrl('projects', 'conflict-proj', url);
 
     // Wait for B to sync the initial doc
-    const handleB = await storeB.findByUrl<FeatureDocument>(url);
+    const handleB = await storeB.findByUrl<ProjectDocument>(url);
     await pollUntil(() => handleB.doc()?.title === 'Base', 1000);
 
-    // Concurrent updates: A changes title, B changes description
+    // Concurrent updates: A changes title, B changes goal
     await Promise.all([
-      storeA.change<FeatureDocument>('features', 'conflict-feat', (doc) => {
+      storeA.change<ProjectDocument>('projects', 'conflict-proj', (doc) => {
         doc.title = 'Title from A';
       }),
-      storeB.change<FeatureDocument>('features', 'conflict-feat', (doc) => {
-        doc.description = 'Desc from B';
+      storeB.change<ProjectDocument>('projects', 'conflict-proj', (doc) => {
+        doc.goal = 'Goal from B';
       }),
     ]);
 
     // Wait for both changes to propagate to both nodes
-    const handleA = await storeA.getOrCreate<FeatureDocument>('features', 'conflict-feat');
+    const handleA = await storeA.getOrCreate<ProjectDocument>('projects', 'conflict-proj');
 
     const merged = await pollUntil(
       () =>
         handleA.doc()?.title === 'Title from A' &&
-        handleA.doc()?.description === 'Desc from B' &&
+        handleA.doc()?.goal === 'Goal from B' &&
         handleB.doc()?.title === 'Title from A' &&
-        handleB.doc()?.description === 'Desc from B',
+        handleB.doc()?.goal === 'Goal from B',
       2000
     );
 
@@ -424,8 +450,8 @@ describe('CRDTStore — two-node sync', () => {
 
     // Both nodes see both changes merged (no data lost)
     expect(docA.title).toBe('Title from A');
-    expect(docA.description).toBe('Desc from B');
+    expect(docA.goal).toBe('Goal from B');
     expect(docB.title).toBe('Title from A');
-    expect(docB.description).toBe('Desc from B');
+    expect(docB.goal).toBe('Goal from B');
   });
 });

@@ -12,9 +12,7 @@ export { createSyncClientAdapter, WebSocketServerAdapter } from './sync-adapter.
 
 export {
   normalizeDocument,
-  normalizeFeatureDocument,
   normalizeProjectDocument,
-  normalizeConfigDocument,
   normalizeSharedSettingsDocument,
   normalizeAvaChannelDocument,
   normalizeCalendarDocument,
@@ -23,9 +21,7 @@ export {
 } from './documents.js';
 
 export type {
-  FeatureDocument,
   ProjectDocument,
-  ConfigDocument,
   SharedSettingsDocument,
   AvaChannelDocument,
   CalendarDocument,

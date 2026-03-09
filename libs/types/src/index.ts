@@ -923,7 +923,9 @@ export {
   ProtoHiveSchema,
   ProtoInstanceSchema,
   ProtoAssignmentSchema,
-  ProtoWorkStealingSchema,
+  ProtoInstanceProfileSchema,
+  ProtoWorkIntakeSchema,
+  InstanceRoleSchema,
   SharedSettingsSchema,
 } from './proto-config.js';
 export type {
@@ -936,7 +938,9 @@ export type {
   ProtoHive,
   ProtoInstance,
   ProtoAssignment,
-  ProtoWorkStealing,
+  ProtoInstanceProfile,
+  ProtoWorkIntake,
+  InstanceRole,
   SharedSettings,
 } from './proto-config.js';
 

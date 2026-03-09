@@ -32,17 +32,18 @@ The mesh synchronizes these CRDT document domains:
 
 | Domain        | Document ID     | Description                               |
 | ------------- | --------------- | ----------------------------------------- |
-| `features`    | `<featureId>`   | Feature board state                       |
-| `projects`    | `<projectSlug>` | Project plans and PRD content             |
+| `projects`    | `<projectSlug>` | Project plans, PRD content, phase claims  |
 | `settings`    | `shared`        | Shared workflow settings (no credentials) |
 | `capacity`    | `<instanceId>`  | Per-instance capacity metrics             |
 | `ava-channel` | `YYYY-MM-DD`    | Daily-sharded Ava communication log       |
 | `calendar`    | `shared`        | Shared calendar events                    |
 | `todos`       | `workspace`     | Shared todo lists with permission tiers   |
 
+Features are **instance-local** and never synced via the mesh. Each instance creates features locally from claimed project phases.
+
 ### Event types bridged across the mesh
 
-Feature events (`feature:created`, `feature:updated`, `feature:deleted`, `feature:status-changed`) and project events (`project:created`, `project:updated`, `project:deleted`) are bridged from the local EventBus to the sync wire. Remote events are re-emitted locally after path remapping.
+Only project events (`project:created`, `project:updated`, `project:deleted`) are bridged from the local EventBus to the sync wire. Remote events are re-emitted locally after path remapping. Feature events are **not** synced — features are instance-local.
 
 ## Trust Model
 
@@ -63,7 +64,7 @@ protolab:
 Every CRDT operation and sync message carries `instanceId`. This value is set in `proto.config.yaml` and included in:
 
 - All CRDT document mutations (`_meta.instanceId`)
-- All sync wire messages (`heartbeat`, `feature_event`, `identity`)
+- All sync wire messages (`heartbeat`, `project_event`, `identity`) — includes `name`, `role`, `tags`
 - Ava Channel messages (`instanceId` and `instanceName` fields)
 - The `sync:partition-recovered` and `sync:peer-unreachable` events
 
@@ -96,12 +97,13 @@ protolab:
   instanceId: dev-01
   instanceUrl: ws://100.64.0.1:4444
 
-hive:
-  hiveId: my-hive
-  syncPort: 9800
-  meshEnabled: true
+instance:
+  name: 'Primary Dev'
+  role: fullstack
+  tags: [backend, infra]
 
 hivemind:
+  enabled: true
   heartbeatIntervalMs: 30000
   peerTtlMs: 120000
   peers:
@@ -109,28 +111,16 @@ hivemind:
     - ws://100.64.0.2:4444 # dev-02
     - ws://100.64.0.3:4444 # dev-03
 
-instances:
-  - instanceId: dev-01
-    hostname: primary-host
-    capacity: 4
-  - instanceId: dev-02
-    hostname: worker-host-a
-    capacity: 8
-  - instanceId: dev-03
-    hostname: worker-host-b
-    capacity: 8
-
-workStealing:
-  strategy: capacity
-  stealMax: 3
-  offerTtlMs: 60000
+workIntake:
+  enabled: true
+  tickIntervalMs: 30000
+  claimTimeoutMs: 1800000
 ```
 
 **Worker instance (`dev-02`):**
 
 ```yaml
 name: protoMaker
-version: '1.0.0'
 
 protolab:
   enabled: true
@@ -139,12 +129,13 @@ protolab:
   instanceId: dev-02
   instanceUrl: ws://100.64.0.2:4444
 
-hive:
-  hiveId: my-hive
-  syncPort: 9800
-  meshEnabled: true
+instance:
+  name: 'Worker A'
+  role: frontend
+  tags: [docs]
 
 hivemind:
+  enabled: true
   heartbeatIntervalMs: 30000
   peerTtlMs: 120000
   peers:
@@ -152,24 +143,13 @@ hivemind:
     - ws://100.64.0.2:4444 # dev-02
     - ws://100.64.0.3:4444 # dev-03
 
-instances:
-  - instanceId: dev-01
-    hostname: primary-host
-    capacity: 4
-  - instanceId: dev-02
-    hostname: worker-host-a
-    capacity: 8
-  - instanceId: dev-03
-    hostname: worker-host-b
-    capacity: 8
-
-workStealing:
-  strategy: capacity
-  stealMax: 3
-  offerTtlMs: 60000
+workIntake:
+  enabled: true
+  tickIntervalMs: 30000
+  claimTimeoutMs: 1800000
 ```
 
-**Worker instance (`dev-03`):** Same as `dev-02` but with `instanceId: dev-03` and the corresponding `instanceUrl`.
+**Worker instance (`dev-03`):** Same as `dev-02` but with `instanceId: dev-03`, the corresponding `instanceUrl`, and a different `instance.role` if desired.
 
 ### Key fields
 
@@ -179,11 +159,16 @@ workStealing:
 | `protolab.syncPort`            | Port the sync WebSocket server listens on (primary) or the port used in peer URLs       |
 | `protolab.instanceId`          | Unique identifier for this instance (used in CRDT attribution, heartbeats, Ava Channel) |
 | `protolab.instanceUrl`         | This instance's WebSocket URL (how other peers can reach it)                            |
+| `instance.name`                | Human-readable display name for this instance                                           |
+| `instance.role`                | Work focus: `fullstack`, `frontend`, `backend`, `infra`, `docs`, `qa`                   |
+| `instance.tags`                | Additional capability tags beyond the primary role                                      |
+| `hivemind.enabled`             | Enable the sync mesh (default: false for single-instance mode)                          |
 | `hivemind.peers`               | Ordered list of all peer URLs. Index 0 is highest priority for leader election          |
 | `hivemind.heartbeatIntervalMs` | How often heartbeats are sent (default: 30000)                                          |
 | `hivemind.peerTtlMs`           | How long before an unresponsive peer is marked offline (default: 120000)                |
-| `instances[].capacity`         | Max concurrent agents this instance can run (used by work-stealing)                     |
-| `workStealing.strategy`        | `capacity` distributes work by available agent slots                                    |
+| `workIntake.enabled`           | Enable pull-based phase claiming from shared projects (default: true)                   |
+| `workIntake.tickIntervalMs`    | How often to check for claimable phases (default: 30000)                                |
+| `workIntake.claimTimeoutMs`    | Timeout before a stale claim becomes reclaimable (default: 1800000 / 30min)             |
 
 ### Docker deployment
 
@@ -300,17 +285,23 @@ When taking an instance out of the mesh for maintenance or upgrade:
 
 ## Path Remapping
 
-Each instance may have its project at a different filesystem path (e.g. `/Users/dev/project` on macOS vs `/home/deploy/project` in Docker). When a remote feature event arrives, `crdt-sync.module.ts` remaps the `projectPath` in the payload to the local `repoRoot` before persisting. This ensures features are written to the correct local directory regardless of the originating instance's path layout.
+Each instance may have its project at a different filesystem path (e.g. `/Users/dev/project` on macOS vs `/home/deploy/project` in Docker). When a remote project event arrives, `crdt-sync.module.ts` remaps the `projectPath` in the payload to the local `repoRoot` before persisting. This ensures project data is written to the correct local directory regardless of the originating instance's path layout.
 
-## Work-Stealing Protocol
+## Work Intake Protocol
 
-When `workStealing.strategy` is set to `capacity`, instances advertise their current load on every heartbeat. If one instance has idle agent slots and another has a backlog, the idle instance can steal features from the busy instance's queue.
+Work distribution uses a **pull-based intake model**. Each instance independently claims phases from shared project documents — no features cross the wire.
 
-| Field        | Description                                                     |
-| ------------ | --------------------------------------------------------------- |
-| `strategy`   | `capacity` (distribute by available slots) or `none` (disabled) |
-| `stealMax`   | Maximum features to steal in a single round                     |
-| `offerTtlMs` | How long a steal offer remains valid before expiring            |
+The `WorkIntakeService` runs on a configurable tick when auto-mode is active. Each tick:
+
+1. Reads shared project docs (local Automerge replica)
+2. Finds claimable phases (unclaimed, deps satisfied, role affinity matches)
+3. Claims phases by writing to the shared project doc
+4. Creates **local** features from claimed phases
+5. On completion, updates phase `executionStatus` in the shared doc
+
+Phase claims use Automerge LWW for conflict resolution. If two instances race to claim the same phase, the loser detects `claimedBy !== myId` on verification read and backs off.
+
+See [distributed-sync.md](../dev/distributed-sync.md) for the full protocol details, pure functions, and instance role descriptions.
 
 ## Runbook: Common Sync Issues
 

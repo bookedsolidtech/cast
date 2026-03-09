@@ -8,20 +8,15 @@
 import type { EventType } from './event.js';
 
 /**
- * Feature-related event types that propagate across CRDT sync instances.
- * Only these events are published to remote peers via the sync channel.
+ * Event types that propagate across CRDT sync instances.
+ *
+ * Features are LOCAL to each instance (never cross the wire).
+ * Only projects and shared coordination events are synced.
  */
 export const CRDT_SYNCED_EVENT_TYPES: ReadonlySet<EventType> = new Set<EventType>([
-  'feature:status-changed',
-  'feature:updated',
-  'feature:created',
-  'feature:deleted',
   'project:created',
   'project:updated',
   'project:deleted',
-  'work_stealing:request',
-  'work_stealing:offer',
-  'work_stealing:accept',
 ]);
 
 /**

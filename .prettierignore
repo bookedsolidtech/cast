@@ -29,6 +29,7 @@ package-lock.json
 pnpm-lock.yaml
 
 # Generated files
+.generated/
 *.min.js
 *.min.css
 routeTree.gen.ts

@@ -175,6 +175,18 @@ export {
 // Memory chunking
 export { chunkMarkdownFile, type MemoryChunk } from './memory-chunker.js';
 
+// Work intake (pull-based phase claiming pure functions)
+export {
+  roleMatchesPhase,
+  phaseDepsAreSatisfied,
+  getClaimablePhases,
+  holdsClaim,
+  isReclaimable,
+  materializeFeature,
+  phasePriority,
+  type MaterializedFeature,
+} from './work-intake.js';
+
 // Sanitization utilities
 export {
   normalizeUnicode,
