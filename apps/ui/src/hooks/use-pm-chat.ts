@@ -8,6 +8,7 @@
 import { useMemo } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
+import { getAuthHeaders } from '@/lib/api-fetch';
 
 interface UsePmChatOptions {
   projectPath: string;
@@ -19,6 +20,7 @@ export function usePmChat({ projectPath, projectSlug }: UsePmChatOptions) {
     () =>
       new DefaultChatTransport({
         api: '/api/project-pm/chat',
+        headers: getAuthHeaders(),
         body: { projectPath, projectSlug },
         credentials: 'include',
       }),
