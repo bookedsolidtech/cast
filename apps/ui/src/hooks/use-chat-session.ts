@@ -10,6 +10,7 @@ import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { useChatStore } from '@/store/chat-store';
 import { getHttpApiClient, getServerUrlSync } from '@/lib/http-api-client';
+import { getAuthHeaders } from '@/lib/api-fetch';
 
 /** A pending subagent tool approval surfaced from the subagent:tool-approval-request event */
 export interface PendingSubagentApproval {
@@ -79,7 +80,7 @@ export function useChatSession({
     () =>
       new DefaultChatTransport({
         api: '/api/chat',
-        headers: { 'x-model-alias': modelAlias },
+        headers: { ...getAuthHeaders(), 'x-model-alias': modelAlias },
         body: transportBody,
         credentials: 'include',
       }),
