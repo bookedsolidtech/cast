@@ -38,7 +38,7 @@ Single unified flow from idea to running agents. This replaces both the old `/cr
 ## Flow
 
 ```
-Health Check → Resume Check → Research → PRD → [GATE] → Milestones → Features → [GATE] → Launch
+Health Check → Resume Check → Research → PRD + Create → [GATE] → Features → [GATE] → Launch
 ```
 
 ### Step 1: Health Check
@@ -86,17 +86,7 @@ Task(subagent_type: "Explore",
 
 For simple or well-understood projects, skip to Step 4.
 
-### Step 4: Dedup Check + Create Project
-
-```
-mcp__plugin_protolabs_studio__initiate_project({
-  projectPath, title, ideaDescription
-})
-```
-
-If `hasDuplicates: true`, present them and ask: proceed, merge, or cancel.
-
-### Step 5: PRD Creation
+### Step 4: PRD + Milestones + Create Project
 
 Create a SPARC PRD with these sections:
 
@@ -106,7 +96,7 @@ Create a SPARC PRD with these sections:
 - **Results**: Expected outcomes and success metrics
 - **Constraints**: Limitations and boundaries
 
-Scaffold the project:
+Create the project directly with full PRD and milestones in one call:
 
 ```
 mcp__plugin_protolabs_studio__create_project({
@@ -116,7 +106,9 @@ mcp__plugin_protolabs_studio__create_project({
 })
 ```
 
-### Step 6: [GATE] User Approves PRD
+Note: `create_project` handles dedup — if a project with the same slug exists but has no milestones (stub from `initiate_project`), it overwrites it. If a fully scaffolded project exists, it returns 409.
+
+### Step 5: [GATE] User Approves PRD
 
 Present the SPARC sections. Ask:
 
@@ -125,7 +117,7 @@ Present the SPARC sections. Ask:
 
 If changes requested: update and re-present.
 
-### Step 7: Milestone + Phase Planning
+### Step 6: Milestone + Phase Planning
 
 Break work into milestones. Each phase should be:
 
@@ -150,7 +142,7 @@ Break work into milestones. Each phase should be:
 | Full-Stack | Foundation → Backend → Frontend → Integration       |
 | Refactor   | Analysis → New Implementation → Migration → Cleanup |
 
-### Step 8: Create Features
+### Step 7: Create Features
 
 ```
 mcp__plugin_protolabs_studio__approve_project_prd({
@@ -162,7 +154,7 @@ mcp__plugin_protolabs_studio__approve_project_prd({
 
 Present results: features created, epics, dependency chain.
 
-### Step 9: [GATE] Validate + Launch
+### Step 8: [GATE] Validate + Launch
 
 Ask: "Features created. Review and confirm ready to launch?"
 
@@ -176,7 +168,7 @@ mcp__plugin_protolabs_studio__launch_project({
 })
 ```
 
-### Step 10: Summary
+### Step 9: Summary
 
 ```markdown
 ## Project: [Title]
