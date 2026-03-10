@@ -68,6 +68,13 @@ describe('AuthorityService.executeAction()', () => {
 
     const actionableItems = makeActionableItemService();
     service.setActionableItemService(actionableItems as any);
+
+    // Fix: prevent the fire-and-forget `void this.persistTrustProfiles()` call in
+    // `updateProfileStats` from racing with afterEach directory cleanup.
+    // `atomicWriteJson` uses a temp-file + rename pattern; if afterEach removes the
+    // directory before the rename completes, the rename throws ENOENT.
+    // These unit tests only assert on in-memory state, so mocking writes is safe.
+    vi.spyOn(service as any, 'persistTrustProfiles').mockResolvedValue(undefined);
   });
 
   afterEach(async () => {

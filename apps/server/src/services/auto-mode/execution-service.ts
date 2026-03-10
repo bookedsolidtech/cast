@@ -1877,6 +1877,7 @@ This mock response was generated because AUTOMAKER_MOCK_AGENT=true was set.
       thinkingLevel: options?.thinkingLevel,
       maxTurns: options?.maxTurns,
       resume: options?.resume,
+      projectPath, // Enable worktree write guard
     });
 
     // Extract model, maxTurns, and allowedTools from SDK options
@@ -1980,6 +1981,7 @@ This mock response was generated because AUTOMAKER_MOCK_AGENT=true was set.
       credentials, // Pass credentials for resolving 'credentials' apiKeySource
       claudeCompatibleProvider, // Pass provider for alternative endpoint configuration (GLM, MiniMax, etc.)
       sdkSessionId: options?.resume, // Forward resume session ID for session continuity
+      hooks: sdkOptions.hooks as ExecuteOptions['hooks'], // Worktree write guard
     };
 
     // Execute via provider
