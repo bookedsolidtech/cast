@@ -84,6 +84,8 @@ export class CrdtSyncService {
   private config: HivemindConfig | null = null;
   private wsServer: WebSocketServer | null = null;
   private wsClient: WebSocket | null = null;
+  /** In-flight WebSocket during reconnect (not yet promoted to wsClient). */
+  private pendingWs: WebSocket | null = null;
   private peers = new Map<string, TrackedPeer>();
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private ttlTimer: ReturnType<typeof setInterval> | null = null;
@@ -408,14 +410,22 @@ export class CrdtSyncService {
     }
 
     // Announce departure to primary (worker side)
-    if (this.wsClient && this.wsClient.readyState === WebSocket.OPEN) {
-      try {
-        this.wsClient.send(msg);
-      } catch {
-        // Best effort
+    if (this.wsClient) {
+      if (this.wsClient.readyState === WebSocket.OPEN) {
+        try {
+          this.wsClient.send(msg);
+        } catch {
+          // Best effort
+        }
       }
-      this.wsClient.close();
+      this.wsClient.terminate();
       this.wsClient = null;
+    }
+
+    // Kill any in-flight reconnect socket that hasn't been promoted to wsClient yet
+    if (this.pendingWs) {
+      this.pendingWs.terminate();
+      this.pendingWs = null;
     }
 
     this.peers.clear();
@@ -554,10 +564,12 @@ export class CrdtSyncService {
 
       logger.info(`[CRDT] Connecting to primary at ${url}`);
       const ws = new WebSocket(url);
+      this.pendingWs = ws;
 
       ws.on('open', () => {
         logger.info(`[CRDT] Connected to primary sync server at ${url}`);
         this.wsClient = ws;
+        this.pendingWs = null;
         this.lastPrimaryContact = Date.now();
         this.promotionPending = false;
 
@@ -605,9 +617,8 @@ export class CrdtSyncService {
 
       ws.on('error', (err) => {
         logger.warn(`[CRDT] Primary connection error: ${err.message}`);
-        if (this.wsClient === ws) {
-          this.wsClient = null;
-        }
+        if (this.pendingWs === ws) this.pendingWs = null;
+        if (this.wsClient === ws) this.wsClient = null;
         if (!this.started) return;
         if (!this.partitionSince) {
           this.partitionSince = new Date().toISOString();
@@ -652,9 +663,11 @@ export class CrdtSyncService {
       // Otherwise try to reconnect
       logger.info(`[CRDT] Attempting reconnect to ${url}`);
       const ws = new WebSocket(url);
+      this.pendingWs = ws;
       ws.on('open', () => {
         logger.info(`[CRDT] Reconnected to primary at ${url}`);
         this.wsClient = ws;
+        this.pendingWs = null;
         this.lastPrimaryContact = Date.now();
         this.promotionPending = false;
         clearInterval(this.reconnectTimer!);
@@ -722,12 +735,12 @@ export class CrdtSyncService {
           }
         });
         ws.on('error', () => {
-          if (this.wsClient === ws) {
-            this.wsClient = null;
-          }
+          if (this.wsClient === ws) this.wsClient = null;
+          if (this.pendingWs === ws) this.pendingWs = null;
         });
       });
       ws.on('error', () => {
+        if (this.pendingWs === ws) this.pendingWs = null;
         // Will retry on next interval tick
       });
     }, RECONNECT_INTERVAL_MS);
