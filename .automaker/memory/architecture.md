@@ -6,8 +6,8 @@ importance: 0.7
 relatedFiles: []
 usageStats:
   loaded: 91
-  referenced: 33
-  successfulFeatures: 33
+  referenced: 34
+  successfulFeatures: 34
 ---
 # architecture
 
@@ -4273,3 +4273,8 @@ usageStats:
 - **Problem solved:** User needs quick access to previously-used servers, but localStorage is bounded (5-10MB) and array can grow unbounded
 - **Why this works:** Dedup-on-add (prepend new, remove old occurrence) preserves recency order and prevents duplicates with single O(n) operation (n max 10). Bounded size prevents storage exhaustion.
 - **Trade-offs:** O(n) dedup operation per add, but n capped at 10. List always reflects most-recently-used order.
+
+#### [Gotcha] setServerUrlOverride() must explicitly call invalidateHttpClient() to trigger WebSocket reconnection—this is not automatic (2026-03-10)
+- **Situation:** Changing server URL requires both updating state AND closing/reconnecting the WebSocket to the new server
+- **Root cause:** State management (app-store) and I/O concerns (WebSocket reconnection) are separated. Store doesn't own HTTP client lifecycle, so it can't auto-reconnect. Explicit call required to bridge these layers
+- **How to avoid:** Explicit is easier to understand and debug (see exactly where reconnect happens) but easy to miss when refactoring. If someone adds another setServerUrlOverride call without invalidateHttpClient(), old WebSocket persists while HTTP client uses new URL—inconsistent connection state, hard to debug

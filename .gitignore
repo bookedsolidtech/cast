@@ -47,9 +47,9 @@ docs/.vitepress/cache/
 .automaker/actionable-items.json
 .automaker/hitl-forms.json
 .automaker/content/
-.automaker/knowledge.db
-.automaker/knowledge.db-shm
-.automaker/knowledge.db-wal
+**/.automaker/knowledge.db
+**/.automaker/knowledge.db-shm
+**/.automaker/knowledge.db-wal
 .automaker/knowledge-eval.jsonl
 .automaker/ceremony-log.jsonl
 .automaker/quarantine/
@@ -171,3 +171,7 @@ gource.mp4
 
 # Test fixture runtime artifacts
 test/fixtures/**/.automaker/categories.json
+test/fixtures/**/.automaker/projects/
+test/fixtures/**/.automaker/knowledge.db
+test/fixtures/**/.automaker/knowledge.db-shm
+test/fixtures/**/.automaker/knowledge.db-wal

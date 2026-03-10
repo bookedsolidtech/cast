@@ -6,8 +6,8 @@ importance: 0.7
 relatedFiles: []
 usageStats:
   loaded: 33
-  referenced: 7
-  successfulFeatures: 7
+  referenced: 8
+  successfulFeatures: 8
 ---
 # auth
 
@@ -54,3 +54,10 @@ usageStats:
 - **Problem solved:** App must support user-set overrides (dev/testing) while maintaining safe defaults (prod, Electron context).
 - **Why this works:** Resilience: if one source is unavailable/corrupted, app doesn't crash. User preference (localStorage) is checked first, so user can override env vars. Graceful degradation.
 - **Trade-offs:** Simple to implement, but source of truth shifts at runtime. Code cannot assume `getServerUrl()` takes the same path twice (localStorage might be cleared between calls). Potential for subtle bugs if caller assumes consistency.
+
+### Server URL override checked in auth layer before falling back to cached/env values (2026-03-10)
+- **Context:** Need to support runtime server URL override that survives page reloads while maintaining fallback to default config
+- **Why:** localStorage provides client-side persistence without network round trips. Placing override check in auth.ts getServerUrl() ensures any caller automatically gets override if set, without needing to thread it through component props
+- **Rejected:** Alternative: separate config service (requires dependency injection everywhere) or URL params (not persistent, verbose). Could store on server (requires auth + network call, complexity)
+- **Trade-offs:** Simple and automatic for consumers, but tightly couples auth layer to runtime config concerns. localStorage is per-origin, won't work across different ports/domains without CORS setup
+- **Breaking if changed:** Removing localStorage check removes override capability. Persisting auth state across page reloads relies on getServerUrl() being called at startup before any connections are made
