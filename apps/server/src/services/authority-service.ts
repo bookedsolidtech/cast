@@ -42,6 +42,18 @@ const logger = createLogger('AuthorityService');
 // ============================================================================
 
 /**
+ * ExecuteActionResult — the outcome of an executeAction() call.
+ * 'allowed'  → the action passed enforcement (or enforcement is disabled).
+ * 'blocked'  → the action was blocked because risk exceeded the agent's trust tier.
+ */
+export interface ExecuteActionResult {
+  verdict: 'allowed' | 'blocked';
+  reason: string;
+  /** Approval request ID created when the action is blocked */
+  requestId?: string;
+}
+
+/**
  * RegisteredAgent - Runtime extension of AuthorityAgent with project context.
  * The base AuthorityAgent type lacks projectPath and createdAt, which we need
  * for multi-project agent tracking and audit trails.
@@ -133,6 +145,14 @@ const MAX_RISK_BY_TRUST: Record<TrustLevel, RiskLevel> = {
   1: 'low',
   2: 'medium',
   3: 'high',
+};
+
+/** Numeric order for risk levels — used to compare risk severity */
+const RISK_LEVEL_ORDER: Record<RiskLevel, number> = {
+  low: 0,
+  medium: 1,
+  high: 2,
+  critical: 3,
 };
 
 /**
@@ -472,17 +492,128 @@ export class AuthorityService {
   }
 
   // --------------------------------------------------------------------------
-  // Action Execution (Placeholder)
+  // Action Execution
   // --------------------------------------------------------------------------
 
   /**
-   * Placeholder for delegating approved actions to FeatureLoader/AutoMode.
-   * In a full implementation, this would route to the appropriate service
-   * based on the action type.
+   * Execute an action proposed by an agent, with optional enforcement.
+   *
+   * When authorityEnforcement is false (default): logs and returns — existing behavior unchanged.
+   *
+   * When authorityEnforcement is true, performs real enforcement:
+   *   1. Looks up the agent's trust tier and its max-risk allowance.
+   *   2. If the proposal's risk exceeds the agent's max-risk level → BLOCK:
+   *      - Creates an approval request in the actionable items queue.
+   *      - Logs the denial with full context (agent, action, risk, trust tier).
+   *      - Returns an ExecuteActionResult with verdict 'blocked'.
+   *   3. If the proposal is pre-approved → AUTO-APPROVE immediately with no queue.
+   *   4. Otherwise the action is within trust → ALLOW.
+   *
+   * @param proposal    The action the agent wants to execute.
+   * @param projectPath The project this action belongs to.
+   * @param options     Enforcement options.
+   * @returns An ExecuteActionResult describing the enforcement outcome.
    */
-  async executeAction(proposal: ActionProposal): Promise<void> {
+  async executeAction(
+    proposal: ActionProposal,
+    projectPath?: string,
+    options?: { authorityEnforcement?: boolean }
+  ): Promise<ExecuteActionResult> {
+    const enforcement = options?.authorityEnforcement ?? false;
+
     logger.info(`Executing action: ${proposal.what} on ${proposal.target} by ${proposal.who}`);
-    // Future: delegate to FeatureLoader, AutoModeService, etc.
+
+    if (!enforcement || !projectPath) {
+      // Passthrough — original placeholder behaviour
+      return { verdict: 'allowed', reason: 'Authority enforcement is disabled' };
+    }
+
+    await this.initialize(projectPath);
+
+    const agent = this.findAgentById(proposal.who, projectPath);
+    if (!agent) {
+      const reason = `Agent ${proposal.who} is not registered`;
+      logger.warn(`executeAction blocked: ${reason}`);
+      await this.persistDecisionRecord({
+        proposal,
+        decision: { verdict: 'deny', reason },
+        projectPath,
+      });
+      return { verdict: 'blocked', reason };
+    }
+
+    // Pre-approved actions bypass the risk threshold check
+    if (proposal.preApproved) {
+      const reason = 'Action is pre-approved';
+      logger.info(`executeAction auto-approved: ${proposal.what} (pre-approved)`);
+      await this.persistDecisionRecord({
+        proposal,
+        decision: { verdict: 'allow', reason },
+        projectPath,
+      });
+      this.updateProfileStats(agent.role, 'allow', projectPath);
+      return { verdict: 'allowed', reason };
+    }
+
+    const maxRisk = MAX_RISK_BY_TRUST[agent.trust];
+    const proposalRiskOrder = RISK_LEVEL_ORDER[proposal.risk];
+    const maxRiskOrder = RISK_LEVEL_ORDER[maxRisk];
+
+    if (proposalRiskOrder > maxRiskOrder) {
+      // Block — risk exceeds the agent's trust tier threshold
+      const reason =
+        `Action '${proposal.what}' has risk '${proposal.risk}' which exceeds ` +
+        `agent trust tier ${agent.trust} max risk '${maxRisk}'`;
+
+      logger.warn(
+        `executeAction BLOCKED: agent=${proposal.who} action=${proposal.what} ` +
+          `risk=${proposal.risk} trustTier=${agent.trust} maxRisk=${maxRisk}`
+      );
+
+      // Create an approval request in the queue
+      const request = await this.queueApprovalRequest(proposal, projectPath);
+
+      // Persist the denial decision record
+      await this.persistDecisionRecord({
+        proposal,
+        decision: { verdict: 'deny', reason, approver: request.id },
+        projectPath,
+        requestId: request.id,
+      });
+
+      // Update stats
+      this.updateProfileStats(agent.role, 'deny', projectPath);
+
+      this.events.emit('authority:rejected', {
+        projectPath,
+        proposal,
+        decision: { verdict: 'deny', reason },
+      });
+
+      return { verdict: 'blocked', reason, requestId: request.id };
+    }
+
+    // Action is within the agent's trust tier — allow
+    const reason = `Action '${proposal.what}' (risk: ${proposal.risk}) is within agent trust tier ${agent.trust} (max risk: ${maxRisk})`;
+    logger.info(
+      `executeAction ALLOWED: agent=${proposal.who} action=${proposal.what} risk=${proposal.risk}`
+    );
+
+    await this.persistDecisionRecord({
+      proposal,
+      decision: { verdict: 'allow', reason },
+      projectPath,
+    });
+
+    this.updateProfileStats(agent.role, 'allow', projectPath);
+
+    this.events.emit('authority:approved', {
+      projectPath,
+      proposal,
+      decision: { verdict: 'allow', reason },
+    });
+
+    return { verdict: 'allowed', reason };
   }
 
   // --------------------------------------------------------------------------
