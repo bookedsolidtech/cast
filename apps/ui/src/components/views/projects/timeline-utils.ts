@@ -5,19 +5,33 @@
 
 export type TimelineEventType =
   | 'feature:done'
+  | 'feature:started'
+  | 'feature:status-changed'
   | 'milestone:completed'
   | 'ceremony:fired'
   | 'escalation'
   | 'pr:merged'
   | 'standup'
   | 'retro'
-  | 'decision';
+  | 'decision'
+  | 'project:initiated'
+  | 'project:prd-approved'
+  | 'project:scaffolded'
+  | 'project:launched'
+  | 'project:completed';
 
 /**
  * Structured timeline entry types for the ceremony engine paper trail.
  * Maps ceremony audit types to display-oriented categories.
  */
-export type TimelineEntryCategory = 'standup' | 'retro' | 'decision' | 'escalation' | 'milestone';
+export type TimelineEntryCategory =
+  | 'standup'
+  | 'retro'
+  | 'decision'
+  | 'escalation'
+  | 'milestone'
+  | 'feature'
+  | 'project';
 
 export interface TimelineEvent {
   id: string;
@@ -54,7 +68,25 @@ export const EVENT_DISPLAY_CONFIG: Record<TimelineEventType, EventDisplayConfig>
     borderColor: 'border-green-500',
     bgColor: 'bg-green-500/5',
     badgeClass: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-    category: null,
+    category: 'feature',
+  },
+  'feature:started': {
+    iconName: 'Activity',
+    label: 'Feature Started',
+    color: 'text-blue-500',
+    borderColor: 'border-blue-500',
+    bgColor: 'bg-blue-500/5',
+    badgeClass: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+    category: 'feature',
+  },
+  'feature:status-changed': {
+    iconName: 'Activity',
+    label: 'Status Change',
+    color: 'text-slate-500',
+    borderColor: 'border-slate-500',
+    bgColor: 'bg-slate-500/5',
+    badgeClass: 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300',
+    category: 'feature',
   },
   'milestone:completed': {
     iconName: 'Trophy',
@@ -90,7 +122,7 @@ export const EVENT_DISPLAY_CONFIG: Record<TimelineEventType, EventDisplayConfig>
     borderColor: 'border-indigo-500',
     bgColor: 'bg-indigo-500/5',
     badgeClass: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
-    category: null,
+    category: 'feature',
   },
   standup: {
     iconName: 'Users',
@@ -118,6 +150,51 @@ export const EVENT_DISPLAY_CONFIG: Record<TimelineEventType, EventDisplayConfig>
     bgColor: 'bg-amber-500/5',
     badgeClass: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
     category: 'decision',
+  },
+  'project:initiated': {
+    iconName: 'Lightbulb',
+    label: 'Project Created',
+    color: 'text-cyan-500',
+    borderColor: 'border-cyan-500',
+    bgColor: 'bg-cyan-500/5',
+    badgeClass: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300',
+    category: 'project',
+  },
+  'project:prd-approved': {
+    iconName: 'CheckCircle',
+    label: 'PRD Approved',
+    color: 'text-emerald-500',
+    borderColor: 'border-emerald-500',
+    bgColor: 'bg-emerald-500/5',
+    badgeClass: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+    category: 'project',
+  },
+  'project:scaffolded': {
+    iconName: 'Flag',
+    label: 'Scaffolded',
+    color: 'text-violet-500',
+    borderColor: 'border-violet-500',
+    bgColor: 'bg-violet-500/5',
+    badgeClass: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
+    category: 'project',
+  },
+  'project:launched': {
+    iconName: 'Flag',
+    label: 'Launched',
+    color: 'text-green-600',
+    borderColor: 'border-green-600',
+    bgColor: 'bg-green-600/5',
+    badgeClass: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+    category: 'project',
+  },
+  'project:completed': {
+    iconName: 'Trophy',
+    label: 'Completed',
+    color: 'text-yellow-500',
+    borderColor: 'border-yellow-500',
+    bgColor: 'bg-yellow-500/5',
+    badgeClass: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
+    category: 'project',
   },
 };
 
@@ -151,9 +228,11 @@ export const CEREMONY_TYPE_MAP: Record<string, TimelineEventType> = {
 /** All filterable categories shown in the filter UI */
 export const FILTER_CATEGORIES: Array<{ value: TimelineEntryCategory | 'all'; label: string }> = [
   { value: 'all', label: 'All' },
+  { value: 'project', label: 'Project' },
+  { value: 'feature', label: 'Features' },
+  { value: 'milestone', label: 'Milestones' },
   { value: 'standup', label: 'Standups' },
   { value: 'retro', label: 'Retros' },
   { value: 'decision', label: 'Decisions' },
   { value: 'escalation', label: 'Escalations' },
-  { value: 'milestone', label: 'Milestones' },
 ];

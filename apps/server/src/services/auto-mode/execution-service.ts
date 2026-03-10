@@ -676,8 +676,41 @@ export class ExecutionService {
 
         try {
           await execAsync('git fetch origin', { cwd: workDir, timeout: 30000 });
+
+          // Stash unstaged changes before rebasing to prevent
+          // "cannot rebase: You have unstaged changes" errors
+          let stashed = false;
+          try {
+            const { stdout: statusOut } = await execAsync('git status --porcelain', {
+              cwd: workDir,
+              timeout: 10000,
+            });
+            if (statusOut.trim().length > 0) {
+              logger.info(`Unstaged changes detected in ${branchName}, stashing before rebase...`);
+              await execAsync('git stash --include-untracked', { cwd: workDir, timeout: 15000 });
+              stashed = true;
+            }
+          } catch (stashErr) {
+            logger.warn(
+              `Pre-rebase stash attempt failed for ${branchName}: ${stashErr instanceof Error ? stashErr.message : String(stashErr)}`
+            );
+          }
+
           await execAsync('git rebase origin/dev', { cwd: workDir, timeout: 60000 });
           logger.info(`Branch ${branchName} rebased onto origin/dev`);
+
+          // Pop the stash after a successful rebase
+          if (stashed) {
+            try {
+              await execAsync('git stash pop', { cwd: workDir, timeout: 15000 });
+              logger.info(`Stash popped successfully after rebase for ${branchName}`);
+            } catch (popErr) {
+              logger.warn(
+                `Stash pop had conflicts after rebase for ${branchName}: ${popErr instanceof Error ? popErr.message : String(popErr)}. Continuing with agent execution.`
+              );
+            }
+          }
+
           this.typedEventBus.emitAutoModeEvent('sync_completed', {
             featureId,
             branchName,

@@ -7,7 +7,7 @@
  */
 
 import { generateText, stepCountIs, type ModelMessage, type Tool } from 'ai';
-import { anthropic } from '@ai-sdk/anthropic';
+import { getAnthropicModel } from '../../lib/ai-provider.js';
 import { z } from 'zod';
 import { createLogger } from '@protolabsai/utils';
 import { resolveModelString } from '@protolabsai/model-resolver';
@@ -368,7 +368,7 @@ export async function queryPm(
   logger.info(`PM delegation query: projectSlug=${projectSlug}`);
 
   const result = await generateText({
-    model: anthropic(resolvedModelId),
+    model: await getAnthropicModel(resolvedModelId),
     system: systemPrompt,
     messages: [
       ...(sessionHistory.map((m) => ({

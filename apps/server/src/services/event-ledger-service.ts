@@ -35,7 +35,10 @@ const LIFECYCLE_EVENT_TYPES = [
   'pipeline:state-entered',
   'milestone:completed',
   'project:completed',
+  'project:lifecycle:initiated',
+  'project:lifecycle:prd-approved',
   'project:lifecycle:launched',
+  'project:scaffolded',
   'ceremony:fired',
   'escalation:signal-received',
   'auto-mode:event',
@@ -269,7 +272,7 @@ export class EventLedgerService {
    * - lead-engineer:feature-processed → featureId
    * - pipeline:state-entered → featureId
    * - milestone:completed → projectSlug + milestoneSlug
-   * - project:completed / project:lifecycle:launched → projectSlug
+   * - project:completed / project:lifecycle:* / project:scaffolded → projectSlug
    * - ceremony:fired → projectSlug + milestoneSlug
    * - escalation:signal-received → featureId (if present)
    * - auto-mode:event (feature types only) → featureId (if present)
@@ -290,13 +293,18 @@ export class EventLedgerService {
       switch (type) {
         case 'feature:status-changed': {
           const featureId = payload.featureId as string | undefined;
+          // Extract projectSlug from the full feature object when available
+          const feature = payload.feature as Record<string, unknown> | undefined;
+          const projectSlug =
+            (feature?.projectSlug as string) ?? (payload.projectSlug as string) ?? undefined;
           this.append({
             eventType: type,
-            correlationIds: { featureId },
+            correlationIds: { featureId, projectSlug },
             payload: {
               from: payload.previousStatus,
               to: payload.newStatus,
               reason: payload.statusChangeReason ?? payload.reason,
+              featureTitle: (feature?.title as string) ?? payload.featureTitle,
             },
             source: 'EventLedgerService',
           });
@@ -305,9 +313,10 @@ export class EventLedgerService {
 
         case 'feature:started': {
           const featureId = payload.featureId as string | undefined;
+          const projectSlug = (payload.projectSlug as string) ?? undefined;
           this.append({
             eventType: type,
-            correlationIds: { featureId },
+            correlationIds: { featureId, projectSlug },
             payload,
             source: 'EventLedgerService',
           });
@@ -316,9 +325,10 @@ export class EventLedgerService {
 
         case 'feature:completed': {
           const featureId = payload.featureId as string | undefined;
+          const projectSlug = (payload.projectSlug as string) ?? undefined;
           this.append({
             eventType: type,
-            correlationIds: { featureId },
+            correlationIds: { featureId, projectSlug },
             payload,
             source: 'EventLedgerService',
           });
@@ -327,9 +337,10 @@ export class EventLedgerService {
 
         case 'feature:error': {
           const featureId = payload.featureId as string | undefined;
+          const projectSlug = (payload.projectSlug as string) ?? undefined;
           this.append({
             eventType: type,
-            correlationIds: { featureId },
+            correlationIds: { featureId, projectSlug },
             payload,
             source: 'EventLedgerService',
           });
@@ -338,9 +349,10 @@ export class EventLedgerService {
 
         case 'feature:pr-merged': {
           const featureId = payload.featureId as string | undefined;
+          const projectSlug = (payload.projectSlug as string) ?? undefined;
           this.append({
             eventType: type,
-            correlationIds: { featureId },
+            correlationIds: { featureId, projectSlug },
             payload,
             source: 'EventLedgerService',
           });
@@ -349,9 +361,10 @@ export class EventLedgerService {
 
         case 'lead-engineer:feature-processed': {
           const featureId = payload.featureId as string | undefined;
+          const projectSlug = (payload.projectSlug as string) ?? undefined;
           this.append({
             eventType: type,
-            correlationIds: { featureId },
+            correlationIds: { featureId, projectSlug },
             payload,
             source: 'EventLedgerService',
           });
@@ -360,9 +373,10 @@ export class EventLedgerService {
 
         case 'pipeline:state-entered': {
           const featureId = payload.featureId as string | undefined;
+          const projectSlug = (payload.projectSlug as string) ?? undefined;
           this.append({
             eventType: type,
-            correlationIds: { featureId },
+            correlationIds: { featureId, projectSlug },
             payload: {
               fromState: payload.fromState,
               toState: payload.state,
@@ -395,7 +409,44 @@ export class EventLedgerService {
           break;
         }
 
+        case 'project:lifecycle:initiated': {
+          // Uses `slug` not `projectSlug` in the event payload
+          const projectSlug =
+            (payload.slug as string) ?? (payload.projectSlug as string) ?? undefined;
+          this.append({
+            eventType: type,
+            correlationIds: { projectSlug },
+            payload,
+            source: 'EventLedgerService',
+          });
+          break;
+        }
+
+        case 'project:lifecycle:prd-approved': {
+          // Uses `slug` not `projectSlug` in the event payload
+          const projectSlug =
+            (payload.slug as string) ?? (payload.projectSlug as string) ?? undefined;
+          this.append({
+            eventType: type,
+            correlationIds: { projectSlug },
+            payload,
+            source: 'EventLedgerService',
+          });
+          break;
+        }
+
         case 'project:lifecycle:launched': {
+          const projectSlug = payload.projectSlug as string | undefined;
+          this.append({
+            eventType: type,
+            correlationIds: { projectSlug },
+            payload,
+            source: 'EventLedgerService',
+          });
+          break;
+        }
+
+        case 'project:scaffolded': {
           const projectSlug = payload.projectSlug as string | undefined;
           this.append({
             eventType: type,
@@ -458,9 +509,10 @@ export class EventLedgerService {
           const subType = payload.type as string | undefined;
           if (!subType || !FEATURE_AUTO_MODE_TYPES.has(subType)) break;
           const featureId = payload.featureId as string | undefined;
+          const projectSlug = (payload.projectSlug as string) ?? undefined;
           this.append({
             eventType: type,
-            correlationIds: { featureId },
+            correlationIds: { featureId, projectSlug },
             payload,
             source: 'EventLedgerService',
           });

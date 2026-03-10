@@ -25,7 +25,7 @@ import {
   type Tool,
   type ModelMessage,
 } from 'ai';
-import { anthropic } from '@ai-sdk/anthropic';
+import { getAnthropicModel } from '../../lib/ai-provider.js';
 import { z } from 'zod';
 import { createLogger } from '@protolabsai/utils';
 import { resolveModelString } from '@protolabsai/model-resolver';
@@ -592,7 +592,7 @@ export function createProjectPmRoutes(
       );
 
       const result = streamText({
-        model: anthropic(resolvedModelId),
+        model: await getAnthropicModel(resolvedModelId),
         system: systemPrompt,
         messages: allMessages,
         tools,

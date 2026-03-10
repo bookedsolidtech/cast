@@ -14,6 +14,18 @@ const mockLogger = vi.hoisted(() => ({
   debug: vi.fn(),
 }));
 
+// Hoisted mock for execAsync (child_process.exec promisified)
+// We attach it via util.promisify.custom so promisify(exec) returns it directly.
+const mockExecAsync = vi.hoisted(() => vi.fn(async () => ({ stdout: '', stderr: '' })));
+
+vi.mock('child_process', () => {
+  const execFn = vi.fn();
+  // util.promisify checks for Symbol.for('nodejs.util.promisify.custom')
+  // and uses it directly instead of wrapping the callback-style function.
+  (execFn as any)[Symbol.for('nodejs.util.promisify.custom')] = mockExecAsync;
+  return { exec: execFn };
+});
+
 // ---------------------------------------------------------------------------
 // Module mocks
 // ---------------------------------------------------------------------------
@@ -349,5 +361,248 @@ describe('ExecutionService - IAutoModeCallbacks contract', () => {
     await hitlService.executeFeature(PROJECT_PATH, FEATURE_ID);
 
     expect(hitlCallbacks.waitForPlanApproval).toHaveBeenCalledWith(FEATURE_ID, PROJECT_PATH);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Stash-rebase-pop flow tests
+// ---------------------------------------------------------------------------
+
+describe('ExecutionService - stash-rebase-pop pre-flight', () => {
+  const PROJECT_PATH = '/tmp/test-project';
+  const WORKTREE_PATH = '/tmp/test-project/.worktrees/feature-test-branch';
+  const FEATURE_ID = 'feature-stash-test-1';
+
+  beforeEach(() => {
+    vi.stubEnv('AUTOMAKER_MOCK_AGENT', 'true');
+    // Default: no unstaged changes
+    mockExecAsync.mockReset();
+    mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' });
+  });
+
+  function makeWorktreeFeature(overrides: Partial<Feature> = {}): Feature {
+    return {
+      id: FEATURE_ID,
+      title: 'Stash Test Feature',
+      description: 'Test stash-rebase-pop',
+      status: 'backlog',
+      branchName: 'feature/test-branch',
+      skipTests: true,
+      planningMode: 'skip',
+      requirePlanApproval: false,
+      failureCount: 0,
+      ...overrides,
+    } as Feature;
+  }
+
+  function makeWorktreeCallbacks(
+    feat: Feature,
+    overrides: Partial<IAutoModeCallbacks> = {}
+  ): IAutoModeCallbacks {
+    return {
+      loadFeature: vi.fn(async () => feat),
+      contextExists: vi.fn(async () => false),
+      resumeFeature: vi.fn(async () => {}),
+      findExistingWorktreeForBranch: vi.fn(async () => WORKTREE_PATH),
+      createWorktreeForBranch: vi.fn(async () => WORKTREE_PATH),
+      getModelForFeature: vi.fn(async () => ({ model: 'claude-sonnet-4-6' })),
+      saveExecutionState: vi.fn(async () => {}),
+      getAutoLoopRunning: vi.fn(() => false),
+      updateFeatureStatus: vi.fn(async () => {}),
+      updateFeaturePlanSpec: vi.fn(async () => {}),
+      recordSuccessForProject: vi.fn(),
+      trackFailureAndCheckPauseForProject: vi.fn(() => false),
+      signalShouldPauseForProject: vi.fn(),
+      waitForPlanApproval: vi.fn(async () => ({ approved: true })),
+      cancelPlanApproval: vi.fn(),
+      ...overrides,
+    };
+  }
+
+  it('stashes before rebase and pops after when unstaged changes exist', async () => {
+    const feat = makeWorktreeFeature();
+
+    // Simulate unstaged changes on git status
+    mockExecAsync.mockImplementation(async (cmd: string) => {
+      if (cmd === 'git status --porcelain') {
+        return {
+          stdout: ' M package-lock.json\n M .automaker/memory/ops-lessons.md\n',
+          stderr: '',
+        };
+      }
+      return { stdout: '', stderr: '' };
+    });
+
+    const callbacks = makeWorktreeCallbacks(feat);
+    const recoveryService = {
+      analyzeFailure: vi.fn(async () => ({
+        isRetryable: false,
+        maxRetries: 0,
+        suggestedDelay: 0,
+        category: 'execution',
+        confidence: 'high',
+        reason: 'test',
+      })),
+      executeRecovery: vi.fn(async () => ({ shouldRetry: false, actionTaken: 'none' })),
+      planRecovery: vi.fn(async () => null),
+    } as any;
+
+    const svc = new ExecutionService(
+      { subscribe: vi.fn(), emit: vi.fn() } as any,
+      null,
+      {
+        get: vi.fn(async () => feat),
+        update: vi.fn(async (_p: string, _id: string, updates: Record<string, unknown>) => ({
+          ...feat,
+          ...updates,
+        })),
+        list: vi.fn(async () => []),
+        save: vi.fn(async () => {}),
+      } as any,
+      null,
+      recoveryService,
+      null,
+      new Map(),
+      new Map(),
+      90,
+      95,
+      callbacks
+    );
+
+    await svc.executeFeature(PROJECT_PATH, FEATURE_ID, true /* useWorktrees */);
+
+    const commands: string[] = mockExecAsync.mock.calls.map(([cmd]) => cmd as string);
+
+    // All three git operations must have been called
+    expect(commands).toContain('git stash --include-untracked');
+    expect(commands).toContain('git rebase origin/dev');
+    expect(commands).toContain('git stash pop');
+
+    // Order: stash → rebase → pop
+    const stashIdx = commands.indexOf('git stash --include-untracked');
+    const rebaseIdx = commands.indexOf('git rebase origin/dev');
+    const popIdx = commands.indexOf('git stash pop');
+    expect(stashIdx).toBeLessThan(rebaseIdx);
+    expect(rebaseIdx).toBeLessThan(popIdx);
+  });
+
+  it('skips stash entirely when no unstaged changes exist', async () => {
+    const feat = makeWorktreeFeature();
+
+    // git status returns empty (clean working tree)
+    mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' });
+
+    const callbacks = makeWorktreeCallbacks(feat);
+    const recoveryService = {
+      analyzeFailure: vi.fn(async () => ({
+        isRetryable: false,
+        maxRetries: 0,
+        suggestedDelay: 0,
+        category: 'execution',
+        confidence: 'high',
+        reason: 'test',
+      })),
+      executeRecovery: vi.fn(async () => ({ shouldRetry: false, actionTaken: 'none' })),
+      planRecovery: vi.fn(async () => null),
+    } as any;
+
+    const svc = new ExecutionService(
+      { subscribe: vi.fn(), emit: vi.fn() } as any,
+      null,
+      {
+        get: vi.fn(async () => feat),
+        update: vi.fn(async (_p: string, _id: string, updates: Record<string, unknown>) => ({
+          ...feat,
+          ...updates,
+        })),
+        list: vi.fn(async () => []),
+        save: vi.fn(async () => {}),
+      } as any,
+      null,
+      recoveryService,
+      null,
+      new Map(),
+      new Map(),
+      90,
+      95,
+      callbacks
+    );
+
+    await svc.executeFeature(PROJECT_PATH, FEATURE_ID, true /* useWorktrees */);
+
+    const commands: string[] = mockExecAsync.mock.calls.map(([cmd]) => cmd as string);
+
+    // Stash and pop must NOT be called when working tree is clean
+    expect(commands).not.toContain('git stash --include-untracked');
+    expect(commands).not.toContain('git stash pop');
+    // Rebase still runs
+    expect(commands).toContain('git rebase origin/dev');
+  });
+
+  it('logs warning and continues when stash pop fails after rebase', async () => {
+    const feat = makeWorktreeFeature();
+
+    mockExecAsync.mockImplementation(async (cmd: string) => {
+      if (cmd === 'git status --porcelain') {
+        return { stdout: ' M some-file.ts\n', stderr: '' };
+      }
+      if (cmd === 'git stash pop') {
+        throw new Error('CONFLICT (content): Merge conflict in some-file.ts');
+      }
+      return { stdout: '', stderr: '' };
+    });
+
+    const callbacks = makeWorktreeCallbacks(feat);
+    const recoveryService = {
+      analyzeFailure: vi.fn(async () => ({
+        isRetryable: false,
+        maxRetries: 0,
+        suggestedDelay: 0,
+        category: 'execution',
+        confidence: 'high',
+        reason: 'test',
+      })),
+      executeRecovery: vi.fn(async () => ({ shouldRetry: false, actionTaken: 'none' })),
+      planRecovery: vi.fn(async () => null),
+    } as any;
+
+    const svc = new ExecutionService(
+      { subscribe: vi.fn(), emit: vi.fn() } as any,
+      null,
+      {
+        get: vi.fn(async () => feat),
+        update: vi.fn(async (_p: string, _id: string, updates: Record<string, unknown>) => ({
+          ...feat,
+          ...updates,
+        })),
+        list: vi.fn(async () => []),
+        save: vi.fn(async () => {}),
+      } as any,
+      null,
+      recoveryService,
+      null,
+      new Map(),
+      new Map(),
+      90,
+      95,
+      callbacks
+    );
+
+    // Should not throw — stash pop failure is non-fatal
+    await expect(
+      svc.executeFeature(PROJECT_PATH, FEATURE_ID, true /* useWorktrees */)
+    ).resolves.not.toThrow();
+
+    // A warning should have been logged
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('Stash pop had conflicts')
+    );
+
+    // Feature should still reach a terminal status (not throw/crash)
+    expect(callbacks.updateFeatureStatus).toHaveBeenCalledWith(
+      PROJECT_PATH,
+      FEATURE_ID,
+      'in_progress'
+    );
   });
 });

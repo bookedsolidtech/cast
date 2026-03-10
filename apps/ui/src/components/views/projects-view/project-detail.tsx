@@ -7,6 +7,7 @@ import {
   FlaskConical,
   Activity,
   Archive,
+  Milestone,
 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@protolabsai/ui/atoms';
 import { Spinner } from '@protolabsai/ui/atoms';
@@ -22,6 +23,7 @@ import { FeaturesTab } from './tabs/features-tab';
 import { ResourcesTab } from './tabs/resources-tab';
 import { UpdatesTab } from './tabs/updates-tab';
 import { ResearchTab } from './tabs/research-tab';
+import { MilestonesTab } from './tabs/milestones-tab';
 import { ProjectTimeline } from '@/components/views/projects/project-timeline';
 import { ProjectArtifactViewer } from '@/components/views/projects/project-artifact-viewer';
 import type { Project, ArtifactIndexEntry } from '@protolabsai/types';
@@ -100,6 +102,12 @@ export function ProjectDetail({
                 <FileText />
                 <span className="hidden sm:inline">PRD</span>
               </TabsTrigger>
+              {project.milestones && project.milestones.length > 0 && (
+                <TabsTrigger value="milestones">
+                  <Milestone />
+                  <span className="hidden sm:inline">Milestones</span>
+                </TabsTrigger>
+              )}
               <TabsTrigger value="features">
                 <Layers />
                 <span className="hidden sm:inline">Features</span>
@@ -131,6 +139,12 @@ export function ProjectDetail({
             <TabsContent value="prd">
               <PrdTab project={project as Project} projectSlug={projectSlug} />
             </TabsContent>
+
+            {project.milestones && project.milestones.length > 0 && (
+              <TabsContent value="milestones">
+                <MilestonesTab project={project as Project} />
+              </TabsContent>
+            )}
 
             <TabsContent value="features">
               <FeaturesTab projectSlug={projectSlug} />

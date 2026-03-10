@@ -502,11 +502,11 @@ describe('auto-mode-service.ts (integration)', () => {
         status: 'pending',
       });
 
-      // Use a non-retryable error (merge conflict) so recovery doesn't schedule retry
+      // Use a non-retryable error (authentication) so recovery doesn't schedule retry
       const mockProvider = {
         getName: () => 'claude',
         executeQuery: async function* () {
-          throw new Error('merge conflict detected in file.ts');
+          throw new Error('authentication failed: invalid API key');
         },
       };
 
@@ -515,8 +515,15 @@ describe('auto-mode-service.ts (integration)', () => {
       // Should not throw — use useWorktrees=false since feature has no branchName
       await service.executeFeature(testRepo.path, 'error-feature', false, false);
 
-      // Feature should be marked as backlog (non-retryable error)
-      const feature = await featureLoader.get(testRepo.path, 'error-feature');
+      // Feature should be moved to backlog (non-retryable auth error → escalate, no retry).
+      // The error handler involves async recovery analysis and file I/O, so poll.
+      let feature = await featureLoader.get(testRepo.path, 'error-feature');
+      const deadline = Date.now() + 5000;
+      while (feature?.status === 'in_progress' && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 250));
+        feature = await featureLoader.get(testRepo.path, 'error-feature');
+      }
+      // Non-retryable errors end up in backlog (not blocked) per execution-service line ~1394
       expect(feature?.status).toBe('backlog');
     }, 30000);
 
