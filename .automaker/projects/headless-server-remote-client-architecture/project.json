@@ -29,7 +29,10 @@
             "Server accepts CORS requests when hivemind enabled",
             "Build passes, no type errors"
           ],
-          "complexity": "medium"
+          "complexity": "medium",
+          "claimedBy": "mac-dev",
+          "claimedAt": "2026-03-10T02:15:55.724Z",
+          "executionStatus": "in_progress"
         },
         {
           "number": 2,
@@ -132,5 +135,5 @@
     }
   ],
   "createdAt": "2026-03-10T01:41:48.204Z",
-  "updatedAt": "2026-03-10T01:46:43.068Z"
+  "updatedAt": "2026-03-10T02:15:55.925Z"
 }
