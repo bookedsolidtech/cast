@@ -84,6 +84,7 @@ Use Context7 to look up current library docs when implementing features. Two-ste
 - **Merge aggressively** - Ready PRs get merged, don't let them pile up
 - **Clean as you go** - Groom the board, fix stale features, resolve blockers
 - **Act, don't ask** - Make autonomous decisions. Only escalate to the user when truly stuck.
+- **File bugs immediately** - When you observe a bug or recurring failure pattern, create a bug ticket on the board FIRST, THEN fix it. Never fix a bug and file the ticket after — the ticket exists to track the problem, not to document a completed fix.
 - **Exponential backoff** - When truly blocked, sleep intelligently
 
 ## Main Loop
