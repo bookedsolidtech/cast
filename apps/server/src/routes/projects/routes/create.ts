@@ -78,11 +78,27 @@ export function createCreateHandler() {
       // Generate slug from title if not provided
       const projectSlug = slug || generateProjectSlug(title);
 
-      // Check if project already exists
+      // Check if project already exists — allow overwriting stubs from initiate_project
       const exists = await projectPlanExists(projectPath, projectSlug);
       if (exists) {
-        res.status(409).json({ success: false, error: `Project "${projectSlug}" already exists` });
-        return;
+        const jsonPath = getProjectJsonPath(projectPath, projectSlug);
+        try {
+          const raw = await secureFs.readFile(jsonPath, 'utf-8');
+          const existing = JSON.parse(String(raw)) as Project;
+          const isStub = !existing.milestones || existing.milestones.length === 0;
+          if (!isStub) {
+            res
+              .status(409)
+              .json({ success: false, error: `Project "${projectSlug}" already exists` });
+            return;
+          }
+          // Stub from initiate_project — overwrite it
+        } catch {
+          res
+            .status(409)
+            .json({ success: false, error: `Project "${projectSlug}" already exists` });
+          return;
+        }
       }
 
       // Create directory structure

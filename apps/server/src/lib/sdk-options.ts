@@ -15,7 +15,7 @@
  * security check that applies to ALL AI model invocations, regardless of provider.
  */
 
-import type { Options } from '@anthropic-ai/claude-agent-sdk';
+import type { Options, HookCallback } from '@anthropic-ai/claude-agent-sdk';
 import path from 'path';
 import { resolveModelString } from '@protolabsai/model-resolver';
 import { createLogger } from '@protolabsai/utils';
@@ -116,6 +116,121 @@ export function validateWorkingDirectory(cwd: string): void {
           : 'ALLOWED_ROOT_DIRECTORY is configured but path is not within allowed directories.')
     );
   }
+}
+
+/**
+ * Tools that perform file writes (Edit, Write, MultiEdit).
+ * Bash is handled separately since we can only inspect the command string.
+ */
+const WRITE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit']);
+
+/**
+ * Create a PreToolUse hook that blocks file writes outside the worktree.
+ *
+ * Agents receive their CWD set to the worktree, but prompts and context files
+ * contain absolute paths to the main project directory. LLMs follow those paths
+ * and write to the main repo, corrupting it. This hook intercepts Write/Edit
+ * tool calls and blocks any that target projectPath but not the worktree.
+ *
+ * @param workDir - Resolved absolute path to the worktree (agent CWD)
+ * @param projectPath - Resolved absolute path to the main repository
+ * @returns PreToolUse hook callback, or undefined if workDir === projectPath (no worktree)
+ */
+export function createWorktreeWriteGuard(
+  workDir: string,
+  projectPath: string
+): HookCallback | undefined {
+  const resolvedWorkDir = path.resolve(workDir);
+  const resolvedProjectPath = path.resolve(projectPath);
+
+  // No guard needed if working directly in the project (no worktree)
+  if (resolvedWorkDir === resolvedProjectPath) {
+    return undefined;
+  }
+
+  const hook: HookCallback = async (input) => {
+    if (input.hook_event_name !== 'PreToolUse') {
+      return {};
+    }
+
+    const toolInput = input.tool_input as Record<string, unknown> | undefined;
+    const toolName = input.tool_name;
+
+    // Check Write/Edit/MultiEdit file_path
+    if (WRITE_TOOLS.has(toolName) && toolInput) {
+      const filePath = toolInput.file_path as string | undefined;
+      if (filePath) {
+        const resolved = path.resolve(filePath);
+        // Block if path is inside projectPath but NOT inside the worktree.
+        // Allow writes to .automaker/features/ (agent output is stored there by the server).
+        const isInsideProject = resolved.startsWith(resolvedProjectPath + '/');
+        const isInsideWorktree = resolved.startsWith(resolvedWorkDir + '/');
+        const isAutomakerFeatureDir = resolved.startsWith(
+          path.join(resolvedProjectPath, '.automaker', 'features') + '/'
+        );
+
+        if (isInsideProject && !isInsideWorktree && !isAutomakerFeatureDir) {
+          const relPath = path.relative(resolvedProjectPath, resolved);
+          const worktreePath = path.join(resolvedWorkDir, relPath);
+          logger.warn(
+            `[WorktreeGuard] Blocked ${toolName} to main repo: ${resolved}. ` +
+              `Agent should use worktree path: ${worktreePath}`
+          );
+          return {
+            decision: 'block' as const,
+            reason:
+              `BLOCKED: You are writing to the main repository (${resolved}) instead of your worktree. ` +
+              `Use the worktree path instead: ${worktreePath}. ` +
+              `Your working directory is ${resolvedWorkDir} — use relative paths or paths under this directory.`,
+          };
+        }
+      }
+    }
+
+    // Check Bash commands for writes to projectPath
+    if (toolName === 'Bash' && toolInput) {
+      const command = toolInput.command as string | undefined;
+      if (command && !command.includes(resolvedWorkDir)) {
+        // Only check commands that don't reference the worktree path.
+        // The worktree is a subdir of projectPath (.worktrees/branch),
+        // so regex matches on projectPath would false-positive on worktree paths.
+        const writePatterns = [
+          // Direct file writes via redirection
+          new RegExp(`>\\s*${escapeRegExp(resolvedProjectPath)}/`),
+          // git operations in projectPath (git -C projectPath ...)
+          new RegExp(`git\\s+-C\\s+['"]?${escapeRegExp(resolvedProjectPath)}['"]?`),
+          // cp/mv targeting projectPath
+          new RegExp(`(?:cp|mv)\\s+.*${escapeRegExp(resolvedProjectPath)}/`),
+        ];
+
+        for (const pattern of writePatterns) {
+          if (pattern.test(command)) {
+            logger.warn(
+              `[WorktreeGuard] Blocked Bash command targeting main repo: ${command.substring(0, 200)}`
+            );
+            return {
+              decision: 'block' as const,
+              reason:
+                `BLOCKED: Your bash command targets the main repository (${resolvedProjectPath}). ` +
+                `Use your worktree path instead: ${resolvedWorkDir}. ` +
+                `Replace "${resolvedProjectPath}" with "${resolvedWorkDir}" in your command.`,
+            };
+          }
+        }
+      }
+    }
+
+    return {};
+  };
+
+  return hook;
+}
+
+/**
+ * Escape special regex characters in a string
+ */
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**
@@ -278,6 +393,31 @@ function buildThinkingOptions(thinkingLevel?: ThinkingLevel): Partial<Options> {
 }
 
 /**
+ * Build worktree write guard hooks for SDK options.
+ * Returns a hooks object if projectPath is set and differs from cwd (worktree mode).
+ */
+function buildWorktreeGuardHooks(config: CreateSdkOptionsConfig): Partial<Options> {
+  if (!config.projectPath) return {};
+
+  const guard = createWorktreeWriteGuard(config.cwd, config.projectPath);
+  if (!guard) return {};
+
+  logger.info(
+    `[WorktreeGuard] Enabled: writes blocked outside worktree ${config.cwd} (project: ${config.projectPath})`
+  );
+
+  return {
+    hooks: {
+      PreToolUse: [
+        {
+          hooks: [guard],
+        },
+      ],
+    },
+  };
+}
+
+/**
  * Build system prompt configuration based on autoLoadClaudeMd setting.
  * When autoLoadClaudeMd is true:
  * - Uses preset mode with 'claude_code' to enable CLAUDE.md auto-loading
@@ -372,6 +512,12 @@ export interface CreateSdkOptionsConfig {
 
   /** Session ID to resume from. Loads conversation history from the specified session. */
   resume?: string;
+
+  /**
+   * Main repository path. When set alongside a worktree cwd, enables the
+   * PreToolUse write guard that blocks agent file writes outside the worktree.
+   */
+  projectPath?: string;
 }
 
 // Re-export MCP types from @protolabsai/types for convenience
@@ -543,6 +689,9 @@ export function createAutoModeOptions(config: CreateSdkOptionsConfig): Options {
   // Build thinking options
   const thinkingOptions = buildThinkingOptions(config.thinkingLevel);
 
+  // Build worktree write guard hook (blocks writes outside the worktree)
+  const worktreeHooks = buildWorktreeGuardHooks(config);
+
   return {
     ...getBaseOptions(),
     model: getModelForUseCase('auto', config.model),
@@ -552,6 +701,7 @@ export function createAutoModeOptions(config: CreateSdkOptionsConfig): Options {
     enableFileCheckpointing: true,
     ...claudeMdOptions,
     ...thinkingOptions,
+    ...worktreeHooks,
     ...(config.abortController && { abortController: config.abortController }),
     ...(config.maxBudgetUsd != null && { maxBudgetUsd: config.maxBudgetUsd }),
     ...(config.resume && { resume: config.resume }),

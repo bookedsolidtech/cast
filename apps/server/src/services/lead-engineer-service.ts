@@ -11,6 +11,8 @@
 
 import path from 'path';
 import fs from 'fs';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import { createLogger } from '@protolabsai/utils';
 import type {
   EventType,
@@ -50,21 +52,25 @@ import type {
 import type { AgentFactoryService } from './agent-factory-service.js';
 import { GtmReviewProcessor } from './lead-engineer-gtm-review-processor.js';
 import type { HITLFormService } from './hitl-form-service.js';
+import type { AuthorityService } from './authority-service.js';
 
 export type { FeatureProcessingState, StateContext };
 export type { ProcessorServiceContext } from './lead-engineer-types.js';
 export { FeatureStateMachine } from './lead-engineer-state-machine.js';
 
+const execAsync = promisify(exec);
 const logger = createLogger('LeadEngineerService');
 const WORLD_STATE_REFRESH_MS = 5 * 60 * 1000;
 const MAX_RULE_LOG_ENTRIES = 200;
 const SUPERVISOR_CHECK_MS = 30 * 1000;
+const PR_MERGE_POLL_MS = 2.5 * 60 * 1000;
 
 export class LeadEngineerService {
   private sessions = new Map<string, LeadEngineerSession>();
   private subscriptions: EventSubscription[] = [];
   private refreshIntervals = new Map<string, ReturnType<typeof setInterval>>();
   private supervisorIntervals = new Map<string, ReturnType<typeof setInterval>>();
+  private prMergeIntervals = new Map<string, ReturnType<typeof setInterval>>();
   private activeFeatures = new Set<string>();
 
   private discordBotService?: {
@@ -81,6 +87,9 @@ export class LeadEngineerService {
   private trajectoryStoreService?: TrajectoryStoreService;
   private antagonisticReviewService?: IPlanReviewService;
   private hitlFormService?: HITLFormService;
+  private authorityService?: AuthorityService;
+  /** Per-project workflow settings cache — populated when a session starts */
+  private workflowSettingsCache = new Map<string, import('@protolabsai/types').WorkflowSettings>();
 
   private worldStateBuilder: WorldStateBuilder;
   private sessionStore: LeadEngineerSessionStore;
@@ -139,6 +148,9 @@ export class LeadEngineerService {
   }
   setHITLFormService(s: HITLFormService): void {
     this.hitlFormService = s;
+  }
+  setAuthorityService(s: AuthorityService): void {
+    this.authorityService = s;
   }
 
   /**
@@ -251,7 +263,7 @@ export class LeadEngineerService {
             projectSlug,
             s.worldState.maxConcurrency
           );
-          this.getActionExecutor().evaluateAndExecute(
+          this.getActionExecutor(undefined, projectPath).evaluateAndExecute(
             s,
             DEFAULT_RULES,
             'lead-engineer:rule-evaluated',
@@ -269,8 +281,10 @@ export class LeadEngineerService {
       this.settingsService,
       '[LeadEngineer]'
     );
+    this.workflowSettingsCache.set(projectPath, workflowSettings);
+
     if (workflowSettings.pipeline.supervisorEnabled) {
-      const executor = this.getActionExecutor();
+      const executor = this.getActionExecutor(workflowSettings);
       this.supervisorIntervals.set(
         projectPath,
         setInterval(() => {
@@ -279,6 +293,18 @@ export class LeadEngineerService {
         }, SUPERVISOR_CHECK_MS)
       );
     }
+
+    this.prMergeIntervals.set(
+      projectPath,
+      setInterval(() => {
+        const s = this.sessions.get(projectPath);
+        if (s?.flowState === 'running') {
+          this.checkMergedPRs(projectPath).catch((err) =>
+            logger.error(`PR merge poll failed for ${projectSlug}:`, err)
+          );
+        }
+      }, PR_MERGE_POLL_MS)
+    );
 
     await this.sessionStore.save(session);
     this.events.emit('lead-engineer:started', { projectPath, projectSlug });
@@ -293,6 +319,7 @@ export class LeadEngineerService {
       return;
     }
     this.clearIntervals(projectPath);
+    this.workflowSettingsCache.delete(projectPath);
     session.flowState = 'stopped';
     session.stoppedAt = new Date().toISOString();
     this.sessions.delete(projectPath);
@@ -463,13 +490,20 @@ export class LeadEngineerService {
 
   // ────────────────────────── Private ──────────────────────────
 
-  private getActionExecutor(): ActionExecutor {
+  private getActionExecutor(
+    workflowSettings?: import('@protolabsai/types').WorkflowSettings,
+    projectPath?: string
+  ): ActionExecutor {
+    const resolvedSettings =
+      workflowSettings ?? (projectPath ? this.workflowSettingsCache.get(projectPath) : undefined);
     return new ActionExecutor({
       events: this.events,
       featureLoader: this.featureLoader,
       autoModeService: this.autoModeService,
       codeRabbitResolver: this.codeRabbitResolver,
       discordBotService: this.discordBotService,
+      authorityService: this.authorityService,
+      workflowSettings: resolvedSettings,
     });
   }
 
@@ -484,9 +518,70 @@ export class LeadEngineerService {
       clearInterval(s);
       this.supervisorIntervals.delete(projectPath);
     }
+    const p = this.prMergeIntervals.get(projectPath);
+    if (p) {
+      clearInterval(p);
+      this.prMergeIntervals.delete(projectPath);
+    }
   }
 
-  private onEvent(type: EventType, payload: unknown): void {
+  /** @internal exported for testing */
+  async checkMergedPRs(projectPath: string): Promise<void> {
+    const session = this.sessions.get(projectPath);
+    if (!session || session.flowState !== 'running') return;
+
+    let features: Awaited<ReturnType<typeof this.featureLoader.getAll>>;
+    try {
+      features = await this.featureLoader.getAll(projectPath);
+    } catch (err) {
+      logger.error(`[PRMergePoller] Failed to load features for ${projectPath}:`, err);
+      return;
+    }
+
+    const reviewFeaturesWithPR = features.filter(
+      (f) => f.status === 'review' && f.prNumber != null
+    );
+
+    if (reviewFeaturesWithPR.length === 0) return;
+
+    logger.debug(
+      `[PRMergePoller] Checking ${reviewFeaturesWithPR.length} review feature(s) for merged PRs in ${session.projectSlug}`
+    );
+
+    for (const feature of reviewFeaturesWithPR) {
+      try {
+        const { stdout } = await execAsync(`gh pr view ${feature.prNumber} --json state,mergedAt`);
+        const prData = JSON.parse(stdout.trim()) as { state: string; mergedAt?: string | null };
+
+        if (prData.state !== 'MERGED') continue;
+
+        const prMergedAt = prData.mergedAt ?? new Date().toISOString();
+
+        logger.info(
+          `[PRMergePoller] PR #${feature.prNumber} for feature "${feature.id}" is merged — transitioning to done`
+        );
+
+        await this.featureLoader.update(projectPath, feature.id, {
+          status: 'done',
+          prMergedAt,
+        });
+
+        this.events.emit('feature:pr-merged' as EventType, {
+          featureId: feature.id,
+          featureTitle: feature.title,
+          prNumber: feature.prNumber,
+          projectPath,
+        });
+      } catch (err) {
+        logger.warn(
+          `[PRMergePoller] Failed to check PR #${feature.prNumber} for feature "${feature.id}" (non-fatal):`,
+          err
+        );
+      }
+    }
+  }
+
+  private async onEvent(type: EventType, payload: unknown): Promise<void> {
     const p = payload as Record<string, unknown> | null;
     const nested = p?.payload as Record<string, unknown> | null;
     const projectPath = (p?.projectPath ?? nested?.projectPath) as string | undefined;
@@ -495,7 +590,7 @@ export class LeadEngineerService {
       const session = this.sessions.get(projectPath);
       if (session?.flowState === 'running') {
         this.worldStateBuilder.updateFromEvent(session.worldState, type, payload);
-        this.getActionExecutor().evaluateAndExecute(
+        this.getActionExecutor(undefined, projectPath).evaluateAndExecute(
           session,
           DEFAULT_RULES,
           type,
@@ -509,9 +604,22 @@ export class LeadEngineerService {
     const featureId = (p?.featureId ?? nested?.featureId) as string | undefined;
     if (featureId) {
       for (const session of this.sessions.values()) {
-        if (session.flowState !== 'running' || !session.worldState.features[featureId]) continue;
+        if (session.flowState !== 'running') continue;
+        if (!session.worldState.features[featureId]) {
+          try {
+            const feature = await this.featureLoader.get(session.projectPath, featureId);
+            if (feature) {
+              session.worldState.features[featureId] =
+                this.worldStateBuilder.featureToSnapshot(feature);
+            } else {
+              continue;
+            }
+          } catch {
+            continue;
+          }
+        }
         this.worldStateBuilder.updateFromEvent(session.worldState, type, payload);
-        this.getActionExecutor().evaluateAndExecute(
+        this.getActionExecutor(undefined, session.projectPath).evaluateAndExecute(
           session,
           DEFAULT_RULES,
           type,

@@ -33,6 +33,8 @@ export type EventType =
   | 'feature:verify-pending'
   | 'feature:blocked'
   | 'feature:unblocked'
+  | 'cost:exceeded'
+  | 'runtime:exceeded'
   | 'project:analysis-started'
   | 'project:analysis-progress'
   | 'project:analysis-completed'
@@ -338,7 +340,10 @@ export type EventType =
   | 'agent:completed'
   | 'pr:merged'
   | 'pr:review-requested'
-  | 'ava-channel:message';
+  | 'ava-channel:message'
+  // Error budget events (burn rate threshold enforcement)
+  | 'error_budget:exhausted'
+  | 'error_budget:recovered';
 
 export type EventCallback = (type: EventType, payload: unknown) => void;
 
@@ -533,6 +538,32 @@ export interface EventPayloadMap {
   'feature:verify-pending': {
     featureId: string;
     projectPath: string;
+  };
+  'cost:exceeded': {
+    featureId: string;
+    projectPath: string;
+    costUsd: number;
+    capUsd: number;
+  };
+  'runtime:exceeded': {
+    featureId: string;
+    projectPath: string;
+    elapsedMinutes: number;
+    capMinutes: number;
+  };
+  'error_budget:exhausted': {
+    projectPath: string;
+    failRate: number;
+    threshold: number;
+    totalMerges: number;
+    failedMerges: number;
+  };
+  'error_budget:recovered': {
+    projectPath: string;
+    failRate: number;
+    threshold: number;
+    totalMerges: number;
+    failedMerges: number;
   };
   'feature:status-changed': {
     featureId: string;

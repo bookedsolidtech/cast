@@ -228,6 +228,42 @@ export interface WorkflowSettings {
    * @default false
    */
   authorityEnforcement?: boolean;
+  /**
+   * Maximum cost in USD allowed per feature execution. If the feature's costUsd
+   * reaches or exceeds this value after agent execution, the agent is killed and the
+   * feature is moved to blocked with a statusChangeReason explaining the cap was hit.
+   * A `cost:exceeded` event is emitted.
+   * @default undefined (off — no cost cap enforced)
+   */
+  maxCostUsdPerFeature?: number;
+  /**
+   * Maximum wall-clock runtime in minutes allowed per feature execution. Measured from
+   * the feature's startedAt timestamp. If elapsed minutes >= this value after agent
+   * execution, the feature is moved to blocked with a statusChangeReason explaining the
+   * cap was hit. A `runtime:exceeded` event is emitted.
+   * @default 60
+   */
+  maxRuntimeMinutesPerFeature?: number;
+  /**
+   * Maximum number of features allowed in the in_progress state before the lane
+   * is considered saturated. Used to compute the wipSaturation metric on board summary.
+   * @default 5
+   */
+  maxInProgress?: number;
+  /**
+   * Maximum number of features allowed in the review state before the lane
+   * is considered saturated. Used to compute the wipSaturation metric on board summary.
+   * @default 10
+   */
+  maxInReview?: number;
+  /**
+   * When true, auto-mode pauses new feature pickup when the error budget is exhausted
+   * (burn rate >= exhaustion threshold, default 1.0 = 100% consumed). Pickup resumes
+   * automatically when the budget recovers (burn rate drops below 0.8). Running agents
+   * are NOT affected — only new feature starts are blocked.
+   * @default true
+   */
+  errorBudgetAutoFreeze?: boolean;
 }
 
 /** Default workflow settings */
