@@ -3,201 +3,85 @@
   "title": "Project-Level Instance Affinity",
   "goal": "Replace feature-level fleet scheduling with project-level instance assignment. Instances own child projects, not individual features. Eliminates race conditions, work-stealing complexity, and ~1300 lines of fleet scheduler code.",
   "status": "active",
+  "createdAt": "2026-03-10T18:45:21.425Z",
+  "updatedAt": "2026-03-10T18:45:32.282Z",
+  "archivedAt": "2026-03-10T22:06:52.535Z",
   "milestones": [
     {
       "number": 1,
       "slug": "01-foundation-types",
       "title": "Foundation Types",
-      "description": "Core type changes that all other features depend on. Must merge before Wave 2 starts.",
+      "epicId": "feature-1773168332243-kxfgear73",
+      "status": "pending",
       "phases": [
         {
           "number": 1,
           "name": "add-project-assignment-types-and-createdbyinstance-field",
           "title": "Add project assignment types and createdByInstance field",
-          "description": "Add project type enum (finite/ongoing), assignment fields (assignedTo, assignedAt, assignedBy) to Project interface. Add createdByInstance to Feature. Add projectPreferences to ProtoConfig. Remove fleet scheduler message types (WorkInventory, ScheduleAssignment, SchedulerHeartbeat, ScheduleConflict) from ava-channel types. Replace ongoing boolean with type field on Project and update all consumers.",
-          "filesToModify": [
-            "libs/types/src/project.ts",
-            "libs/types/src/feature.ts",
-            "libs/types/src/proto-config.ts",
-            "libs/types/src/ava-channel.ts",
-            "libs/types/src/index.ts"
-          ],
-          "acceptanceCriteria": [
-            "Project interface has type: 'finite' | 'ongoing', assignedTo, assignedAt, assignedBy fields",
-            "Feature interface has createdByInstance field",
-            "ProtoConfig has projectPreferences with preferredProjects and overflowEnabled",
-            "Fleet scheduler message types removed from ava-channel.ts",
-            "All consumers of removed types updated (no TypeScript errors)",
-            "npm run build:packages succeeds",
-            "npm run typecheck succeeds"
-          ],
-          "complexity": "medium",
-          "featureId": "feature-1773168332245-6for6p2v1"
+          "featureId": "feature-1773168332245-6for6p2v1",
+          "complexity": "medium"
         }
-      ],
-      "status": "pending",
-      "epicId": "feature-1773168332243-kxfgear73"
+      ]
     },
     {
       "number": 2,
       "slug": "02-core-services",
       "title": "Core Services",
-      "description": "Service layer changes: new assignment service, updated feature selection, fleet scheduler removal. Parallelizable within this wave.",
+      "epicId": "feature-1773168332247-cfo7ya2bu",
+      "status": "pending",
       "phases": [
         {
           "number": 1,
           "name": "create-projectassignmentservice",
           "title": "Create ProjectAssignmentService",
-          "description": "New service that manages project-to-instance assignment. Methods: assignProject, unassignProject, getAssignments, getMyAssignedProjects, claimPreferredProjects (boot-time), reassignOrphanedProjects. Register in ServiceContainer. Wire claimPreferredProjects into server startup. Uses ProjectService for persistence and CRDTSyncService for peer heartbeat status.",
-          "filesToModify": [
-            "apps/server/src/services/project-assignment-service.ts",
-            "apps/server/src/server/services.ts"
-          ],
-          "acceptanceCriteria": [
-            "ProjectAssignmentService registered in ServiceContainer",
-            "assignProject writes assignedTo/assignedAt/assignedBy to project via ProjectService",
-            "unassignProject clears assignment fields",
-            "claimPreferredProjects reads proto.config.yaml and claims unassigned projects on boot",
-            "reassignOrphanedProjects detects stale heartbeats (>120s) and auto-claims orphans",
-            "Unit tests cover assign, unassign, claim, and orphan reassignment",
-            "npm run test:server passes"
-          ],
-          "complexity": "medium",
-          "featureId": "feature-1773168332249-t2ohib3mb"
+          "featureId": "feature-1773168332249-t2ohib3mb",
+          "complexity": "medium"
         },
         {
           "number": 2,
           "name": "update-feature-selection-to-be-project-scoped",
           "title": "Update feature selection to be project-scoped",
-          "description": "Modify FeatureScheduler.loadPendingFeatures() to filter by project ownership. Features eligible if: projectSlug in assigned projects, OR projectSlug null and createdByInstance matches, OR projectSlug unassigned and overflow enabled. Sort: assigned > own unassigned > overflow. Stamp createdByInstance in FeatureLoader.create(). When no instance identity configured, bypass affinity filtering (backward compat for single-instance).",
-          "filesToModify": [
-            "apps/server/src/services/feature-scheduler.ts",
-            "apps/server/src/services/feature-loader.ts",
-            "apps/server/src/services/auto-mode-service.ts"
-          ],
-          "acceptanceCriteria": [
-            "loadPendingFeatures filters by project assignment when instance identity is configured",
-            "Single-instance setups with no proto.config.yaml work unchanged",
-            "FeatureLoader.create stamps createdByInstance from current instance ID",
-            "Sort order: assigned projects first, then own unassigned, then overflow",
-            "Unit tests cover all three filter paths plus single-instance fallback",
-            "npm run test:server passes"
-          ],
-          "complexity": "medium",
-          "featureId": "feature-1773168332251-23j8j2gve"
+          "featureId": "feature-1773168332251-23j8j2gve",
+          "complexity": "medium"
         },
         {
           "number": 3,
           "name": "remove-fleetschedulerservice-and-work-stealing",
           "title": "Remove FleetSchedulerService and work-stealing",
-          "description": "Delete fleet-scheduler-service.ts entirely. Remove all consumers: ava-channel-reactor.module.ts (instantiation), services.ts (ServiceContainer), ava-channel-reactor-service.ts (work_request, work_offer, work_inventory, schedule_assignment, schedule_conflict handlers). Delete fleet-status.ts route. Remove fleet-status route from projects/index.ts. Keep capacity_heartbeat handler (needed for failover). Remove fleet scheduler test files if any.",
-          "filesToModify": [
-            "apps/server/src/services/fleet-scheduler-service.ts",
-            "apps/server/src/routes/projects/fleet-status.ts",
-            "apps/server/src/services/ava-channel-reactor-service.ts",
-            "apps/server/src/services/ava-channel-reactor.module.ts",
-            "apps/server/src/server/services.ts",
-            "apps/server/src/routes/projects/index.ts"
-          ],
-          "acceptanceCriteria": [
-            "fleet-scheduler-service.ts deleted",
-            "fleet-status.ts route deleted",
-            "No references to FleetSchedulerService remain in codebase",
-            "Work-stealing handlers removed from ava-channel-reactor-service.ts",
-            "Fleet scheduler message handlers removed from ava-channel-reactor-service.ts",
-            "capacity_heartbeat handler preserved",
-            "npm run build succeeds with no TypeScript errors",
-            "npm run test:server passes"
-          ],
-          "complexity": "medium",
-          "featureId": "feature-1773168332253-xkxqdgz24"
+          "featureId": "feature-1773168332253-xkxqdgz24",
+          "complexity": "medium"
         }
-      ],
-      "status": "pending",
-      "epicId": "feature-1773168332247-cfo7ya2bu"
+      ]
     },
     {
       "number": 3,
       "slug": "03-integration",
       "title": "Integration",
-      "description": "MCP tools, escalation simplification, and auto-failover timer. Parallelizable within this wave.",
+      "epicId": "feature-1773168332255-10oizyadg",
+      "status": "pending",
       "phases": [
         {
           "number": 1,
           "name": "add-mcp-tools-and-api-routes-for-project-assignment",
           "title": "Add MCP tools and API routes for project assignment",
-          "description": "Add four MCP tools: assign_project, unassign_project, list_project_assignments, reassign_orphaned_projects. Add corresponding Express route handlers in apps/server/src/routes/projects/assignment.ts. Wire routes into projects router. Register tools in MCP tool registry.",
-          "filesToModify": [
-            "packages/mcp-server/src/tools/project-tools.ts",
-            "apps/server/src/routes/projects/assignment.ts",
-            "apps/server/src/routes/projects/index.ts"
-          ],
-          "acceptanceCriteria": [
-            "assign_project MCP tool works end-to-end",
-            "unassign_project MCP tool works end-to-end",
-            "list_project_assignments returns all assignments",
-            "reassign_orphaned_projects triggers orphan detection",
-            "API routes delegate to ProjectAssignmentService",
-            "Tools registered in MCP registry"
-          ],
-          "complexity": "small",
-          "featureId": "feature-1773168332258-85s3zrgnb"
+          "featureId": "feature-1773168332258-85s3zrgnb",
+          "complexity": "small"
         },
         {
           "number": 2,
           "name": "simplify-escalation-to-project-level",
           "title": "Simplify escalation to project-level",
-          "description": "Remove feature-level escalation handlers (escalation_request, escalation_offer, escalation_accept) from ava-channel-reactor-service.ts. Replace with a simple project_blocked broadcast when a project has 3+ blocked features. No automated negotiation — Ava reassigns the project via assign_project MCP tool. Remove pendingEscalations tracking.",
-          "filesToModify": [
-            "apps/server/src/services/ava-channel-reactor-service.ts"
-          ],
-          "acceptanceCriteria": [
-            "Feature-level escalation handlers removed",
-            "pendingEscalations map removed",
-            "project_blocked message broadcast when project has 3+ blocked features",
-            "No automated escalation negotiation remains",
-            "npm run test:server passes"
-          ],
-          "complexity": "small",
-          "featureId": "feature-1773168332259-0jxp6uix0"
+          "featureId": "feature-1773168332259-0jxp6uix0",
+          "complexity": "small"
         },
         {
           "number": 3,
           "name": "add-auto-failover-timer-to-projectassignmentservice",
           "title": "Add auto-failover timer to ProjectAssignmentService",
-          "description": "Add a periodic check (every 60s) in ProjectAssignmentService that reads peer heartbeats, detects orphaned projects (assignedTo instance stale >120s), and auto-claims them. When original instance comes back, it does NOT auto-reclaim — Ava or operator must explicitly reassign. Emit event when failover occurs for observability.",
-          "filesToModify": [
-            "apps/server/src/services/project-assignment-service.ts"
-          ],
-          "acceptanceCriteria": [
-            "Periodic check runs every 60 seconds",
-            "Detects orphaned projects via peer heartbeat staleness (>120s threshold)",
-            "Auto-claims orphans with assignedBy: 'auto-failover'",
-            "Recovered instances do NOT auto-reclaim their old projects",
-            "Event emitted on failover for logging/observability",
-            "Unit test covers failover detection and claim"
-          ],
-          "complexity": "small",
-          "featureId": "feature-1773168332260-nfvng2tv2"
+          "featureId": "feature-1773168332260-nfvng2tv2",
+          "complexity": "small"
         }
-      ],
-      "status": "pending",
-      "epicId": "feature-1773168332255-10oizyadg"
+      ]
     }
-  ],
-  "prd": {
-    "situation": "Multi-instance Ava coordination uses feature-level fleet scheduling via FleetSchedulerService. Instances broadcast work inventories, a primary scheduler distributes features round-robin by capacity, and conflicts are detected post-hoc. Work-stealing and escalation handoffs add further complexity.",
-    "problem": "Feature-level scheduling creates 5 friction points: claim races (two instances grab same feature), work-stealing races, escalation acceptance races, stale inventory snapshots, and no capacity reservation. All stem from multiple instances competing for individual features. The fleet scheduler is ~1100 lines of complexity solving problems that shouldn't exist.",
-    "approach": "Move the scheduling boundary UP to child projects. Each instance owns entire projects, not features. Assignment stored on Project type via CRDT. Auto-mode filters features by project ownership. Config declares soft preferences, runtime API sets hard assignments. Auto-failover claims orphaned projects when instances go stale. Two project types: finite (milestones, completes) and ongoing (continuous intake like bugs). Remove fleet scheduler, work-stealing, and feature-level conflict resolution entirely.",
-    "results": "Zero race conditions (structurally impossible). ~1300 lines removed (fleet scheduler + work-stealing). Simpler mental model: instance owns project, processes its backlog. Auto-failover handles instance outages. Clean ongoing project pattern for continuous work like bugs and maintenance.",
-    "constraints": [
-      "Greenfield-first: no backward compat shims for removed fleet scheduler types",
-      "Single-instance setups (no proto.config.yaml) must continue working with no config changes",
-      "Assignment fields must sync via existing CRDT infrastructure, no new sync mechanisms",
-      "Capacity heartbeat must be preserved for failover detection",
-      "Feature creation must stamp createdByInstance for unassigned feature ownership"
-    ]
-  },
-  "createdAt": "2026-03-10T18:45:21.425Z",
-  "updatedAt": "2026-03-10T18:45:32.282Z"
+  ]
 }
