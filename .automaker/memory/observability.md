@@ -6,8 +6,8 @@ importance: 0.7
 relatedFiles: []
 usageStats:
   loaded: 25
-  referenced: 2
-  successfulFeatures: 2
+  referenced: 3
+  successfulFeatures: 3
 ---
 # observability
 

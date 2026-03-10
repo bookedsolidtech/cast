@@ -5,9 +5,9 @@ relevantTo: [gotchas]
 importance: 0.7
 relatedFiles: []
 usageStats:
-  loaded: 1038
-  referenced: 285
-  successfulFeatures: 285
+  loaded: 1041
+  referenced: 287
+  successfulFeatures: 287
 ---
 # gotchas
 
@@ -690,3 +690,8 @@ usageStats:
 - **Situation:** Codebase convention uses 'dev:' prefix for local-execution scripts, but this variant must run production environment to accurately test deployed configuration
 - **Root cause:** Enables testing production behavior (AUTO_MODE=true, NODE_ENV=production) locally before CI deployment. Validates server correctness in its actual runtime environment, not a mock dev environment.
 - **How to avoid:** Consistent naming across root scripts vs. explicit environment signaling in script name
+
+#### [Gotcha] staleForMs might be 0 or imprecise, so fallback to 'some time' instead of computing staleHours; loses precision in user-facing message (2026-03-10)
+- **Situation:** Drift data structure has optional staleForMs field; value could be missing, zero, or calculated inaccurately from timestamps
+- **Root cause:** Defensive: avoid showing '0 hours' or NaN in comment body; vague message still readable
+- **How to avoid:** User sees less precise info ('some time' vs '72 hours'), but message degrades gracefully instead of erroring or misleading

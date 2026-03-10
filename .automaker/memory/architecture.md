@@ -4346,3 +4346,87 @@ usageStats:
 - **Rejected:** Keep this.config but make it readonly/private. Still allows aliasing and indirect mutation; parameters are more explicit.
 - **Trade-offs:** Parameter injection requires updating call sites (startAutoLoop→runAutoLoop). More argument passing, but clearer intent. Better testability (no mock config setup).
 - **Breaking if changed:** If code modifies this.config mid-loop expecting effects on runAutoLoop, those effects are gone. Removes implicit state coupling.
+
+### Reuse existing event types with metadata flags instead of creating new events (e.g., emit 'pr:ci-failure' with isTransient:true instead of new 'pr:ci-retry' event) (2026-03-10)
+- **Context:** Reconciliation service needed to signal CI retry for transient failures, but downstream PRFeedbackService already handles 'pr:ci-failure' events
+- **Why:** Reduces event schema explosion, leverages existing downstream handlers without modification, single source of truth for CI handling
+- **Rejected:** Creating new event type 'pr:ci-retry' with separate handler path
+- **Trade-offs:** Easier to extend with flags, but event consumers must understand metadata semantics; existing handlers must gracefully ignore new flags if incompatible
+- **Breaking if changed:** If 'isTransient' flag is removed from event schema, subscribers lose context and cannot differentiate transient vs persistent failures
+
+#### [Pattern] Deduplication check before creating HITL forms: getByFeatureId() followed by conditional create() prevents duplicate escalations (2026-03-10)
+- **Problem solved:** Reconciliation service runs periodically on drift; stale PR could trigger 5 HITL forms in 5 runs if unchecked
+- **Why this works:** Reconciliation runs as a cron/polling loop, would create duplicate forms without dedup; avoids alert fatigue and redundant human work
+- **Trade-offs:** Dedup at application level is explicit but fragile (no database guarantee); only prevents duplication per feature, not per issue type (one form per feature max)
+
+#### [Pattern] Separate failure classification into dedicated service (failureClassifierService.classify()) rather than inline logic in reconciliation (2026-03-10)
+- **Problem solved:** Reconciliation needs to distinguish transient (network timeout) vs persistent (type error) CI failures to decide retry vs escalate
+- **Why this works:** Classification logic is complex, reusable in other services (e.g., PR feedback, monitoring), testable in isolation, reduces reconciliation complexity
+- **Trade-offs:** Adds service dependency and network/timing cost, but centralizes classification rules; if classifier is unavailable, entire CI retry logic fails
+
+### Inject dependencies as optional (may be undefined) to preserve backward compatibility during gradual rollout (2026-03-10)
+- **Context:** Multiple new services (WorktreeLifecycleService, GitHubMergeService, etc.) added to reconciliation constructor; not all environments ready simultaneously
+- **Why:** Allows reconciliation to deploy before all downstream services are ready; reduces deployment coordination; enables feature flags per service
+- **Rejected:** Require all dependencies; lazy-load dependencies at runtime
+- **Trade-offs:** Must check `if (this.service && ...)` everywhere, adds null-coalescing boilerplate; lazy-load requires async initialization
+- **Breaking if changed:** If code doesn't check for undefined dependencies, null reference errors occur in production; if a required service becomes optional later, old code assumes it exists
+
+#### [Pattern] Use iteration counter (prIterationCount) with hardcoded threshold (MAX_PR_ITERATIONS=2) as circuit breaker to prevent infinite feedback loops (2026-03-10)
+- **Problem solved:** PRFeedbackService could loop indefinitely: propose change → author responds → propose another change → ...
+- **Why this works:** Feedback loops must terminate; at cap, escalate to human instead of continuing automated suggestions
+- **Trade-offs:** Simple and predictable (fail fast at 2 iterations), but one-size-fits-all; hardcoded constant is inflexible, requires code change to adjust
+
+### Direct feature state mutation (feature.status = 'blocked') alongside event emission instead of pure event-driven state updates (2026-03-10)
+- **Context:** Reconciliation detects feature is stuck (failureCount >= 3) and must move to blocked state and escalate
+- **Why:** Immediate consistency required: next feature load must see blocked status; event emission alone would have eventual consistency delay
+- **Rejected:** Emit 'feature-should-block' event and let handler update state
+- **Trade-offs:** Faster, predictable state changes, but creates tight coupling; harder to replay or audit state transitions; potential race conditions if multiple services mutate feature state
+- **Breaking if changed:** If state mutation is removed and only events emitted, downstream code assumes blocked status is already set, leading to incorrect behavior; if mutations aren't persisted, state reverts on restart
+
+### Pre-flight failures use infraRetryCount (infrastructure retry budget) instead of retryCount (agent retry budget) (2026-03-10)
+- **Context:** ExecuteProcessor has two retry budgets: one for transient agent failures, one for infrastructure/environmental failures. Pre-flight checks (worktree, build, deps) can fail transiently without indicating the agent can't do its job.
+- **Why:** Separates failure categories: transient infrastructure problems (rebase in progress, build system flaky) vs agent capability problems. Prevents pre-flight from consuming agent's execution retry budget.
+- **Rejected:** Using retryCount would conflate environmental failures with agent competency failures, causing agents to exhaust their retry budget on infrastructure issues.
+- **Trade-offs:** Adds complexity of dual retry budgets but more accurately reflects failure modes. Agents get more attempts when issues are environmental.
+- **Breaking if changed:** If changed to use retryCount, agents would fail more frequently on transient infrastructure problems, reducing reliability.
+
+#### [Gotcha] Pre-flight errors are caught and execution continues (fail-open), rather than failing fast (2026-03-10)
+- **Situation:** Pre-flight checks wrap in try-catch. Unexpected errors in monitoring/validation don't block execution.
+- **Root cause:** Prevents agents from being blocked by monitoring/instrumentation failures. A bug in the checklist logic shouldn't kill the agent.
+- **How to avoid:** Reduces safety guarantees (might execute despite warnings) but increases resilience and prevents meta-failures (failures in failure detection).
+
+#### [Pattern] Worktree path discovered dynamically via git worktree list --porcelain parsing instead of passed through context (2026-03-10)
+- **Problem solved:** Pre-flight needs to know the active worktree path for the feature's branch to run git operations in correct directory.
+- **Why this works:** Reduces coupling to ProcessorServiceContext. Worktree location is a git fact, not a service contract. More resilient to context changes.
+- **Trade-offs:** Adds git-parsing overhead but eliminates context coupling and stays compatible with worktree creation/cleanup patterns.
+
+### merge-base used to detect libs/ changes (vs checking against a fixed merge commit) (2026-03-10)
+- **Context:** Package build check needs to detect if libs/* files changed since feature branched from main.
+- **Why:** merge-base finds the true diverge point, correctly handling rebases, force pushes, and non-linear histories. Fixed merge commits become stale.
+- **Rejected:** Storing a merge commit and checking against it would fail after rebase-on-main workflow, requiring constant updates.
+- **Trade-offs:** More complex logic but correct across all git workflows. Eliminates state synchronization problem.
+- **Breaking if changed:** If changed to fixed merge commit, the check would give false positives/negatives after rebases, breaking the pre-flight contract.
+
+### Foundation dependencies must be done, non-foundation can be verified (2026-03-10)
+- **Context:** Dependency merge check verifies all feature dependencies are ready. Dependencies have different readiness levels (done=merged, verified=built but not merged).
+- **Why:** Foundation/transitive dependencies affect the code generated by the agent; they must be fully integrated. Direct dependencies can be partially done if verified working.
+- **Rejected:** Requiring all deps to be done would block more features. Allowing foundation deps to be verified would risk incompatible generated code.
+- **Trade-offs:** Allows more parallelism with safety tier. Adds complexity of tracking dep types but enables faster CI/CD.
+- **Breaking if changed:** If changed to all-done requirement, feature dependency chains would serialize, slowing CI. If changed to all-verified, generated code could become inconsistent.
+
+#### [Gotcha] Rebase conflicts escalate to fatal (no retry), but rebase failures without conflicts retry transient (2026-03-10)
+- **Situation:** Worktree currency check runs git rebase. Conflicts are caught and treated differently from infrastructure failures.
+- **Root cause:** Conflict = incompatible histories = problem with the code, not the environment. Retry won't help. Infrastructure failures (permission denied, disk full) should retry.
+- **How to avoid:** Requires parsing rebase output to distinguish conflict vs infrastructure. More precise failure handling at cost of complexity.
+
+#### [Pattern] Base branch resolved from globalSettings.gitWorkflow?.prBaseBranch (not per-project settings) (2026-03-10)
+- **Problem solved:** ExecuteProcessor needs base branch for worktree operations. Previously code called getProjectSettings(projectPath), now calls getGlobalSettings().
+- **Why this works:** Git workflow (which branch is main, pr flow, etc) is global infrastructure concern, not per-project. Matches execution-service.ts pattern. Simplifies settings model.
+- **Trade-offs:** Simpler settings (global wins) but less flexibility per-project. Aligns with execution-service pattern for consistency.
+
+### Pre-flight gate inserted just before waitForCompletion(), after dependency/context validation but before long-running execution (2026-03-10)
+- **Context:** ExecuteProcessor has multiple validation phases: initial setup, pre-flight, execution loop, completion wait. Timing of pre-flight check affects what's already validated.
+- **Why:** Validates the execution environment immediately before using it, when setup is stable but before expensive wait. Catches environmental problems early without re-running earlier validations.
+- **Rejected:** Earlier (during setup) would require re-validating if environment changes. Later (during execution) would waste time in waitForCompletion loop.
+- **Trade-offs:** Precise timing reduces waste. Adds step before wait but that wait might have been long anyway.
+- **Breaking if changed:** If moved earlier, would miss environment changes during setup. If moved later, would waste execution loop time on environmental problems already detectable.
