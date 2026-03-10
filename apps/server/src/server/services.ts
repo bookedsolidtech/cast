@@ -82,6 +82,8 @@ import { ChannelRouter } from '../services/channel-router.js';
 import { NotificationRouter } from '../services/notification-router.js';
 import { JobExecutorService } from '../services/job-executor-service.js';
 import { DoraMetricsService } from '../services/dora-metrics-service.js';
+import { MetricsCollectionService } from '../services/metrics-collection-service.js';
+import { ErrorBudgetService } from '../services/error-budget-service.js';
 import { FrictionTrackerService } from '../services/friction-tracker-service.js';
 import { FailureClassifierService } from '../services/failure-classifier-service.js';
 import {
@@ -270,6 +272,12 @@ export interface ServiceContainer {
   // DORA metrics (lead time, deployment frequency, change failure rate, recovery time, rework rate)
   doraMetricsService: DoraMetricsService;
 
+  // DORA metrics collection (event-driven time-series collector, persists to .automaker/metrics/dora.json)
+  metricsCollectionService: MetricsCollectionService;
+
+  // Error budget (rolling change fail rate tracker, persists to .automaker/metrics/error-budget.json)
+  errorBudgetService: ErrorBudgetService;
+
   // Friction tracker (self-improvement loop — recurring failure pattern detection)
   frictionTrackerService: FrictionTrackerService;
 
@@ -317,6 +325,25 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
   const agentService = new AgentService(dataDir, events, settingsService, undefined, featureLoader);
   const metricsService = new MetricsService(featureLoader);
   const doraMetricsService = new DoraMetricsService(featureLoader);
+
+  // DORA Metrics Collection Service — event-driven time-series persistence
+  const metricsCollectionService = new MetricsCollectionService(events, featureLoader, repoRoot);
+  metricsCollectionService.initialize();
+
+  // Error Budget Service — rolling change fail rate tracker (persists to .automaker/metrics/error-budget.json)
+  const errorBudgetService = new ErrorBudgetService(repoRoot);
+  // Wire error budget into the event pipeline: record merges and CI failures
+  events.subscribe((type, payload) => {
+    const p = payload as Record<string, unknown>;
+    const featureId = p['featureId'] as string | undefined;
+    if (!featureId) return;
+
+    if (type === 'feature:pr-merged') {
+      errorBudgetService.recordMerge(featureId, false);
+    } else if (type === 'pr:ci-failure' || type === 'pr:remediation-started') {
+      errorBudgetService.markCiFailure(featureId);
+    }
+  });
 
   // Metrics Ledger & Archival
   const ledgerService = new LedgerService(featureLoader, events);
@@ -823,6 +850,8 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
     todoService,
     avaChannelService,
     doraMetricsService,
+    metricsCollectionService,
+    errorBudgetService,
     frictionTrackerService,
     reactiveSpawnerService,
     driftCheckInterval: null,

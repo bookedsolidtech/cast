@@ -184,6 +184,27 @@ export interface WorkflowSettings {
    * @default true
    */
   preFlightChecks?: boolean;
+  /**
+   * Maximum number of PRs allowed in the review state before auto-mode pauses
+   * new feature pickup. Prevents flooding the review queue.
+   * When review count >= this threshold, the reviewQueueSaturated rule fires and
+   * the scheduler pauses pickup until the queue drains below the threshold.
+   * @default 5
+   */
+  maxPendingReviews?: number;
+  /**
+   * Rolling window (in days) over which the change fail rate is computed
+   * for the error budget system. PRs merged outside this window are excluded.
+   * @default 7
+   */
+  errorBudgetWindow?: number;
+  /**
+   * Change fail rate threshold (0-1) above which the error budget is considered
+   * exhausted. When exhausted, auto-mode only picks up features tagged as bug-fix.
+   * Example: 0.2 = 20% of merged PRs failed CI post-merge.
+   * @default 0.2
+   */
+  errorBudgetThreshold?: number;
 }
 
 /** Default workflow settings */

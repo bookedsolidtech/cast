@@ -205,6 +205,7 @@ export type EventType =
   | 'ceremony:project-retro'
   | 'ceremony:triggered'
   | 'ceremony:fired'
+  | 'ceremony:trigger-requested'
   | 'ceremony:post-project-docs'
   | 'ceremony:post-project-docs:complete'
   | 'ceremony:post-project-docs:failed'
@@ -334,6 +335,9 @@ export type EventType =
   | 'work_stealing:request'
   | 'work_stealing:offer'
   | 'work_stealing:accept'
+  | 'agent:completed'
+  | 'pr:merged'
+  | 'pr:review-requested'
   | 'ava-channel:message';
 
 export type EventCallback = (type: EventType, payload: unknown) => void;
