@@ -538,3 +538,10 @@ usageStats:
 - **Rejected:** Always allow all origins (default permissive); whitelist specific origins (inflexible for distributed mode)
 - **Trade-offs:** Easier: one boolean toggle. Harder: tight coupling between CORS policy and hivemind feature—cannot enable hivemind without exposing CORS
 - **Breaking if changed:** If hivemind.enabled check removed, server becomes CORS-permissive in all modes—exposes to CSRF from any origin. If check inverted, hivemind mode blocks own clients
+
+### CORS allowAllOrigins is controlled via proto.config.yaml hivemind.enabled setting, not environment variable. Server reads config at startup to enable CORS echo-back. (2026-03-10)
+- **Context:** Hivemind mode needs CORS permissive behavior; decision point on where to configure it
+- **Why:** Centralizes all hivemind behavior in one config file (single source of truth); makes configuration discoverable for operators
+- **Rejected:** Separate CORS_ALLOW_ALL env var would split configuration and make it harder to track all hivemind implications
+- **Trade-offs:** Requires config file parsing at startup but configuration stays discoverable and auditable in one place
+- **Breaking if changed:** If CORS config moves to env var, operators must know to set both hivemind.enabled in config AND CORS env var (easy to miss one)

@@ -55,3 +55,8 @@ usageStats:
 - **Situation:** /project-settings uses ProjectSettingsView with ProjectWebhooksSection; new ProjectSettingsPanel is milestone component with same webhook validation
 - **Root cause:** Feature built incrementally; ProjectSettingsPanel is new milestone piece for future Project Page Hub; old route unchanged
 - **How to avoid:** Easier: ship incrementally without touching stable routes. Harder: two components with similar webhook logic; maintenance burden if validation changes
+
+#### [Pattern] Implicit contract: auth.ts reads from localStorage key 'automaker:serverUrlOverride', app-store.ts writes to same key. No shared constant, both hardcode the key string. (2026-03-10)
+- **Problem solved:** Two modules need to share server URL override state across page reloads via localStorage
+- **Why this works:** Simple and direct, avoids creating a separate constants module just for one key
+- **Trade-offs:** Saves one import, but creates fragile implicit contract—silent data loss if either module changes the key name or serialization format

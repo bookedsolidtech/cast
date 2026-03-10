@@ -1237,3 +1237,8 @@ usageStats:
 - **Rejected:** Keeping timeout aggressive; adding retries without timeout increase.
 - **Trade-offs:** Longer test runtime (acceptable; prevents false failures). Better to wait a bit longer than to flake randomly.
 - **Breaking if changed:** Tests may pass locally but still flake in CI if timeouts are not padded for CI conditions. Leads to 'works on my machine' syndrome.
+
+#### [Gotcha] Playwright tests for localStorage logic initially used 'about:blank' but failed; switched to app root '/' because localStorage requires an app context with actual origin. (2026-03-10)
+- **Situation:** Needed to verify localStorage read/write behavior without full server integration
+- **Root cause:** about:blank has null origin and restricted localStorage access; app root '/' provides proper browser context with localStorage enabled
+- **How to avoid:** Using real app context requires running dev server (slower test); mocking would be faster but miss real browser quirks

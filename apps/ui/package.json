@@ -22,6 +22,7 @@
     "build": "vite build",
     "build:electron": "node scripts/prepare-server.mjs && vite build && electron-builder",
     "build:electron:legless": "vite build && electron-builder --config electron-builder.legless.json",
+    "build:electron:legless:dir": "vite build && electron-builder --config electron-builder.legless.json --dir",
     "build:electron:dir": "node scripts/prepare-server.mjs && vite build && electron-builder --dir",
     "build:electron:win": "node scripts/prepare-server.mjs && vite build && electron-builder --win",
     "build:electron:win:dir": "node scripts/prepare-server.mjs && vite build && electron-builder --win --dir",

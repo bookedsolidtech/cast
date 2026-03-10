@@ -5,9 +5,9 @@ relevantTo: [architecture]
 importance: 0.7
 relatedFiles: []
 usageStats:
-  loaded: 96
-  referenced: 35
-  successfulFeatures: 35
+  loaded: 97
+  referenced: 36
+  successfulFeatures: 36
 ---
 # architecture
 
@@ -4300,3 +4300,20 @@ usageStats:
 - **Rejected:** Exporting EventType from libs/types for direct import - this removes the coordination burden but loses the narrowing intent and makes it unclear which events UI actually uses
 - **Trade-offs:** Current approach: explicit intent, clear narrow scope; cost is dual maintenance and risk of drift
 - **Breaking if changed:** If EventType moves to libs/types export, the UI no longer documents its event consumption contract; if removed entirely, no type safety on event dispatch
+
+### Multi-layer fallback chain in getServerUrl(): localStorage override → Electron IPC → env var → defaults. localStorage checked first, giving it highest priority. (2026-03-10)
+- **Context:** Need to support server URL override in multiple runtime contexts: Electron app, development, production
+- **Why:** localStorage first allows runtime override without rebuild; Electron IPC supports desktop context; env var handles build-time config; defaults handle fallback cases
+- **Rejected:** Single source of truth (env var only) would require rebuilds for URL changes; environment alone couldn't support Electron context
+- **Trade-offs:** Multiple code paths increase test surface area, but provides maximum flexibility for different deployment contexts
+- **Breaking if changed:** Removing localStorage check breaks runtime URL override capability entirely; order matters—changing it changes precedence hierarchy
+
+#### [Gotcha] invalidateHttpClient() method name is misleading—it triggers both HTTP client cache invalidation AND WebSocket reconnection. Setting serverUrlOverride requires both transports to reconnect. (2026-03-10)
+- **Situation:** User changes server URL override at runtime; both HTTP requests and WebSocket must point to new server
+- **Root cause:** If only HTTP is invalidated but WebSocket stays connected to old server, you get split-brain state (requests go to new server, events come from old server)
+- **How to avoid:** Tight coupling between concerns ensures consistency but obscures the full scope of what 'invalidate' does
+
+#### [Pattern] Watch-mode development requires 'build:packages' only (tsx handles TS runtime compilation at execution time). Headless/production requires 'build:server' (full tsc compile to dist/ directory). Different execution models necessitate different build strategies. (2026-03-10)
+- **Problem solved:** dev:headless implements production-mode server startup that runs locally. Requires pre-compiled JavaScript in dist/, unlike watch-mode which uses tsx for runtime compilation.
+- **Why this works:** tsx enables hot-reload and live development iteration. Headless mode uses plain 'node dist/index.js' which requires pre-compiled output. These are two fundamentally different execution models with incompatible build requirements.
+- **Trade-offs:** Multiple build commands increase cognitive overhead and configuration complexity, but avoid unnecessary tsc compilation and keep runtime TS compilation isolated to dev

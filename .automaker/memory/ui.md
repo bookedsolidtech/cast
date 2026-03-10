@@ -670,3 +670,8 @@ usageStats:
 - **Problem solved:** UI needs to show history of tried servers without clutter
 - **Why this works:** Deduplication prevents stale entries when user retries same URL multiple times. Cap at 10 prevents unbounded growth. State→localStorage sync keeps history across sessions
 - **Trade-offs:** Easier: dedup+cap logic is straightforward. Harder: must sync on every change, O(n) dedup operation for small list
+
+#### [Pattern] Recent server URLs stored as MRU (Most Recently Used) list with deduplication: [newUrl, ...existing.filter(u => u !== newUrl)].slice(0, 10). Bounded to 10 entries. (2026-03-10)
+- **Problem solved:** Need to show dropdown of previously-used server URLs, with most-recent at top
+- **Why this works:** Prepend ensures MRU ordering; filter deduplicates (selecting existing URL moves it to top); slice(0, 10) caps memory and prevents unbounded growth
+- **Trade-offs:** O(n) filter operation on each add (but n ≤ 10); bounded size prevents memory issues but may discard old URLs

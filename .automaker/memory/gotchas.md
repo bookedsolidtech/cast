@@ -5,9 +5,9 @@ relevantTo: [gotchas]
 importance: 0.7
 relatedFiles: []
 usageStats:
-  loaded: 1022
-  referenced: 282
-  successfulFeatures: 282
+  loaded: 1024
+  referenced: 284
+  successfulFeatures: 284
 ---
 # gotchas
 
@@ -685,3 +685,8 @@ usageStats:
 - **Situation:** When 'chat:user-input-request' was missing from the UI's EventType union, the server was sending these events but the client was discarding them without trace
 - **Root cause:** The EventHandler filters incoming messages by type-checking against the union; unmatched types fail the type guard and are never delivered to registered callbacks
 - **How to avoid:** Silent dropping is less disruptive than runtime errors, but makes debugging much harder - events disappear with no signal to developer
+
+#### [Gotcha] Script named 'dev:headless' runs NODE_ENV=production. The 'dev:' prefix refers to 'running in local development workflow', not 'development environment mode'. Easy misinterpretation. (2026-03-10)
+- **Situation:** Codebase convention uses 'dev:' prefix for local-execution scripts, but this variant must run production environment to accurately test deployed configuration
+- **Root cause:** Enables testing production behavior (AUTO_MODE=true, NODE_ENV=production) locally before CI deployment. Validates server correctness in its actual runtime environment, not a mock dev environment.
+- **How to avoid:** Consistent naming across root scripts vs. explicit environment signaling in script name
