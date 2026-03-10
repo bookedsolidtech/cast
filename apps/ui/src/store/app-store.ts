@@ -168,6 +168,9 @@ export interface AppState {
   serverStatus: 'connected' | 'disconnected' | 'connecting'; // Current connection status
   serverInfo: { version: string; status: string; timestamp: string } | null; // Info from /api/health
   recentConnections: Array<{ url: string; lastConnected: string }>; // Recent connections with timestamps
+
+  // Connected instance identity
+  instanceName: string | null; // Human-readable name of the connected instance (e.g. 'Dev Server', 'Staging')
 }
 
 export interface AppActions {
@@ -338,6 +341,7 @@ export interface AppActions {
   // Server connection actions
   connectToServer: (url: string) => Promise<void>;
   removeRecentConnection: (url: string) => void;
+  setInstanceName: (name: string | null) => void;
 
   // Reset
   reset: () => void;
@@ -444,6 +448,8 @@ const initialState: AppState = {
       return [];
     }
   })(),
+  // Connected instance identity
+  instanceName: null,
 };
 
 export const useAppStore = create<AppState & AppActions>()((set, get) => ({
@@ -1315,7 +1321,17 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     try {
       const api = getHttpApiClient();
       const data = await api.hivemind.getSelf();
-      set({ selfInstanceId: data.instanceId });
+      const selfId = data.instanceId;
+      // Try to find a human-readable name via hivemind status (self shows up in onlinePeers)
+      let displayName: string | null = null;
+      try {
+        const status = await api.hivemind.getStatus();
+        const selfPeer = status.onlinePeers.find((p) => p.identity.instanceId === selfId);
+        displayName = selfPeer?.identity.name ?? null;
+      } catch {
+        // Status endpoint may fail — fall back to instanceId
+      }
+      set({ selfInstanceId: selfId, instanceName: displayName ?? selfId });
     } catch (err) {
       logger.warn('[AppStore] Failed to fetch self instanceId:', err);
     }
@@ -1353,7 +1369,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
 
   // Server connection actions
   connectToServer: async (url) => {
-    set({ serverStatus: 'connecting', serverInfo: null });
+    set({ serverStatus: 'connecting', serverInfo: null, instanceName: null });
     try {
       const response = await fetch(`${url}/api/health`, {
         method: 'GET',
@@ -1410,6 +1426,8 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     }
     set({ recentConnections, recentServerUrls });
   },
+
+  setInstanceName: (name) => set({ instanceName: name }),
 
   // Reset
   reset: () => set(initialState),
