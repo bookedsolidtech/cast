@@ -19,6 +19,7 @@ import {
   type EscalationSignal,
 } from '@protolabsai/types';
 import type { FeatureLoader } from '../feature-loader.js';
+import type { EventEmitter } from '../../lib/events.js';
 
 const logger = createLogger('GitHubIssueChannel');
 
@@ -27,6 +28,8 @@ export interface GitHubIssueChannelConfig {
   featureLoader: FeatureLoader;
   /** Project path for feature operations */
   projectPath: string;
+  /** Event emitter for broadcasting bug creation to WebSocket clients */
+  events: EventEmitter;
 }
 
 /**
@@ -118,6 +121,9 @@ export class GitHubIssueChannel implements EscalationChannel {
       return;
     }
 
+    // Reserve dedup key before any async work to prevent parallel duplicates
+    this.issuedDeduplicationKeys.add(signal.deduplicationKey);
+
     try {
       const title = this.buildIssueTitle(signal);
       const body = await this.buildIssueBody(signal);
@@ -132,8 +138,18 @@ export class GitHubIssueChannel implements EscalationChannel {
       });
 
       logger.info(`Created bug feature for signal ${signal.type}: ${bugFeature.id}`);
-      this.issuedDeduplicationKeys.add(signal.deduplicationKey);
+
+      this.config.events.emit('issue:created', {
+        featureId: signal.context.featureId,
+        projectPath: this.config.projectPath,
+        bugFeatureId: bugFeature.id,
+        source: signal.source,
+        severity: signal.severity,
+        timestamp: Date.now(),
+      });
     } catch (error) {
+      // Roll back dedup key so the signal can be retried
+      this.issuedDeduplicationKeys.delete(signal.deduplicationKey);
       logger.error(`Failed to create bug feature for signal ${signal.type}:`, error);
       throw error;
     }

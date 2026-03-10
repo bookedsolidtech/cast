@@ -833,35 +833,8 @@ export class ExecutionService {
         );
       }
 
-      // Determine final status based on testing mode:
-      // - skipTests=false (automated testing): go directly to 'verified' (no manual verify needed)
-      // - skipTests=true (manual verification): go to 'waiting_approval' for manual review
-      //
-      // Safety gate: auto-verification requires PR evidence. Reload the feature from the
-      // database to pick up any prNumber/prMergedAt set by the git workflow. If neither is
-      // present, the agent ran but nothing was pushed — do NOT auto-verify. Leave the
-      // feature in its current state for manual review or re-execution.
-      const freshFeature = await this.featureLoader.get(projectPath, featureId);
-      const hasPrEvidence = !!(freshFeature?.prMergedAt ?? freshFeature?.prNumber);
-      const finalStatus = feature.skipTests
-        ? 'waiting_approval'
-        : hasPrEvidence
-          ? 'verified'
-          : null; // no PR evidence — skip auto-verify
-
-      if (!hasPrEvidence && finalStatus === null) {
-        logger.warn(
-          `[AutoVerify] Skipping auto-verify for ${featureId} — no PR evidence (prNumber or prMergedAt). ` +
-            `Feature left in current state for manual review.`
-        );
-      }
-
-      // Ensure worktree is clean before marking as verified
+      // Ensure worktree is clean before post-completion workflow
       await ensureCleanWorktree(workDir, featureId, feature.branchName ?? 'main');
-
-      if (finalStatus !== null) {
-        await this.callbacks.updateFeatureStatus(projectPath, featureId, finalStatus);
-      }
 
       // Record success to reset consecutive failure tracking
       this.callbacks.recordSuccessForProject(projectPath, feature?.branchName ?? null);
@@ -1052,6 +1025,37 @@ export class ExecutionService {
             })
             .catch((e) => logger.warn(`Failed to persist git workflow error for ${featureId}:`, e));
         }
+      }
+
+      // PR-evidence gate: runs AFTER git workflow so prNumber/prMergedAt are populated.
+      // - skipTests=true (manual verification): go to 'waiting_approval'
+      // - skipTests=false + PR evidence: go to 'verified' (auto-verify)
+      // - skipTests=false + no PR evidence: go to 'review' (agent ran but no PR yet)
+      const postGitFeature = await this.featureLoader.get(projectPath, featureId);
+      const hasPrEvidence = !!(
+        postGitFeature?.prMergedAt ??
+        postGitFeature?.prNumber ??
+        gitWorkflowResult?.prNumber
+      );
+      let finalStatus: string | null = null;
+
+      // Only apply auto-verify if the git workflow didn't already set a terminal status
+      const gitAlreadySetStatus =
+        gitWorkflowResult?.prUrl &&
+        (postGitFeature?.status === 'review' || postGitFeature?.status === 'done');
+
+      if (!gitAlreadySetStatus) {
+        if (feature.skipTests) {
+          finalStatus = 'waiting_approval';
+        } else if (hasPrEvidence) {
+          finalStatus = 'verified';
+        } else {
+          finalStatus = 'review';
+          logger.warn(
+            `[AutoVerify] No PR evidence for ${featureId} after git workflow — moving to review for manual inspection.`
+          );
+        }
+        await this.callbacks.updateFeatureStatus(projectPath, featureId, finalStatus);
       }
 
       const gitInfo = gitWorkflowResult?.commitHash

@@ -463,7 +463,8 @@ describe('CRDTStore — two-node sync', () => {
     // "Document ... is unavailable" on the subsequent storeB.change() call.
     const handleB = await storeB.findByUrl<ProjectDocument>(url);
     await waitForDocumentReady(handleB, 5000);
-    await pollUntil(() => handleB.doc()?.title === 'Base', 2000);
+    const synced = await pollUntil(() => handleB.doc()?.title === 'Base', 2000);
+    expect(synced).toBe(true);
 
     // Concurrent updates: A changes title, B changes goal
     await Promise.all([

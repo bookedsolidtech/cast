@@ -16,6 +16,6 @@ export async function register(container: ServiceContainer): Promise<void> {
   escalationRouter.registerChannel(new UINotificationChannel(events));
   escalationRouter.registerChannel(new DiscordChannelEscalation(discordService));
   escalationRouter.registerChannel(
-    new GitHubIssueChannel({ featureLoader, projectPath: repoRoot })
+    new GitHubIssueChannel({ featureLoader, projectPath: repoRoot, events })
   );
 }
