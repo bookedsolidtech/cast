@@ -19,7 +19,7 @@ import { getHttpApiClient } from '@/lib/http-api-client';
 // Types
 // ============================================================================
 
-export type AvaChannelTab = 'ask-ava' | 'ava-channel';
+export type AvaChannelTab = 'ask-ava' | 'ava-channel' | 'projects';
 
 interface AvaChannelState {
   messages: AvaChatMessage[];
@@ -31,6 +31,8 @@ interface AvaChannelState {
   lastActiveTab: AvaChannelTab;
   /** Filter string for searching within the channel */
   filterQuery: string;
+  /** Pre-select a project slug when switching to the Projects tab */
+  pendingProjectSlug: string | null;
 }
 
 interface AvaChannelActions {
@@ -44,6 +46,7 @@ interface AvaChannelActions {
   setHivemindActive: (active: boolean) => void;
   setLastActiveTab: (tab: AvaChannelTab) => void;
   setFilterQuery: (query: string) => void;
+  setPendingProjectSlug: (slug: string | null) => void;
   clearMessages: () => void;
 }
 
@@ -58,6 +61,7 @@ export const useAvaChannelStore = create<AvaChannelState & AvaChannelActions>()(
   hivemindActive: false,
   lastActiveTab: 'ask-ava',
   filterQuery: '',
+  pendingProjectSlug: null,
 
   fetchMessages: async (options = {}) => {
     set({ loading: true, error: null });
@@ -119,6 +123,7 @@ export const useAvaChannelStore = create<AvaChannelState & AvaChannelActions>()(
   setHivemindActive: (active) => set({ hivemindActive: active }),
   setLastActiveTab: (tab) => set({ lastActiveTab: tab }),
   setFilterQuery: (query) => set({ filterQuery: query }),
+  setPendingProjectSlug: (slug) => set({ pendingProjectSlug: slug }),
   clearMessages: () => set({ messages: [], error: null }),
 }));
 

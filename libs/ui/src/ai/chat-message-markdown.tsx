@@ -22,8 +22,6 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
 import { cn } from '../lib/utils.js';
 import { CodeBlock } from './code-block.js';
 import { InlineCitation, type Citation } from './inline-citation.js';
@@ -33,7 +31,7 @@ export interface ChatMessageMarkdownProps {
   className?: string;
   /** Server-resolved citations keyed by type:id, used to populate badge popovers */
   citations?: Citation[];
-  /** When true, shows the blinking streaming cursor and uses react-markdown for live render. */
+  /** When true, shows the blinking streaming cursor. */
   isStreaming?: boolean;
 }
 
@@ -93,18 +91,18 @@ const sanitizeSchema = {
 // Shared prose class list used by both streaming and static renders
 const PROSE_CLASSES = [
   'prose prose-sm dark:prose-invert max-w-none',
-  'prose-p:mt-0 prose-p:mb-3',
-  'prose-h1:text-base prose-h1:font-semibold prose-h1:mt-4 prose-h1:mb-2',
-  'prose-h2:text-sm prose-h2:font-semibold prose-h2:mt-3 prose-h2:mb-1.5',
-  'prose-h3:text-sm prose-h3:font-medium prose-h3:mt-2.5 prose-h3:mb-1',
-  'prose-h4:text-xs prose-h4:font-medium prose-h4:uppercase prose-h4:tracking-wide prose-h4:text-muted-foreground prose-h4:mt-2 prose-h4:mb-1',
-  'prose-ul:my-2 prose-ol:my-2 prose-ul:pl-5 prose-ol:pl-5',
-  'prose-li:my-1',
+  'prose-p:mt-0 prose-p:mb-4 prose-p:leading-relaxed',
+  'prose-h1:text-base prose-h1:font-semibold prose-h1:mt-6 prose-h1:mb-3',
+  'prose-h2:text-sm prose-h2:font-semibold prose-h2:mt-5 prose-h2:mb-2',
+  'prose-h3:text-sm prose-h3:font-medium prose-h3:mt-5 prose-h3:mb-2',
+  'prose-h4:text-xs prose-h4:font-medium prose-h4:uppercase prose-h4:tracking-wide prose-h4:text-muted-foreground prose-h4:mt-4 prose-h4:mb-2',
+  'prose-ul:my-3 prose-ol:my-3 prose-ul:pl-5 prose-ol:pl-5',
+  'prose-li:my-1.5 prose-li:leading-relaxed',
   '[&_li_ul]:my-0.5 [&_li_ol]:my-0.5 [&_li_li]:my-0.5',
   'prose-blockquote:border-l-2 prose-blockquote:border-primary/30',
   'prose-blockquote:pl-3 prose-blockquote:py-0.5 prose-blockquote:my-2',
   'prose-blockquote:not-italic prose-blockquote:text-muted-foreground',
-  'prose-hr:my-3 prose-hr:border-border/40',
+  'prose-hr:my-4 prose-hr:border-border/40',
   '[&_li:has(>input[type=checkbox])]:list-none [&_li:has(>input[type=checkbox])]:pl-0',
   '[&_input[type=checkbox]]:mr-1.5 [&_input[type=checkbox]]:accent-primary',
 ] as const;
@@ -123,25 +121,6 @@ export function ChatMessageMarkdown({
 
   // Pre-process citation markers into span elements before feeding to ReactMarkdown.
   const processedContent = useMemo(() => preprocessCitations(content), [content]);
-
-  // Post-completion static render — once isStreaming flips to false, convert to
-  // sanitized static HTML via marked + DOMPurify. React never re-reconciles this.
-  const finalHtml = useMemo(
-    () => (!isStreaming ? DOMPurify.sanitize(marked.parse(content) as string) : null),
-    // Only recalculates once — when isStreaming flips to false
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isStreaming, content]
-  );
-
-  if (finalHtml !== null) {
-    return (
-      <div
-        data-slot="chat-message-markdown"
-        className={cn(...PROSE_CLASSES, className)}
-        dangerouslySetInnerHTML={{ __html: finalHtml }}
-      />
-    );
-  }
 
   return (
     <div
@@ -221,6 +200,9 @@ export function ChatMessageMarkdown({
           td: ({ children }) => (
             <td className="border-t border-border/30 px-2 py-1 text-xs">{children}</td>
           ),
+
+          // ── Horizontal rules ──────────────────────────────────────────────
+          hr: () => <hr className="my-4 border-border/40" />,
 
           // ── Strikethrough (del) — remark-gfm adds this ───────────────────
           del: ({ children }) => <del className="opacity-60 line-through">{children}</del>,

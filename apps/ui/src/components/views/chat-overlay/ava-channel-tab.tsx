@@ -81,7 +81,7 @@ function InstanceBadge({
       className={cn(
         'inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium',
         source === 'operator'
-          ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
+          ? 'bg-status-warning/20 text-status-warning'
           : source === 'system'
             ? 'bg-muted text-muted-foreground'
             : 'bg-primary/10 text-primary'
@@ -343,7 +343,7 @@ export function AvaChannelTab() {
       <div className="border-t border-border">
         <button
           type="button"
-          className="flex w-full items-center justify-between px-3 py-1.5 text-xs text-amber-600 dark:text-amber-400 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 transition-colors"
+          className="flex w-full items-center justify-between px-3 py-1.5 text-xs text-status-warning hover:bg-status-warning/10 transition-colors"
           onClick={() => setOperatorOpen((v) => !v)}
           aria-expanded={operatorOpen}
         >
@@ -352,7 +352,7 @@ export function AvaChannelTab() {
         </button>
 
         {operatorOpen && (
-          <div className="border-t border-amber-200/60 dark:border-amber-800/40 bg-amber-50/30 dark:bg-amber-950/10 px-2 py-2">
+          <div className="border-t border-status-warning/30 bg-status-warning/5 px-2 py-2">
             <div className="flex gap-2">
               <textarea
                 value={operatorInput}
@@ -360,12 +360,12 @@ export function AvaChannelTab() {
                 onKeyDown={handleOperatorKeyDown}
                 placeholder="Inject an operator message into the Ava channel..."
                 rows={2}
-                className="flex-1 resize-none rounded border border-amber-300/60 dark:border-amber-700/40 bg-background px-2 py-1.5 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-amber-400/60"
+                className="flex-1 resize-none rounded border border-status-warning/40 bg-background px-2 py-1.5 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-status-warning/60"
               />
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-8 self-end text-amber-600 dark:text-amber-400 hover:bg-amber-100/50 dark:hover:bg-amber-900/20"
+                className="size-8 self-end text-status-warning hover:bg-status-warning/10"
                 onClick={handleSendOperator}
                 disabled={!operatorInput.trim() || sending}
                 title="Send operator message"

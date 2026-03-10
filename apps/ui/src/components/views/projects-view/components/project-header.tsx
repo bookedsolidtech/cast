@@ -32,8 +32,7 @@ interface ProjectHeaderProps {
   onDelete?: () => void;
   onToggleSidebar?: () => void;
   sidebarOpen?: boolean;
-  onTogglePmChat?: () => void;
-  pmChatOpen?: boolean;
+  onOpenPmChat?: () => void;
 }
 
 export function ProjectHeader({
@@ -42,8 +41,7 @@ export function ProjectHeader({
   onDelete,
   onToggleSidebar,
   sidebarOpen,
-  onTogglePmChat,
-  pmChatOpen,
+  onOpenPmChat,
 }: ProjectHeaderProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const { data: featuresData } = useProjectFeatures(project.slug);
@@ -125,13 +123,13 @@ export function ProjectHeader({
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">{project.slug}</p>
         </div>
-        {onTogglePmChat && (
+        {onOpenPmChat && (
           <Button
             size="sm"
-            variant={pmChatOpen ? 'secondary' : 'ghost'}
-            onClick={onTogglePmChat}
+            variant="ghost"
+            onClick={onOpenPmChat}
             className="text-muted-foreground hover:text-foreground"
-            aria-label="Toggle PM chat"
+            aria-label="Open PM chat"
             data-testid="pm-chat-toggle"
           >
             <MessageSquareDot className="w-4 h-4" />

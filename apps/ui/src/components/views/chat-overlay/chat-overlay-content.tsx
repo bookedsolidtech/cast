@@ -28,6 +28,7 @@ import { ChatStatusBar } from './chat-status-bar';
 import { getOverlayAPI } from '@/lib/electron';
 import { AskAvaTab } from './ask-ava-tab';
 import { AvaChannelTab } from './ava-channel-tab';
+import { ProjectsTab } from './projects-tab';
 import {
   useAvaChannelStore,
   type AvaChannelTab as AvaChannelTabType,
@@ -83,6 +84,11 @@ export function ChatOverlayContent({ onHide, isModal = false }: ChatOverlayConte
   const lastActiveTab = useAvaChannelStore((s) => s.lastActiveTab);
   const setLastActiveTab = useAvaChannelStore((s) => s.setLastActiveTab);
   const [activeTab, setActiveTab] = useState<AvaChannelTabType>(lastActiveTab);
+
+  // Sync local tab state when the store is updated externally (e.g. PM button sets 'projects')
+  useEffect(() => {
+    setActiveTab(lastActiveTab);
+  }, [lastActiveTab]);
 
   const handleTabChange = useCallback(
     (tab: AvaChannelTabType) => {
@@ -442,6 +448,20 @@ export function ChatOverlayContent({ onHide, isModal = false }: ChatOverlayConte
           role="tab"
           className={cn(
             'px-3 py-1.5 text-xs font-medium transition-colors border-b-2 -mb-px',
+            activeTab === 'projects'
+              ? 'border-primary text-foreground'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          )}
+          onClick={() => handleTabChange('projects')}
+          aria-selected={activeTab === 'projects'}
+        >
+          Projects
+        </button>
+        <button
+          type="button"
+          role="tab"
+          className={cn(
+            'px-3 py-1.5 text-xs font-medium transition-colors border-b-2 -mb-px',
             activeTab === 'ava-channel'
               ? 'border-primary text-foreground'
               : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -454,7 +474,9 @@ export function ChatOverlayContent({ onHide, isModal = false }: ChatOverlayConte
       </div>
 
       {/* Tab content */}
-      {activeTab === 'ask-ava' ? (
+      {activeTab === 'projects' ? (
+        <ProjectsTab />
+      ) : activeTab === 'ask-ava' ? (
         <AskAvaTab
           displayedMessages={displayedMessages}
           isStreaming={isStreaming}

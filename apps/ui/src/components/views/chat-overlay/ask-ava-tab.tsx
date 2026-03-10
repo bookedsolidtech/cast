@@ -17,6 +17,8 @@ import {
 } from '@protolabsai/ui/ai';
 import { cn } from '@/lib/utils';
 import { ChatModelSelect } from '@/components/views/chat/components/chat-model-select';
+// Side-effect import: registers AskUserFormCard in the tool-result-registry
+import '@/components/views/chat-overlay/inline-form-card';
 import { ConversationList } from './conversation-list';
 import { AvaSettingsPanel } from './ava-settings-panel';
 import type { ChatSession } from '@/store/chat-store';
@@ -34,7 +36,7 @@ function WaitingTimer({ receivedAt }: { receivedAt: string }) {
     }, 1000);
     return () => clearInterval(id);
   }, [receivedAt]);
-  return <span className="text-xs text-amber-500/80">Waiting {seconds}s</span>;
+  return <span className="text-xs text-status-warning/80">Waiting {seconds}s</span>;
 }
 
 export interface AskAvaTabProps {
@@ -188,10 +190,10 @@ export function AskAvaTab({
               return (
                 <div
                   key={approval.approvalId}
-                  className="flex flex-col gap-2 rounded-md border border-amber-500/50 bg-amber-500/5 p-3"
+                  className="flex flex-col gap-2 rounded-md border border-status-warning/50 bg-status-warning/5 p-3"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold text-amber-500">
+                    <span className="text-xs font-semibold text-status-warning">
                       Tool approval required
                     </span>
                     <WaitingTimer receivedAt={approval.receivedAt} />
@@ -202,7 +204,7 @@ export function AskAvaTab({
                   </pre>
                   <div className="flex gap-2">
                     <button
-                      className="flex-1 rounded border border-amber-500 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-500 hover:bg-amber-500/20 transition-colors"
+                      className="flex-1 rounded border border-status-warning bg-status-warning/10 px-3 py-1 text-xs font-medium text-status-warning hover:bg-status-warning/20 transition-colors"
                       onClick={() => approveSubagentTool(approval.approvalId)}
                     >
                       Approve
@@ -238,7 +240,7 @@ export function AskAvaTab({
                       tokenUsage.total > 100_000
                         ? 'text-destructive font-medium'
                         : tokenUsage.total > 50_000
-                          ? 'text-yellow-500'
+                          ? 'text-status-warning'
                           : 'text-muted-foreground'
                     )}
                     title={

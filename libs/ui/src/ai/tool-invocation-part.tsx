@@ -211,6 +211,12 @@ export function ToolInvocationPart({
     );
   }
 
+  // ── Full-card renderers — replace the entire ToolInvocationPart UI ────────
+  const FullCardRenderer = toolResultRegistry.getFullCard(toolName);
+  if (FullCardRenderer) {
+    return <FullCardRenderer output={output} input={input} state={state} toolName={toolName} />;
+  }
+
   // Look up a custom renderer for this tool
   const CustomRenderer = toolResultRegistry.get(toolName);
   const hasCustomRenderer = Boolean(CustomRenderer);
@@ -254,7 +260,7 @@ export function ToolInvocationPart({
             <>
               {CustomRenderer ? (
                 <div className="mt-1.5">
-                  <CustomRenderer output={output} state={state} toolName={toolName} />
+                  <CustomRenderer output={output} input={input} state={state} toolName={toolName} />
                 </div>
               ) : (
                 <JsonPreview data={output} label="Output" />
@@ -264,7 +270,7 @@ export function ToolInvocationPart({
           {/* For loading states with a custom renderer, show the custom component inline */}
           {isRunning && CustomRenderer && (
             <div className="mt-1.5">
-              <CustomRenderer output={output} state={state} toolName={toolName} />
+              <CustomRenderer output={output} input={input} state={state} toolName={toolName} />
             </div>
           )}
           {state === 'output-error' && errorText && (
