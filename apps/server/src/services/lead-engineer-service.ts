@@ -11,6 +11,8 @@
 
 import path from 'path';
 import fs from 'fs';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import { createLogger } from '@protolabsai/utils';
 import type {
   EventType,
@@ -56,16 +58,19 @@ export type { FeatureProcessingState, StateContext };
 export type { ProcessorServiceContext } from './lead-engineer-types.js';
 export { FeatureStateMachine } from './lead-engineer-state-machine.js';
 
+const execAsync = promisify(exec);
 const logger = createLogger('LeadEngineerService');
 const WORLD_STATE_REFRESH_MS = 5 * 60 * 1000;
 const MAX_RULE_LOG_ENTRIES = 200;
 const SUPERVISOR_CHECK_MS = 30 * 1000;
+const PR_MERGE_POLL_MS = 2.5 * 60 * 1000;
 
 export class LeadEngineerService {
   private sessions = new Map<string, LeadEngineerSession>();
   private subscriptions: EventSubscription[] = [];
   private refreshIntervals = new Map<string, ReturnType<typeof setInterval>>();
   private supervisorIntervals = new Map<string, ReturnType<typeof setInterval>>();
+  private prMergeIntervals = new Map<string, ReturnType<typeof setInterval>>();
   private activeFeatures = new Set<string>();
 
   private discordBotService?: {
@@ -289,6 +294,18 @@ export class LeadEngineerService {
       );
     }
 
+    this.prMergeIntervals.set(
+      projectPath,
+      setInterval(() => {
+        const s = this.sessions.get(projectPath);
+        if (s?.flowState === 'running') {
+          this.checkMergedPRs(projectPath).catch((err) =>
+            logger.error(`PR merge poll failed for ${projectSlug}:`, err)
+          );
+        }
+      }, PR_MERGE_POLL_MS)
+    );
+
     await this.sessionStore.save(session);
     this.events.emit('lead-engineer:started', { projectPath, projectSlug });
     logger.info(`Lead Engineer started for ${projectSlug}`);
@@ -500,6 +517,69 @@ export class LeadEngineerService {
     if (s) {
       clearInterval(s);
       this.supervisorIntervals.delete(projectPath);
+    }
+    const p = this.prMergeIntervals.get(projectPath);
+    if (p) {
+      clearInterval(p);
+      this.prMergeIntervals.delete(projectPath);
+    }
+  }
+
+  /** @internal exported for testing */
+  async checkMergedPRs(projectPath: string): Promise<void> {
+    const session = this.sessions.get(projectPath);
+    if (!session || session.flowState !== 'running') return;
+
+    let features: Awaited<ReturnType<typeof this.featureLoader.getAll>>;
+    try {
+      features = await this.featureLoader.getAll(projectPath);
+    } catch (err) {
+      logger.error(`[PRMergePoller] Failed to load features for ${projectPath}:`, err);
+      return;
+    }
+
+    const reviewFeaturesWithPR = features.filter(
+      (f) => f.status === 'review' && f.prNumber != null
+    );
+
+    if (reviewFeaturesWithPR.length === 0) return;
+
+    logger.debug(
+      `[PRMergePoller] Checking ${reviewFeaturesWithPR.length} review feature(s) for merged PRs in ${session.projectSlug}`
+    );
+
+    for (const feature of reviewFeaturesWithPR) {
+      try {
+        const { stdout } = await execAsync(
+          `gh pr view ${feature.prNumber} --json state,mergedAt`
+        );
+        const prData = JSON.parse(stdout.trim()) as { state: string; mergedAt?: string | null };
+
+        if (prData.state !== 'MERGED') continue;
+
+        const prMergedAt = prData.mergedAt ?? new Date().toISOString();
+
+        logger.info(
+          `[PRMergePoller] PR #${feature.prNumber} for feature "${feature.id}" is merged — transitioning to done`
+        );
+
+        await this.featureLoader.update(projectPath, feature.id, {
+          status: 'done',
+          prMergedAt,
+        });
+
+        this.events.emit('feature:pr-merged' as EventType, {
+          featureId: feature.id,
+          featureTitle: feature.title,
+          prNumber: feature.prNumber,
+          projectPath,
+        });
+      } catch (err) {
+        logger.warn(
+          `[PRMergePoller] Failed to check PR #${feature.prNumber} for feature "${feature.id}" (non-fatal):`,
+          err
+        );
+      }
     }
   }
 
