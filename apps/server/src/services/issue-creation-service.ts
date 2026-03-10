@@ -1,8 +1,8 @@
 /**
- * Issue Creation Service - Failure-to-Issue Pipeline
+ * Issue Creation Service - Failure-to-Bug Pipeline
  *
- * Listens for failure events and automatically creates GitHub issues
- * with full diagnostic context. Posts notifications to Discord #bugs-and-issues.
+ * Listens for failure events and automatically creates in-app bug features
+ * on the "bugs" project board. Posts notifications to Discord #bugs-and-issues.
  *
  * Triggers:
  * - feature:permanently-blocked (retryCount >= 3, from ReconciliationService)
@@ -10,7 +10,6 @@
  * - pr:ci-failure (persistent CI failures)
  */
 
-import { execSync } from 'node:child_process';
 import { createLogger } from '@protolabsai/utils';
 import type { FailureCategory } from '@protolabsai/types';
 import type { EventEmitter } from '../lib/events.js';
@@ -43,8 +42,7 @@ const ENV_BUGS_CHANNEL_ID = process.env.DISCORD_BUGS_CHANNEL_ID || '';
 
 interface IssueCreationResult {
   success: boolean;
-  issueNumber?: number;
-  issueUrl?: string;
+  bugFeatureId?: string;
   error?: string;
 }
 
@@ -87,8 +85,7 @@ export class IssueCreationService {
   private unsubscribe: (() => void) | null = null;
   private initialized = false;
   /**
-   * Track which features already have issues to avoid duplicates within this session.
-   * Persistent fallback: also checks feature.githubIssueNumber after restarts.
+   * Track which features already have bug tickets within this session.
    */
   private issuedFeatures = new Set<string>();
 
@@ -109,14 +106,6 @@ export class IssueCreationService {
    */
   initialize(): void {
     if (this.initialized) return;
-
-    // Verify gh CLI is available before subscribing to events
-    try {
-      execSync('gh --version', { encoding: 'utf-8', timeout: 5000 });
-    } catch {
-      logger.warn('gh CLI not available — issue creation will be disabled');
-      return;
-    }
 
     this.initialized = true;
 
@@ -156,20 +145,13 @@ export class IssueCreationService {
 
     // Avoid duplicate issues
     if (this.issuedFeatures.has(featureId)) {
-      logger.info(`Issue already created for feature ${featureId}, skipping`);
+      logger.info(`Bug already filed for feature ${featureId}, skipping`);
       return;
     }
 
     const feature = await this.featureLoader.get(projectPath, featureId);
     if (!feature) {
-      logger.warn(`Feature ${featureId} not found, cannot create issue`);
-      return;
-    }
-
-    // Skip if feature already has a GitHub issue
-    if (feature.githubIssueNumber) {
-      logger.info(`Feature ${featureId} already has issue #${feature.githubIssueNumber}`);
-      this.issuedFeatures.add(featureId);
+      logger.warn(`Feature ${featureId} not found, cannot create bug`);
       return;
     }
 
@@ -183,7 +165,7 @@ export class IssueCreationService {
 
     const triage = this.triageService.triage(triageInput);
 
-    const result = await this.createGitHubIssue(projectPath, feature, {
+    const result = await this.createBugFeature(projectPath, feature, {
       retryCount,
       lastError,
       failureCategory,
@@ -191,12 +173,8 @@ export class IssueCreationService {
       trigger: 'max-retries',
     });
 
-    if (result.success && result.issueNumber) {
+    if (result.success) {
       this.issuedFeatures.add(featureId);
-      await this.featureLoader.update(projectPath, featureId, {
-        githubIssueNumber: result.issueNumber,
-        githubIssueUrl: result.issueUrl,
-      });
       await this.postDiscordNotification(feature, result, triage, projectPath);
     }
   }
@@ -208,7 +186,7 @@ export class IssueCreationService {
     const { featureId, reason, projectPath } = payload;
 
     if (!projectPath) {
-      logger.warn('recovery_escalated missing projectPath, cannot create issue');
+      logger.warn('recovery_escalated missing projectPath, cannot create bug');
       return;
     }
 
@@ -219,11 +197,6 @@ export class IssueCreationService {
     const feature = await this.featureLoader.get(projectPath, featureId);
     if (!feature) return;
 
-    if (feature.githubIssueNumber) {
-      this.issuedFeatures.add(featureId);
-      return;
-    }
-
     const triageInput: TriageInput = {
       featureId,
       projectPath,
@@ -232,18 +205,14 @@ export class IssueCreationService {
 
     const triage = this.triageService.triage(triageInput);
 
-    const result = await this.createGitHubIssue(projectPath, feature, {
+    const result = await this.createBugFeature(projectPath, feature, {
       lastError: reason,
       triage,
       trigger: 'recovery-escalated',
     });
 
-    if (result.success && result.issueNumber) {
+    if (result.success) {
       this.issuedFeatures.add(featureId);
-      await this.featureLoader.update(projectPath, featureId, {
-        githubIssueNumber: result.issueNumber,
-        githubIssueUrl: result.issueUrl,
-      });
       await this.postDiscordNotification(feature, result, triage, projectPath);
     }
   }
@@ -263,11 +232,6 @@ export class IssueCreationService {
     const feature = await this.featureLoader.get(projectPath, featureId);
     if (!feature) return;
 
-    if (feature.githubIssueNumber) {
-      this.issuedFeatures.add(featureId);
-      return;
-    }
-
     const triageInput: TriageInput = {
       featureId,
       projectPath,
@@ -277,27 +241,23 @@ export class IssueCreationService {
 
     const triage = this.triageService.triage(triageInput);
 
-    const result = await this.createGitHubIssue(projectPath, feature, {
+    const result = await this.createBugFeature(projectPath, feature, {
       prNumber,
       failedChecks,
       triage,
       trigger: 'ci-failure',
     });
 
-    if (result.success && result.issueNumber) {
+    if (result.success) {
       this.issuedFeatures.add(featureId);
-      await this.featureLoader.update(projectPath, featureId, {
-        githubIssueNumber: result.issueNumber,
-        githubIssueUrl: result.issueUrl,
-      });
       await this.postDiscordNotification(feature, result, triage, projectPath);
     }
   }
 
   /**
-   * Create a GitHub issue with full diagnostic context
+   * Create an in-app bug feature on the "bugs" project board
    */
-  private async createGitHubIssue(
+  private async createBugFeature(
     projectPath: string,
     feature: Feature,
     context: {
@@ -313,39 +273,32 @@ export class IssueCreationService {
     try {
       const title = this.buildIssueTitle(feature, context.trigger);
       const body = this.buildIssueBody(feature, context);
-      const labels = context.triage.labels.join(',');
 
-      // Use gh CLI to create the issue
-      const cmd = `gh issue create --title ${this.shellEscape(title)} --body ${this.shellEscape(body)} --label ${this.shellEscape(labels)}`;
+      const bugFeature = await this.featureLoader.create(projectPath, {
+        title,
+        description: body,
+        category: 'bug',
+        projectSlug: 'bugs',
+        complexity: 'medium',
+        status: 'backlog',
+      });
 
-      const output = execSync(cmd, {
-        cwd: projectPath,
-        encoding: 'utf-8',
-        timeout: 30_000,
-      }).trim();
-
-      // gh issue create outputs the issue URL
-      const issueUrl = output;
-      const issueNumberMatch = issueUrl.match(/\/issues\/(\d+)$/);
-      const issueNumber = issueNumberMatch ? parseInt(issueNumberMatch[1], 10) : undefined;
-
-      logger.info(`Created GitHub issue for feature ${feature.id}: ${issueUrl}`);
+      logger.info(`Created bug feature for ${feature.id}: ${bugFeature.id}`);
 
       this.events.emit('issue:created', {
         featureId: feature.id,
         projectPath,
-        issueNumber,
-        issueUrl,
+        bugFeatureId: bugFeature.id,
         trigger: context.trigger,
         priority: context.triage.priority,
         team: context.triage.team,
         timestamp: Date.now(),
       });
 
-      return { success: true, issueNumber, issueUrl };
+      return { success: true, bugFeatureId: bugFeature.id };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      logger.error(`Failed to create GitHub issue for feature ${feature.id}:`, error);
+      logger.error(`Failed to create bug feature for ${feature.id}:`, error);
       return { success: false, error: message };
     }
   }
@@ -385,9 +338,9 @@ export class IssueCreationService {
     const sections: string[] = [];
 
     // Header
-    sections.push('## Auto-generated Issue');
+    sections.push('## Auto-generated Bug Report');
     sections.push('');
-    sections.push(`This issue was automatically created by Automaker's failure-to-issue pipeline.`);
+    sections.push(`This bug was automatically filed by the failure-to-bug pipeline.`);
     sections.push('');
 
     // Feature details
@@ -450,9 +403,6 @@ export class IssueCreationService {
   }
 
   /**
-   * Post notification to Discord #bugs-and-issues channel
-   */
-  /**
    * Resolve bugs channel ID from integration config, falling back to env var.
    */
   private async getBugsChannelId(projectPath: string): Promise<string> {
@@ -488,10 +438,10 @@ export class IssueCreationService {
               ? '🟡'
               : '🟢';
       const message = [
-        `${priorityEmoji} **New Issue Created**: ${feature.title || feature.id}`,
+        `${priorityEmoji} **Bug Filed**: ${feature.title || feature.id}`,
         `**Priority**: ${triage.priorityLabel} | **Team**: ${triage.team}`,
         `**Reason**: ${triage.reason}`,
-        result.issueUrl ? `**GitHub**: ${result.issueUrl}` : '',
+        result.bugFeatureId ? `**Bug Feature**: ${result.bugFeatureId}` : '',
       ]
         .filter(Boolean)
         .join('\n');
@@ -504,13 +454,5 @@ export class IssueCreationService {
     } catch (error) {
       logger.warn('Failed to post Discord notification:', error);
     }
-  }
-
-  /**
-   * Escape a string for safe shell usage
-   */
-  private shellEscape(str: string): string {
-    // Use $'...' syntax for proper escaping
-    return "'" + str.replace(/'/g, "'\\''") + "'";
   }
 }
