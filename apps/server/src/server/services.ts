@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { createLogger } from '@protolabsai/utils';
+import { loadProtoConfig } from '@protolabsai/platform';
 import { createEventEmitter, type EventEmitter } from '../lib/events.js';
 
 import { AgentService } from '../services/agent-service.js';
@@ -106,11 +107,11 @@ import { changelogService } from '../services/changelog-service.js';
 import { ProjectPMService } from '../services/project-pm-service.js';
 import * as projectPmModule from '../services/project-pm.module.js';
 import { CrdtSyncService } from '../services/crdt-sync-service.js';
+import { ProjectAssignmentService } from '../services/project-assignment-service.js';
 import { AvaChannelService } from '../services/ava-channel-service.js';
 import { WorkIntakeService } from '../services/work-intake-service.js';
 import { TodoService } from '../services/todo-service.js';
 import type { AvaChannelReactorService } from '../services/ava-channel-reactor-service.js';
-import type { FleetSchedulerService } from '../services/fleet-scheduler-service.js';
 
 const logger = createLogger('Server:Services');
 
@@ -223,6 +224,7 @@ export interface ServiceContainer {
   projectService: ProjectService;
   projectLifecycleService: ProjectLifecycleService;
   completionDetectorService: CompletionDetectorService;
+  projectAssignmentService: ProjectAssignmentService;
 
   // Ceremonies
   ceremonyAuditLog: CeremonyAuditLogService;
@@ -295,9 +297,6 @@ export interface ServiceContainer {
 
   // Ava Channel Reactor stop function (set by ava-channel-reactor.module, called on shutdown)
   _avaChannelReactorStop?: () => void;
-
-  // Fleet Scheduler (set by ava-channel-reactor.module when hivemind is enabled)
-  fleetSchedulerService?: FleetSchedulerService;
 
   // Drift detection interval (set by wireServices, cleared by shutdown)
   driftCheckInterval: ReturnType<typeof setInterval> | null;
@@ -683,6 +682,9 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
   // CRDT Sync Service — multi-instance coordination via WebSocket sync server
   const crdtSyncService = new CrdtSyncService();
 
+  // Project Assignment Service — manages project-to-instance assignment
+  const projectAssignmentService = new ProjectAssignmentService(projectService, crdtSyncService);
+
   // Ava Channel Service — private multi-instance Ava communication channel
   const avaChannelService = new AvaChannelService(join(dataDir, 'ava-channel-archive'), {
     instanceId: crdtSyncService.getInstanceId(),
@@ -744,6 +746,32 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
   leadEngineerService.setKnowledgeStoreService(knowledgeStoreService);
   leadEngineerService.setHITLFormService(hitlFormService);
   await leadEngineerService.initialize();
+
+  // Wire project-affinity filtering into auto-mode when projectPreferences are configured.
+  // This enables multi-instance deployments to scope feature pickup to assigned projects.
+  // Single-instance setups (no proto.config.yaml projectPreferences) are unaffected.
+  try {
+    const protoConfig = await loadProtoConfig(repoRoot);
+    const projectPreferences = protoConfig?.['projectPreferences'] as
+      | { preferredProjects?: string[]; overflowEnabled?: boolean }
+      | undefined;
+    const hasPreferredProjects =
+      Array.isArray(projectPreferences?.preferredProjects) &&
+      projectPreferences.preferredProjects.length > 0;
+    if (hasPreferredProjects) {
+      const overflowEnabled = projectPreferences?.overflowEnabled ?? true;
+      autoModeService.setProjectAssignmentService(
+        crdtSyncService.getInstanceId(),
+        projectAssignmentService,
+        overflowEnabled
+      );
+      logger.info(
+        `[Affinity] Project-affinity filtering enabled (instanceId=${crdtSyncService.getInstanceId()}, preferredProjects=${projectPreferences?.preferredProjects?.join(',') ?? ''}, overflow=${overflowEnabled})`
+      );
+    }
+  } catch (err) {
+    logger.warn('[Affinity] Failed to load project preferences — affinity filtering skipped:', err);
+  }
 
   // Wire pipelineOrchestrator processors
   pipelineOrchestrator.setProcessors({ ops: pmAgent, gtm: gtmAgent, projm: projmAgent });
@@ -831,6 +859,7 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
     projectService,
     projectLifecycleService,
     completionDetectorService,
+    projectAssignmentService,
     ceremonyAuditLog,
     ceremonyService,
     leadEngineerService,
