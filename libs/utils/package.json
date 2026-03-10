@@ -13,6 +13,10 @@
     "./logger": {
       "import": "./dist/logger.js",
       "default": "./dist/logger.js"
+    },
+    "./format-time": {
+      "import": "./dist/format-time.js",
+      "default": "./dist/format-time.js"
     }
   },
   "scripts": {

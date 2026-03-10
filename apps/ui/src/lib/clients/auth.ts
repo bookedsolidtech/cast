@@ -359,7 +359,7 @@ export const verifySession = async (): Promise<boolean> => {
 export const checkSandboxEnvironment = async (): Promise<{
   isContainerized: boolean;
   skipSandboxWarning?: boolean;
-  demoMode?: boolean;
+
   error?: string;
 }> => {
   try {
@@ -376,7 +376,6 @@ export const checkSandboxEnvironment = async (): Promise<{
     return {
       isContainerized: data.isContainerized ?? false,
       skipSandboxWarning: data.skipSandboxWarning ?? false,
-      demoMode: data.demoMode ?? false,
     };
   } catch (error) {
     logger.error('Sandbox environment check failed:', error);

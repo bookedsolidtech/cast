@@ -30,7 +30,6 @@ export interface ServiceNodeData {
 export type EngineServiceId =
   | 'signal-sources'
   | 'triage'
-  | 'project-planning'
   | 'decomposition'
   | 'launch'
   | 'auto-mode'
@@ -39,7 +38,8 @@ export type EngineServiceId =
   | 'pr-feedback'
   | 'lead-engineer-rules'
   | 'reflection'
-  | 'content-pipeline';
+  | 'content-pipeline'
+  | 'project-planning';
 
 export interface EngineServiceNodeData {
   label: string;

@@ -161,6 +161,29 @@ export interface WorkflowSettings {
     /** Also create GitHub issues (existing behavior, default: true) */
     createGithubIssues?: boolean;
   };
+  /**
+   * Run verification commands (typecheck, build) after merge to catch regressions.
+   * On failure, creates a bug-fix feature on the board. Original feature is still marked done
+   * since the code is already merged.
+   * @default true
+   */
+  postMergeVerification?: boolean;
+  /**
+   * Commands to execute during post-merge verification.
+   * `npm run build:packages` is added automatically when libs/ files were touched.
+   * @default ['npm run typecheck']
+   */
+  postMergeVerificationCommands?: string[];
+  /**
+   * Run pre-flight checks before launching the agent in EXECUTE state.
+   * Checks include: worktree currency (git fetch + rebase if behind), package build
+   * (if libs/ files changed since worktree creation), and dependency merge verification
+   * (foundation deps must be done, not just in review).
+   * Pre-flight failures are classified as infrastructure failures and do NOT count
+   * against the feature's agent retry budget.
+   * @default true
+   */
+  preFlightChecks?: boolean;
 }
 
 /** Default workflow settings */
@@ -192,4 +215,7 @@ export const DEFAULT_WORKFLOW_SETTINGS: WorkflowSettings = {
     enabled: false,
     createGithubIssues: true,
   },
+  postMergeVerification: true,
+  postMergeVerificationCommands: ['npm run typecheck'],
+  preFlightChecks: true,
 };

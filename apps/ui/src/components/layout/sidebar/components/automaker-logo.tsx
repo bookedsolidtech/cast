@@ -1,6 +1,5 @@
 import type { NavigateOptions } from '@tanstack/react-router';
 import { cn } from '@/lib/utils';
-import { useDemoMode } from '@/hooks/use-demo-mode';
 
 interface AutomakerLogoProps {
   sidebarOpen: boolean;
@@ -9,7 +8,6 @@ interface AutomakerLogoProps {
 
 export function AutomakerLogo({ sidebarOpen, navigate }: AutomakerLogoProps) {
   const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0';
-  const demoMode = useDemoMode();
 
   return (
     <div
@@ -89,11 +87,6 @@ export function AutomakerLogo({ sidebarOpen, navigate }: AutomakerLogoProps) {
             <span className="text-[0.625rem] text-muted-foreground leading-none font-medium">
               v{appVersion} alpha
             </span>
-            {demoMode && (
-              <span className="text-[0.5rem] font-bold uppercase tracking-wider text-brand-400 bg-brand-400/10 px-1.5 py-0.5 rounded leading-none">
-                Demo
-              </span>
-            )}
           </div>
         </div>
       )}
