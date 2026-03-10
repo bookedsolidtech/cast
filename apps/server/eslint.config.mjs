@@ -75,6 +75,23 @@ const eslintConfig = defineConfig([
       // This is the primary gate — prevents deploying code that
       // imports packages not in this workspace's package.json.
       'n/no-extraneous-import': 'error',
+
+      // Ban direct imports of @ai-sdk/anthropic in route/service code.
+      // Use getAnthropicModel() from lib/ai-provider.ts instead — it
+      // resolves credentials via CLI OAuth, env vars, and credentials file.
+      // Without this, routes fail when ANTHROPIC_API_KEY isn't set (e.g., Claude Max plans).
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@ai-sdk/anthropic',
+              message:
+                'Import getAnthropicModel from lib/ai-provider.ts instead. Direct @ai-sdk/anthropic imports bypass CLI OAuth credential resolution.',
+            },
+          ],
+        },
+      ],
     },
     settings: {
       n: {
@@ -83,6 +100,13 @@ const eslintConfig = defineConfig([
         // Use the server's package.json for dependency resolution
         resolvePaths: ['.'],
       },
+    },
+  },
+  // ai-provider.ts is the canonical wrapper for @ai-sdk/anthropic — it must import directly.
+  {
+    files: ['src/lib/ai-provider.ts'],
+    rules: {
+      'no-restricted-imports': 'off',
     },
   },
   // Test-specific overrides: relax rules that are impractical to enforce in test files.

@@ -21,7 +21,8 @@ export type ProjectStatus =
   | 'approved' // PRD approved, ready to scaffold
   | 'scaffolded' // Project structure created
   | 'active' // Features created, work in progress
-  | 'completed'; // All features done
+  | 'completed' // All features done
+  | 'cancelled'; // Project abandoned or killed at any gate
 
 /**
  * Project health indicator for status updates
