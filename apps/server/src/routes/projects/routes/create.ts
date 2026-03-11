@@ -33,6 +33,8 @@ interface CreateProjectRequest {
   title: string;
   goal: string;
   slug?: string;
+  color?: string;
+  priority?: 'urgent' | 'high' | 'medium' | 'low' | 'none';
   prd?: SPARCPrd;
   researchSummary?: string;
   milestones?: Array<{
@@ -58,6 +60,8 @@ export function createCreateHandler(projectService: ProjectService) {
         title,
         goal,
         slug,
+        color,
+        priority,
         prd,
         researchSummary,
         milestones: milestoneInputs,
@@ -177,6 +181,8 @@ export function createCreateHandler(projectService: ProjectService) {
         milestones,
         researchSummary,
         prd,
+        ...(color ? { color } : {}),
+        ...(priority ? { priority } : {}),
         createdAt: now,
         updatedAt: now,
       };

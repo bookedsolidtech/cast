@@ -1,9 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { FolderKanban, Plus, Loader2, ChevronDown, ChevronRight } from 'lucide-react';
-import { Input, Textarea } from '@protolabsai/ui/atoms';
-import { Button } from '@protolabsai/ui/atoms';
+import { FolderKanban, Plus, ChevronDown, ChevronRight } from 'lucide-react';
 import { PanelHeader } from '@/components/shared/panel-header';
 import { Spinner } from '@protolabsai/ui/atoms';
 import { useAppStore } from '@/store/app-store';
@@ -11,6 +9,7 @@ import { getHttpApiClient } from '@/lib/http-api-client';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useProjectFeatures } from './hooks/use-project-features';
+import { NewProjectDialog } from './components/new-project-dialog';
 
 interface ProjectSummary {
   slug: string;
@@ -87,9 +86,7 @@ export function ProjectsList() {
   const projectPath = useAppStore((s) => s.currentProject?.path);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [showNewProjectInput, setShowNewProjectInput] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
-  const [newDescription, setNewDescription] = useState('');
+  const [showNewProjectDialog, setShowNewProjectDialog] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   const { data: listData, isLoading: isLoadingList } = useQuery({
@@ -118,25 +115,27 @@ export function ProjectsList() {
     enabled: !!projectPath && !!listData?.projects && listData.projects.length > 0,
   });
 
-  const initiateMutation = useMutation({
-    mutationFn: async () => {
+  const createMutation = useMutation({
+    mutationFn: async (data: {
+      title: string;
+      goal: string;
+      color?: string;
+      priority?: string;
+    }) => {
       const api = getHttpApiClient();
-      return api.lifecycle.initiate(projectPath || '', newTitle, newDescription);
+      return api.lifecycle.createProject(projectPath || '', data);
     },
-    onSuccess: (result) => {
-      if (result.hasDuplicates) {
-        toast.warning('Duplicate project detected', {
-          description: `Found ${result.duplicates?.length} existing project(s) with a similar name.`,
-        });
-      } else {
-        toast.success('Project created', {
-          description: `Created "${newTitle}" (${result.localSlug})`,
-        });
-      }
-      setNewTitle('');
-      setNewDescription('');
-      setShowNewProjectInput(false);
+    onSuccess: (result, variables) => {
+      toast.success('Project created', {
+        description: `Created "${variables.title}"`,
+      });
+      setShowNewProjectDialog(false);
       queryClient.invalidateQueries({ queryKey: ['projects-list', projectPath] });
+      // Navigate to the new project page
+      const slug = result.project?.slug;
+      if (slug) {
+        navigate({ to: '/projects/$slug', params: { slug } });
+      }
     },
     onError: (error) => {
       toast.error(
@@ -144,18 +143,6 @@ export function ProjectsList() {
       );
     },
   });
-
-  const handleCreateProject = useCallback(() => {
-    if (!newTitle.trim()) {
-      toast.error('Project title is required');
-      return;
-    }
-    if (!newDescription.trim()) {
-      toast.error('Project description is required');
-      return;
-    }
-    initiateMutation.mutate();
-  }, [newTitle, newDescription, initiateMutation]);
 
   const projects = projectDetails || [];
   const isLoading = isLoadingList || isLoadingDetails;
@@ -200,49 +187,17 @@ export function ProjectsList() {
           {
             icon: Plus,
             label: 'New project',
-            onClick: () => setShowNewProjectInput(!showNewProjectInput),
+            onClick: () => setShowNewProjectDialog(true),
           },
         ]}
       />
 
-      {/* New Project Form */}
-      {showNewProjectInput && (
-        <div className="shrink-0 px-6 py-4 border-b border-border/40 bg-muted/20 space-y-3">
-          <Input
-            placeholder="Project title..."
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            autoFocus
-          />
-          <Textarea
-            placeholder="Describe the project goal..."
-            value={newDescription}
-            onChange={(e) => setNewDescription(e.target.value)}
-            rows={3}
-          />
-          <div className="flex items-center justify-end gap-2">
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                setShowNewProjectInput(false);
-                setNewTitle('');
-                setNewDescription('');
-              }}
-            >
-              Cancel
-            </Button>
-            <Button size="sm" onClick={handleCreateProject} disabled={initiateMutation.isPending}>
-              {initiateMutation.isPending ? (
-                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-              ) : (
-                <Plus className="w-3.5 h-3.5 mr-1.5" />
-              )}
-              Create
-            </Button>
-          </div>
-        </div>
-      )}
+      <NewProjectDialog
+        open={showNewProjectDialog}
+        onOpenChange={setShowNewProjectDialog}
+        onSubmit={(data) => createMutation.mutate(data)}
+        isPending={createMutation.isPending}
+      />
 
       {/* Project List */}
       <div className="flex-1 overflow-y-auto">
