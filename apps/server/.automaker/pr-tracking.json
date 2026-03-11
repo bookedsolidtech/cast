@@ -6,11 +6,22 @@
       "prNumber": 2216,
       "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/2216",
       "branchName": "",
-      "lastCheckedAt": 0,
+      "lastCheckedAt": 1773188133188,
       "reviewStatus": "pending",
       "remediationCount": 0,
       "trackedSince": 1773188086150
+    },
+    {
+      "featureId": "feature-1773187700526-aasnrseqn",
+      "projectPath": "/Users/kj/dev/automaker",
+      "prNumber": 2217,
+      "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/2217",
+      "branchName": "",
+      "lastCheckedAt": 0,
+      "reviewStatus": "pending",
+      "remediationCount": 0,
+      "trackedSince": 1773188151877
     }
   ],
-  "savedAt": "2026-03-11T00:14:46.152Z"
+  "savedAt": "2026-03-11T00:15:51.879Z"
 }
