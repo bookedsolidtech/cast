@@ -122,3 +122,32 @@ usageStats:
 - **Rejected:** Always allow all origins - security issue. Always restrict origins - breaks hivemind mesh communication.
 - **Trade-offs:** Deployment must correctly set hivemind config flag. If misconfigured (e.g., CORS enabled in single-node mode), security posture is weakened.
 - **Breaking if changed:** If allowAllOrigins parameter is removed and hardcoded to false, hivemind deployments will fail with CORS errors. If hardcoded to true, single-node deployments lose CORS protection.
+
+#### [Gotcha] SDK cwd is a hint, not a fence. Node.js doesn't enforce working directory restrictions; agents can always use absolute paths to write anywhere on the filesystem. (2026-03-11)
+- **Situation:** Original implementation only validated workDir at startup. Agents in worktrees bypassed this by using absolute paths in file operations.
+- **Root cause:** Node's fs APIs don't restrict operations based on process.cwd(). The cwd is informational only, useful for relative path resolution but provides no security boundary.
+- **How to avoid:** Requires runtime validation on every tool execution (PreToolUse hook) rather than one-time startup check. Small performance cost for critical security.
+
+### Implemented worktree path validation as a PreToolUse hook that intercepts ALL tool calls (Write, Edit, Bash, etc.) rather than patching individual tool implementations. (2026-03-11)
+- **Context:** Needed to prevent agents from writing outside worktree boundaries across multiple tool types and execution contexts.
+- **Why:** Hook-based approach centralizes security logic, applies uniformly to all tools, and validates at actual execution time (not just startup). Single point of enforcement.
+- **Rejected:** 1) Patching each tool individually (fragile, easy to miss one). 2) Modifying SDK cwd enforcement (not feasible, external dep). 3) Startup-only validation (proven insufficient).
+- **Trade-offs:** Centralized hook validates every execution (small overhead) but prevents bypasses across tool types. Trade computational cost for confidence in security boundary.
+- **Breaking if changed:** If hook is bypassed or disabled, all tool-based isolation breaks. Agents gain unrestricted filesystem access despite worktree setup.
+
+#### [Gotcha] File-path-based guards are insufficient. Agents can bypass write restrictions using Bash with `git -C /path/to/main`, `cp src dst`, `mv src dst`, or shell redirections. (2026-03-11)
+- **Situation:** Initial fix blocked direct Write/Edit calls but agents could still manipulate files via Bash commands to the main repo.
+- **Root cause:** Bash commands operate on the full filesystem; relative paths in Bash resolve against cwd, but absolute paths or `git -C` override cwd entirely. Command composition adds complexity.
+- **How to avoid:** Guard must parse and validate Bash command patterns (more complex) but catches more bypass vectors. Regex patterns on command args vs security completeness.
+
+### Created explicit exception for `.automaker/features/` directory. Server-side operations can write here regardless of worktree; guard validates only the directory prefix, not filename. (2026-03-11)
+- **Context:** Server needs to write feature/PR data to a known location. Can't restrict server output to worktree; must carve out escape hatch.
+- **Why:** Server (not agent) controls what gets written to `.automaker/features/`. Agent can't inject arbitrary paths there; server builds the path. Restricting by directory prefix (not full path) is sufficient.
+- **Rejected:** Blocking all writes outside worktree (breaks server-side output). Allowing all writes to `.automaker/` (too broad, invites abuse).
+- **Trade-offs:** Reduced security isolation for convenience of server-side operations. Mitigated by server (not agent) controlling the full filepath; agent only provides content.
+- **Breaking if changed:** If exception is removed, server can't write feature metadata anywhere, breaking feature creation workflow. If exception is widened to more directories, introduces bypass vectors.
+
+#### [Pattern] Guard returns blocking decision with actionable error message (e.g., 'use worktree path instead of main repo path') rather than silent denial or generic error. (2026-03-11)
+- **Problem solved:** Agents need guidance to self-correct when guard blocks a tool call. Silent failures lead to confusion and retry loops.
+- **Why this works:** Actionable errors teach agents the constraint (worktree isolation exists) and show the correct path to use. Reduces adversarial feel, aids agent learning.
+- **Trade-offs:** More verbose error messages but improve agent behavior and transparency. Could leak internal path info but guard's purpose is visible anyway.

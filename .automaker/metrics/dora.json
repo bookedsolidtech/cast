@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-03-11T07:20:25.957Z",
+  "updatedAt": "2026-03-11T07:30:26.241Z",
   "entries": [
     {
       "timestamp": "2026-03-10T23:27:16.307Z",
@@ -228,6 +228,27 @@
       },
       "changeFailRate": {
         "totalMerges": 1,
+        "totalFailures": 0,
+        "ratio": 0
+      },
+      "recoveryTime": null
+    },
+    {
+      "timestamp": "2026-03-11T07:30:26.227Z",
+      "deploymentFrequency": {
+        "mergesPerDay": 2,
+        "mergesPerWeek": 2,
+        "dayBucket": "2026-03-11"
+      },
+      "changeLeadTime": {
+        "featureId": "feature-1773209893334-1vpe8yx5c",
+        "featureTitle": "Subagent Message Part Type",
+        "featureCreatedAt": "2026-03-11T06:18:13.334Z",
+        "prMergedAt": "2026-03-11T07:30:26.227Z",
+        "leadTimeMs": 4332893
+      },
+      "changeFailRate": {
+        "totalMerges": 2,
         "totalFailures": 0,
         "ratio": 0
       },
