@@ -1,17 +1,6 @@
 {
   "trackedPRs": [
     {
-      "featureId": "feature-1773210169351-cq6jwk1f0",
-      "projectPath": "/Users/kj/dev/automaker",
-      "prNumber": 2250,
-      "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/2250",
-      "branchName": "",
-      "lastCheckedAt": 1773210767363,
-      "reviewStatus": "pending",
-      "remediationCount": 0,
-      "trackedSince": 1773210668738
-    },
-    {
       "featureId": "feature-1773209853548-bif8s6ikk",
       "projectPath": "/Users/kj/dev/automaker",
       "prNumber": 2251,
@@ -23,5 +12,5 @@
       "trackedSince": 1773210786679
     }
   ],
-  "savedAt": "2026-03-11T06:33:06.680Z"
+  "savedAt": "2026-03-11T06:33:22.512Z"
 }
