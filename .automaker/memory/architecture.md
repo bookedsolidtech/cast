@@ -6,8 +6,8 @@ importance: 0.9
 relatedFiles: []
 usageStats:
   loaded: 175
-  referenced: 56
-  successfulFeatures: 56
+  referenced: 57
+  successfulFeatures: 57
 ---
 <!-- domain: Architecture Decisions | System-wide structural decisions that have breaking consequences if changed -->
 
@@ -201,3 +201,20 @@ usageStats:
 - **Rejected:** Implement SWR directly; useEffect + useState fetch pattern
 - **Trade-offs:** React Query adds dependency but provides consistent patterns across codebase; 5min stale time is slower revalidation than SWR's default ~2s, reducing server load but potentially stale command data
 - **Breaking if changed:** Switching to SWR would require rewriting hook entirely; changing stale time affects how often command list refreshes
+
+### Fallback chain for server URL resolution: localStorage override → Electron IPC → env var → relative URL (2026-03-11)
+- **Context:** Need to support runtime switching (localhost → staging → prod), build-time configuration, and fallback to relative paths
+- **Why:** Runtime override must win (user explicitly chose), then build-time config (dev/staging/prod builds), then sensible default (relative URLs work in all contexts). Order matters because earlier sources take precedence.
+- **Rejected:** Single config source would simplify but eliminate runtime switching; hard-coded URL would require rebuild for each server change
+- **Trade-offs:** Multiple sources of truth require coordination, but enables dev-time switching without rebuilding. IPC layer couples to Electron packaging.
+- **Breaking if changed:** Removing localStorage check breaks runtime overrides entirely. Removing IPC breaks Electron-packaged builds. Removing env fallback makes server URL always relative.
+
+#### [Pattern] App-store is single source of truth (SSoT) for server URL state; localStorage is persistence layer only (2026-03-11)
+- **Problem solved:** Server URL override needs to survive page reloads and be accessible to all components
+- **Why this works:** Reading from app-store ensures all components see same value and react to changes. localStorage is only for persistence. Alternative of reading localStorage directly would bypass state updates and create stale reads.
+- **Trade-offs:** App-store is initialized from localStorage on boot (extra load path), but all runtime access goes through SSoT. Easier to test (mock app-store, not localStorage).
+
+#### [Pattern] localStorage keys are namespaced with 'automaker:' prefix to avoid collisions (2026-03-11)
+- **Problem solved:** Multiple apps/extensions may use same localStorage in browser; must prevent silent data corruption
+- **Why this works:** Raw keys like 'serverUrlOverride' could collide with other code (third-party scripts, extensions, other apps in same domain). Collision would cause one app to overwrite another's data silently. Prefix isolates namespace.
+- **Trade-offs:** Slightly longer keys, but prevents silent data corruption. Easy to adopt (just prepend prefix everywhere).

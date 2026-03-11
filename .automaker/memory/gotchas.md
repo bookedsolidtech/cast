@@ -6,8 +6,8 @@ importance: 0.7
 relatedFiles: []
 usageStats:
   loaded: 1138
-  referenced: 314
-  successfulFeatures: 314
+  referenced: 315
+  successfulFeatures: 315
 ---
 <!-- domain: Gotchas & Pitfalls | Known traps, anti-patterns, and hard-won lessons across all domains -->
 
@@ -799,3 +799,13 @@ usageStats:
 - **Situation:** Maintaining recent server history without duplicates. User might frequently switch between 2-3 servers.
 - **Root cause:** Prevents cluttering the dropdown with repeated URLs. Moving to end of list (LRU-like behavior) makes recently-used servers more discoverable.
 - **How to avoid:** More intuitive UX (recent = at bottom) but requires O(n) search to find and remove existing entry before append. For max-10 list, negligible.
+
+#### [Gotcha] setServerUrlOverride() must call invalidateHttpClient() to reconnect WebSocket to new server (2026-03-11)
+- **Situation:** Multiple transport layers exist (HTTP client, WebSocket). Changing server URL in state doesn't auto-update live connections.
+- **Root cause:** WebSocket client holds a reference to the old server URL. If only localStorage/state changes, WebSocket silently continues connecting to old server. invalidateHttpClient() closes old connection and creates new singleton, forcing reconnection.
+- **How to avoid:** Coupling setServerUrlOverride() to HTTP client layer (tight dependency), but ensures correctness. Forgetting this call causes silent data loss—app stops receiving updates without error.
+
+#### [Gotcha] Recent URLs deduplication (max 10 limit) is only applied when setServerUrlOverride() is called; manual localStorage edits bypass it (2026-03-11)
+- **Situation:** User experience feature: remember recent servers for quick switching. Constraint of max 10 prevents unbounded growth.
+- **Root cause:** Implementation: [newUrl, ...stored.filter(u => u !== newUrl)].slice(0, 10). Deduplication moves matching URL to front, then slice enforces max. But if someone manually edits localStorage to add 11+ URLs, constraint isn't enforced until next state update.
+- **How to avoid:** Simple implementation (one-liner filter+slice) vs. reactive enforcement. Edge case only occurs if localStorage is manually edited (rare) or if feature is scripted externally.

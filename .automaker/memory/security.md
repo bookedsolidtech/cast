@@ -156,3 +156,8 @@ usageStats:
 - **Problem solved:** Filter logic iterates description without defensive null checks
 - **Why this works:** Type system enforces description always exists; reduces boilerplate and risk of null-reference bugs in filter predicate
 - **Trade-offs:** Cleaner code vs tight API contract coupling; if description becomes optional later, all filter code breaks silently (no TS error if not careful with narrowing)
+
+#### [Gotcha] CORS allowing all origins is gated by hivemindEnabled feature flag, not explicitly validated in middleware (2026-03-11)
+- **Situation:** Server URL override enables multi-origin scenarios (single app, multiple servers). CORS config must match architecture.
+- **Root cause:** hivemindEnabled implies distributed multi-origin setup where CORS must be open. Without hivemind flag, app is single-origin and should restrict CORS. Coupling to proto.config.yaml makes this implicit.
+- **How to avoid:** Feature-flag gating hides the CORS decision in config—easy to miss when reviewing middleware code. Prevents accidental open CORS in single-origin deployments.
