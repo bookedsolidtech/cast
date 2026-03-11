@@ -6,7 +6,7 @@
       "prNumber": 2257,
       "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/2257",
       "branchName": "",
-      "lastCheckedAt": 1773221069098,
+      "lastCheckedAt": 1773244051158,
       "reviewStatus": "pending",
       "remediationCount": 0,
       "trackedSince": 1773213826273
@@ -17,7 +17,7 @@
       "prNumber": 2259,
       "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/2259",
       "branchName": "",
-      "lastCheckedAt": 1773221069738,
+      "lastCheckedAt": 1773244051785,
       "reviewStatus": "pending",
       "remediationCount": 0,
       "trackedSince": 1773214805229
@@ -28,7 +28,7 @@
       "prNumber": 2262,
       "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/2262",
       "branchName": "",
-      "lastCheckedAt": 1773221070370,
+      "lastCheckedAt": 1773244052463,
       "reviewStatus": "pending",
       "remediationCount": 0,
       "trackedSince": 1773215871529
@@ -39,11 +39,22 @@
       "prNumber": 2263,
       "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/2263",
       "branchName": "",
-      "lastCheckedAt": 0,
+      "lastCheckedAt": 1773244053156,
       "reviewStatus": "pending",
       "remediationCount": 0,
       "trackedSince": 1773221105483
+    },
+    {
+      "featureId": "feature-1773209883601-sxbd2paal",
+      "projectPath": "/Users/kj/dev/automaker",
+      "prNumber": 2267,
+      "prUrl": "https://github.com/protoLabsAI/protoMaker/pull/2267",
+      "branchName": "",
+      "lastCheckedAt": 0,
+      "reviewStatus": "pending",
+      "remediationCount": 0,
+      "trackedSince": 1773244061175
     }
   ],
-  "savedAt": "2026-03-11T09:25:05.485Z"
+  "savedAt": "2026-03-11T15:47:41.176Z"
 }
