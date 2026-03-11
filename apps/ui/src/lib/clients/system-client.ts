@@ -405,8 +405,8 @@ export const withSystemClient = <TBase extends Constructor<BaseHttpClient>>(Base
       }> => this.post('/api/projects/lifecycle/initiate', { projectPath, title, ideaDescription }),
       createProject: (
         projectPath: string,
-        project: { slug: string; title: string; goal: string }
-      ): Promise<{ success: boolean; error?: string }> =>
+        project: { slug?: string; title: string; goal: string; color?: string; priority?: string }
+      ): Promise<{ success: boolean; project?: { slug: string }; error?: string }> =>
         this.post('/api/projects/create', { projectPath, ...project }),
       launch: (
         projectPath: string,
