@@ -60,7 +60,7 @@ export class KnowledgeSearchService {
     query: string,
     opts: KnowledgeSearchOptions = {}
   ): Promise<{ results: KnowledgeSearchResult[]; retrieval_mode: RetrievalMode }> {
-    const { maxResults = 20, maxTokens = 8000, sourceTypes = 'all' } = opts;
+    const { maxResults = 20, maxTokens = 8000, sourceTypes = 'all', domain } = opts;
 
     // Determine if we can use hybrid retrieval
     const canUseHybrid = this.settings.hybridRetrieval && this.embeddingService.isReady();
@@ -94,6 +94,10 @@ export class KnowledgeSearchService {
       const placeholders = sourceTypes.map(() => '?').join(', ');
       sql += ` AND c.source_type IN (${placeholders})`;
       params.push(...sourceTypes);
+    }
+    if (domain) {
+      sql += ` AND c.tags IS NOT NULL AND EXISTS (SELECT 1 FROM json_each(c.tags) WHERE json_each.value = ?)`;
+      params.push(domain);
     }
 
     sql += ' ORDER BY score LIMIT ?';
@@ -461,7 +465,8 @@ export class KnowledgeSearchService {
   async searchReflections(
     projectPath: string,
     query: string,
-    maxResults: number = 5
+    maxResults: number = 5,
+    domain?: string
   ): Promise<KnowledgeSearchResult[]> {
     // Sanitize for FTS5 — strip operators that break MATCH syntax, then quote
     // each token individually so FTS5 never treats a word as a column filter.
@@ -483,6 +488,7 @@ export class KnowledgeSearchService {
       sourceTypes: ['reflection', 'agent_output'],
       maxResults,
       maxTokens: 3000,
+      domain,
     });
 
     return results;

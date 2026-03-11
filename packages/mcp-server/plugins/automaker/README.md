@@ -42,10 +42,9 @@ Restart Claude Code after installation.
 | `/auto-mode`          | Start/stop autonomous feature processing         |
 | `/orchestrate`        | Manage feature dependencies                      |
 | `/context`            | Manage AI agent context files                    |
-| `/plan-project`       | Full project orchestration pipeline              |
+| `/plan-project`       | Full project lifecycle -- research to launch     |
 | `/ship`               | Stage, commit, push, create PR, auto-merge       |
 | `/headsdown`          | Deep work mode -- process features autonomously  |
-| `/create-project`     | Project orchestration from research to features  |
 | `/calendar-assistant` | Calendar and scheduling operations               |
 | `/due-diligence`      | Validate approaches with evidence-based research |
 | `/deep-research`      | Research codebase before planning                |

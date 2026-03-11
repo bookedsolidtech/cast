@@ -9,7 +9,7 @@
  * output-available, and output-error.
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ChevronDown, Wrench, Loader2, Check, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils.js';
 import { ConfirmationCard } from './confirmation-card.js';
@@ -22,6 +22,8 @@ import { FeatureUpdatedCard, MoveFeatureCard } from './tool-results/feature-upda
 import { AgentStatusCard } from './tool-results/agent-status-card.js';
 import { AgentOutputCard } from './tool-results/agent-output-card.js';
 import { AutoModeStatusCard } from './tool-results/auto-mode-status-card.js';
+import { AutoModeControlCard } from './tool-results/auto-mode-control-card.js';
+import { AgentMessageCard } from './tool-results/agent-message-card.js';
 import { ExecutionOrderCard } from './tool-results/execution-order-card.js';
 import { ArtifactCard } from './tool-results/artifact-card.js';
 import { ImageCard } from './tool-results/image-card.js';
@@ -32,6 +34,13 @@ import { MetricsCard } from './tool-results/metrics-card.js';
 import { BriefingCard } from './tool-results/briefing-card.js';
 import { PromotionCandidatesCard } from './tool-results/promotion-candidates-card.js';
 import { PRStatusCard } from './tool-results/pr-status-card.js';
+import { MergePRCard } from './tool-results/merge-pr-card.js';
+import { PromotionCard } from './tool-results/promotion-card.js';
+import { RunningAgentsCard } from './tool-results/running-agents-card.js';
+import { ProjectListCard } from './tool-results/project-list-card.js';
+import { ProjectDetailCard } from './tool-results/project-detail-card.js';
+import { SitrepCard } from './tool-results/sitrep-card.js';
+import { HealthCheckCard } from './tool-results/health-check-card.js';
 
 // Register custom renderers for the boardRead tool group
 toolResultRegistry.register('get_board_summary', BoardSummaryCard);
@@ -50,6 +59,11 @@ toolResultRegistry.register('get_agent_output', AgentOutputCard);
 
 // Register custom renderers for the autoMode tool group
 toolResultRegistry.register('get_auto_mode_status', AutoModeStatusCard);
+toolResultRegistry.register('start_auto_mode', AutoModeControlCard);
+toolResultRegistry.register('stop_auto_mode', AutoModeControlCard);
+
+// Register custom renderers for the agentMessaging tool group
+toolResultRegistry.register('send_message_to_agent', AgentMessageCard);
 
 // Register custom renderers for the orchestration tool group
 toolResultRegistry.register('get_execution_order', ExecutionOrderCard);
@@ -78,6 +92,19 @@ toolResultRegistry.register('list_staging_candidates', PromotionCandidatesCard);
 // Register custom renderers for the prWorkflow tool group
 toolResultRegistry.register('check_pr_status', PRStatusCard);
 toolResultRegistry.register('get_pr_feedback', PRStatusCard);
+toolResultRegistry.register('merge_pr', MergePRCard);
+toolResultRegistry.register('promote_to_staging', PromotionCard);
+
+// Register custom renderers for the agentControl tool group (running agents list)
+toolResultRegistry.register('list_running_agents', RunningAgentsCard);
+
+// Register custom renderers for the projects tool group
+toolResultRegistry.register('list_projects', ProjectListCard);
+toolResultRegistry.register('get_project', ProjectDetailCard);
+
+// Register custom renderers for the sitrep and health tool group
+toolResultRegistry.register('get_sitrep', SitrepCard);
+toolResultRegistry.register('health_check', HealthCheckCard);
 
 type ToolState =
   | 'input-streaming'
@@ -154,6 +181,17 @@ export function ToolInvocationPart({
   onReject,
 }: ToolInvocationPartProps) {
   const [isOpen, setIsOpen] = useState(false);
+  // Track whether we've already auto-expanded so manual collapse is preserved
+  const hasAutoExpanded = useRef(false);
+
+  // Auto-expand when tool transitions to output-available (once only)
+  useEffect(() => {
+    if ((state === 'output-available' || state === 'output-error') && !hasAutoExpanded.current) {
+      hasAutoExpanded.current = true;
+      setIsOpen(true);
+    }
+  }, [state]);
+
   const config = stateConfig[state] ?? stateConfig['input-available'];
   const StateIcon = config.icon;
   const isRunning =
@@ -171,6 +209,12 @@ export function ToolInvocationPart({
         className={className}
       />
     );
+  }
+
+  // ── Full-card renderers — replace the entire ToolInvocationPart UI ────────
+  const FullCardRenderer = toolResultRegistry.getFullCard(toolName);
+  if (FullCardRenderer) {
+    return <FullCardRenderer output={output} input={input} state={state} toolName={toolName} />;
   }
 
   // Look up a custom renderer for this tool
@@ -216,7 +260,7 @@ export function ToolInvocationPart({
             <>
               {CustomRenderer ? (
                 <div className="mt-1.5">
-                  <CustomRenderer output={output} state={state} toolName={toolName} />
+                  <CustomRenderer output={output} input={input} state={state} toolName={toolName} />
                 </div>
               ) : (
                 <JsonPreview data={output} label="Output" />
@@ -226,7 +270,7 @@ export function ToolInvocationPart({
           {/* For loading states with a custom renderer, show the custom component inline */}
           {isRunning && CustomRenderer && (
             <div className="mt-1.5">
-              <CustomRenderer output={output} state={state} toolName={toolName} />
+              <CustomRenderer output={output} input={input} state={state} toolName={toolName} />
             </div>
           )}
           {state === 'output-error' && errorText && (

@@ -11,6 +11,9 @@ hitl:form-requested     ──►
 notification:created    ──► ActionableItemBridgeService ──► ActionableItemService
 escalation:ui-notif     ──►                                  (disk-persistent)
 pipeline:gate-waiting   ──►
+authority:awaiting-approval ──►
+feature:status-changed  ──► (auto-dismiss on unblock)
+hitl:form-responded     ──► (auto-resolve authority approvals)
 
                                                                 │
                                                                 ▼

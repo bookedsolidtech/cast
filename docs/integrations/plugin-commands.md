@@ -217,23 +217,6 @@ Deep work mode for autonomous feature processing.
 - Stays productive until the system is void of work
 - Minimal human interaction required
 
-### /create-project
-
-Full project orchestration pipeline from research to feature creation.
-
-```bash
-/create-project           # Start project creation wizard
-/create-project [idea]    # Quick start with a project idea
-```
-
-**Workflow:**
-
-1. Research codebase and gather context
-2. Generate SPARC PRD
-3. Review and approve PRD
-4. Scaffold project structure
-5. Create board features with dependencies
-
 ### /calendar-assistant
 
 Calendar and scheduling operations.
@@ -355,12 +338,12 @@ Point at any repo -- scan it, measure the gap against the protoLabs gold standar
 6. **Discord Provisioning** -- Set up channels and webhooks (optional)
 7. **Report** -- Generate onboarding summary
 
-### /upgrade-plugin
+### /update-plugin
 
 Guided plugin version upgrade. Handles uninstall, reinstall, env migration, and verification.
 
 ```bash
-/upgrade-plugin           # Start guided upgrade
+/update-plugin           # Start guided upgrade
 ```
 
 **What It Does:**
@@ -478,12 +461,11 @@ Backup and restore Docker volumes.
 | `/calendar-assistant` | --     | No model (direct tool calls) |
 | `/improve-prompts`    | --     | No model (direct tool calls) |
 | `/due-diligence`      | Sonnet | Evidence-based analysis      |
-| `/create-project`     | Sonnet | Complex orchestration        |
 | `/plan-project`       | Sonnet | Complex orchestration        |
 | `/sparc-prd`          | Sonnet | Sophisticated analysis       |
 | `/ava`                | --     | No model (direct tool calls) |
 | `/setuplab`           | Sonnet | Complex multi-phase pipeline |
-| `/upgrade-plugin`     | --     | No model (direct tool calls) |
+| `/update-plugin`      | --     | No model (direct tool calls) |
 
 ### Agent Models
 

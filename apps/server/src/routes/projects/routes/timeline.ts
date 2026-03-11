@@ -1,7 +1,12 @@
 /**
  * GET /api/projects/:slug/timeline
  *
- * Returns all EventLedger events for a project in chronological order.
+ * Returns all EventLedger events for a project, transformed into
+ * display-ready TimelineEvent objects sorted chronologically (newest first).
+ *
+ * The transformation maps raw EventLedgerEntry (timestamp, eventType, payload)
+ * to TimelineEvent (occurredAt, type, title, description, author) so the UI
+ * can render them without needing to understand the raw ledger schema.
  *
  * Query params:
  *   ?since=<ISO 8601>  — only return events after this timestamp (exclusive)
@@ -9,7 +14,277 @@
  */
 
 import type { Request, Response } from 'express';
+import type { EventLedgerEntry } from '@protolabsai/types';
 import type { EventLedgerService } from '../../../services/event-ledger-service.js';
+
+interface TimelineEvent {
+  id: string;
+  type: string;
+  title: string;
+  description?: string;
+  occurredAt: string;
+  author?: string;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Transform a raw EventLedgerEntry into a display-ready TimelineEvent.
+ * Maps event types to UI-friendly categories and extracts titles/descriptions
+ * from the unstructured payload.
+ */
+function toTimelineEvent(entry: EventLedgerEntry): TimelineEvent {
+  const payload = entry.payload as Record<string, unknown>;
+
+  switch (entry.eventType) {
+    // ─── Feature lifecycle ────────────────────────────────────────
+    case 'feature:status-changed': {
+      const from = payload.from as string | undefined;
+      const to = payload.to as string | undefined;
+      const reason = payload.reason as string | undefined;
+      const featureTitle =
+        (payload.featureTitle as string) ?? entry.correlationIds.featureId ?? 'Feature';
+
+      // Map to more specific display types
+      let type = 'feature:status-changed';
+      if (to === 'done') type = 'feature:done';
+      else if (to === 'review') type = 'pr:merged';
+      else if (to === 'blocked') type = 'escalation';
+
+      return {
+        id: entry.id,
+        type,
+        title: `${featureTitle}: ${from ?? '?'} → ${to ?? '?'}`,
+        description: reason,
+        occurredAt: entry.timestamp,
+        author: entry.source,
+      };
+    }
+
+    case 'feature:started': {
+      const featureTitle =
+        (payload.featureTitle as string) ?? entry.correlationIds.featureId ?? 'Feature';
+      return {
+        id: entry.id,
+        type: 'feature:started',
+        title: `Started: ${featureTitle}`,
+        description: payload.model as string | undefined,
+        occurredAt: entry.timestamp,
+        author: entry.source,
+      };
+    }
+
+    case 'feature:completed': {
+      const featureTitle =
+        (payload.featureTitle as string) ?? entry.correlationIds.featureId ?? 'Feature';
+      return {
+        id: entry.id,
+        type: 'feature:done',
+        title: `Completed: ${featureTitle}`,
+        description: payload.prNumber ? `PR #${payload.prNumber}` : undefined,
+        occurredAt: entry.timestamp,
+        author: entry.source,
+      };
+    }
+
+    case 'feature:error': {
+      const featureTitle =
+        (payload.featureTitle as string) ?? entry.correlationIds.featureId ?? 'Feature';
+      const error = (payload.error as string) ?? (payload.message as string);
+      return {
+        id: entry.id,
+        type: 'escalation',
+        title: `Error: ${featureTitle}`,
+        description: error,
+        occurredAt: entry.timestamp,
+        author: entry.source,
+      };
+    }
+
+    case 'feature:pr-merged': {
+      const featureTitle =
+        (payload.featureTitle as string) ?? entry.correlationIds.featureId ?? 'Feature';
+      const prNumber = payload.prNumber as number | undefined;
+      return {
+        id: entry.id,
+        type: 'pr:merged',
+        title: `PR merged: ${featureTitle}`,
+        description: prNumber ? `PR #${prNumber}` : undefined,
+        occurredAt: entry.timestamp,
+        author: entry.source,
+      };
+    }
+
+    // ─── Pipeline / Lead Engineer ─────────────────────────────────
+    case 'lead-engineer:feature-processed': {
+      const featureTitle =
+        (payload.featureTitle as string) ?? entry.correlationIds.featureId ?? 'Feature';
+      const state = payload.state as string | undefined;
+      return {
+        id: entry.id,
+        type: 'feature:done',
+        title: `Processed: ${featureTitle}`,
+        description: state ? `State: ${state}` : undefined,
+        occurredAt: entry.timestamp,
+        author: 'Lead Engineer',
+      };
+    }
+
+    case 'pipeline:state-entered': {
+      const fromState = payload.fromState as string | undefined;
+      const toState = payload.toState as string | undefined;
+      return {
+        id: entry.id,
+        type: 'decision',
+        title: `Pipeline: ${fromState ?? '?'} → ${toState ?? '?'}`,
+        description: entry.correlationIds.featureId
+          ? `Feature: ${entry.correlationIds.featureId}`
+          : undefined,
+        occurredAt: entry.timestamp,
+        author: 'Pipeline',
+      };
+    }
+
+    // ─── Project lifecycle ────────────────────────────────────────
+    case 'project:lifecycle:initiated': {
+      const title = (payload.title as string) ?? entry.correlationIds.projectSlug ?? 'Project';
+      return {
+        id: entry.id,
+        type: 'project:initiated',
+        title: `Project created: ${title}`,
+        description: payload.goal as string | undefined,
+        occurredAt: entry.timestamp,
+        author: (payload.initiatedBy as string) ?? entry.source,
+      };
+    }
+
+    case 'project:lifecycle:prd-approved': {
+      const title = (payload.title as string) ?? entry.correlationIds.projectSlug ?? 'Project';
+      return {
+        id: entry.id,
+        type: 'project:prd-approved',
+        title: `PRD approved: ${title}`,
+        description: payload.approvedBy ? `Approved by ${payload.approvedBy}` : undefined,
+        occurredAt: entry.timestamp,
+        author: (payload.approvedBy as string) ?? entry.source,
+      };
+    }
+
+    case 'project:scaffolded': {
+      const slug = entry.correlationIds.projectSlug ?? 'Project';
+      const featureCount = payload.featureCount as number | undefined;
+      return {
+        id: entry.id,
+        type: 'project:scaffolded',
+        title: `Project scaffolded: ${slug}`,
+        description: featureCount
+          ? `${featureCount} features created`
+          : 'Milestones and features created',
+        occurredAt: entry.timestamp,
+        author: entry.source,
+      };
+    }
+
+    case 'project:lifecycle:launched': {
+      const title = (payload.title as string) ?? entry.correlationIds.projectSlug ?? 'Project';
+      return {
+        id: entry.id,
+        type: 'project:launched',
+        title: `Project launched: ${title}`,
+        occurredAt: entry.timestamp,
+        author: entry.source,
+      };
+    }
+
+    case 'project:completed': {
+      const title = (payload.title as string) ?? entry.correlationIds.projectSlug ?? 'Project';
+      return {
+        id: entry.id,
+        type: 'project:completed',
+        title: `Project completed: ${title}`,
+        occurredAt: entry.timestamp,
+        author: entry.source,
+      };
+    }
+
+    // ─── Milestones & ceremonies ──────────────────────────────────
+    case 'milestone:completed': {
+      const milestoneTitle =
+        (payload.title as string) ?? entry.correlationIds.milestoneSlug ?? 'Milestone';
+      return {
+        id: entry.id,
+        type: 'milestone:completed',
+        title: `Milestone completed: ${milestoneTitle}`,
+        occurredAt: entry.timestamp,
+        author: entry.source,
+      };
+    }
+
+    case 'ceremony:fired': {
+      const ceremonyType =
+        (payload.ceremonyType as string) ?? (payload.type as string) ?? 'ceremony';
+      // Map to more specific types for filtering
+      let type: string = 'ceremony:fired';
+      if (ceremonyType === 'standup') type = 'standup';
+      else if (
+        ceremonyType === 'retro' ||
+        ceremonyType === 'milestone_retro' ||
+        ceremonyType === 'project_retro'
+      )
+        type = 'retro';
+
+      return {
+        id: entry.id,
+        type,
+        title: `Ceremony: ${ceremonyType}`,
+        description: entry.correlationIds.milestoneSlug
+          ? `Milestone: ${entry.correlationIds.milestoneSlug}`
+          : undefined,
+        occurredAt: entry.timestamp,
+        author: entry.source,
+      };
+    }
+
+    // ─── Escalations ──────────────────────────────────────────────
+    case 'escalation:signal-received': {
+      const signal = (payload.type as string) ?? 'escalation';
+      const reason = (payload.reason as string) ?? (payload.message as string);
+      return {
+        id: entry.id,
+        type: 'escalation',
+        title: `Escalation: ${signal}`,
+        description: reason,
+        occurredAt: entry.timestamp,
+        author: (payload.source as string) ?? entry.source,
+      };
+    }
+
+    // ─── Auto-mode feature events ─────────────────────────────────
+    case 'auto-mode:event': {
+      const subType = (payload.type as string) ?? 'event';
+      const featureTitle =
+        (payload.featureTitle as string) ?? (payload.featureId as string) ?? 'Feature';
+      return {
+        id: entry.id,
+        type: subType === 'feature_error' ? 'escalation' : 'feature:done',
+        title: `Auto-mode: ${subType.replace(/_/g, ' ')} — ${featureTitle}`,
+        occurredAt: entry.timestamp,
+        author: 'Auto-mode',
+      };
+    }
+
+    // ─── Catch-all ────────────────────────────────────────────────
+    default: {
+      return {
+        id: entry.id,
+        type: entry.eventType,
+        title: entry.eventType.replace(/[:.]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+        description: JSON.stringify(payload).slice(0, 200),
+        occurredAt: entry.timestamp,
+        author: entry.source,
+      };
+    }
+  }
+}
 
 export function createTimelineHandler(eventLedger: EventLedgerService) {
   return async (req: Request, res: Response): Promise<void> => {
@@ -29,7 +304,13 @@ export function createTimelineHandler(eventLedger: EventLedgerService) {
         return;
       }
 
-      const events = await eventLedger.queryByProject(slug, { since, type });
+      const entries = await eventLedger.queryByProject(slug, { since, type });
+
+      // Transform raw ledger entries to display-ready timeline events
+      const events = entries.map(toTimelineEvent);
+
+      // Sort newest first for the UI feed
+      events.sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime());
 
       res.json({ success: true, events });
     } catch (error) {

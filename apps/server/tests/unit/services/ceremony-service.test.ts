@@ -578,14 +578,14 @@ describe('CeremonyService', () => {
       });
 
       // While flow is running, reflection should be active
-      await new Promise((r) => setTimeout(r, 10));
+      await new Promise((r) => setTimeout(r, 50));
       const status = ceremonyService.getReflectionStatus();
       expect(status.active).toBe(true);
       expect(status.activeProject).toBe('My Project');
 
       // Complete the flow
       resolveFlow();
-      await new Promise((r) => setTimeout(r, 10));
+      await new Promise((r) => setTimeout(r, 50));
 
       const after = ceremonyService.getReflectionStatus();
       expect(after.active).toBe(false);
@@ -621,8 +621,14 @@ describe('CeremonyService', () => {
         milestoneNumber: 1,
       });
 
-      await new Promise((r) => setTimeout(r, 20));
-      expect(ceremonyService.getStatus().counts.discordPostFailures).toBe(1);
+      // Wait for the async event handler to process the rejection.
+      // 20ms was too tight for CI under load — use vi.waitFor for robust polling.
+      await vi.waitFor(
+        () => {
+          expect(ceremonyService.getStatus().counts.discordPostFailures).toBe(1);
+        },
+        { timeout: 2000, interval: 50 }
+      );
     });
 
     it('does not throw when destroyed before any event', () => {

@@ -53,6 +53,8 @@ export interface CodeBlockProps {
   code: string;
   /** Language identifier (e.g. "typescript", "python"). Optional. */
   language?: string;
+  /** When true, skip syntax highlighting to avoid thrashing during streaming */
+  isStreaming?: boolean;
   className?: string;
 }
 
@@ -74,15 +76,16 @@ function normaliseLang(lang: string): string {
   return aliases[lang.toLowerCase()] ?? lang.toLowerCase();
 }
 
-export function CodeBlock({ code, language, className }: CodeBlockProps) {
+export function CodeBlock({ code, language, isStreaming, className }: CodeBlockProps) {
   const [highlighted, setHighlighted] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const lang = language ? normaliseLang(language) : '';
 
-  // Highlight whenever code or language changes
+  // Gate syntax highlighting behind streaming completion to avoid thrashing
+  // Prism on every keystroke during streaming output
   useEffect(() => {
-    if (!lang) {
+    if (!lang || isStreaming) {
       setHighlighted(null);
       return;
     }
@@ -103,7 +106,7 @@ export function CodeBlock({ code, language, className }: CodeBlockProps) {
     return () => {
       cancelled = true;
     };
-  }, [code, lang]);
+  }, [code, lang, isStreaming]);
 
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(code).then(

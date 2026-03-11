@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { createLogger } from '@protolabsai/utils';
+import { loadProtoConfig } from '@protolabsai/platform';
 import { createEventEmitter, type EventEmitter } from '../lib/events.js';
 
 import { AgentService } from '../services/agent-service.js';
@@ -50,8 +51,6 @@ import {
   registerBuiltInIntegrations,
   wireHealthChecks,
 } from '../services/built-in-integrations.js';
-import { AgentFactoryService } from '../services/agent-factory-service.js';
-import { DynamicAgentExecutor } from '../services/dynamic-agent-executor.js';
 import { registerBuiltInTemplates } from '../services/built-in-templates.js';
 import { ReconciliationService } from '../services/reconciliation-service.js';
 import { GitHubStateChecker } from '../services/github-state-checker.js';
@@ -74,7 +73,6 @@ import { ArchivalService } from '../services/archival-service.js';
 import { KnowledgeStoreService } from '../services/knowledge-store-service.js';
 import { DocsUpdateDetector } from '../services/docs-update-detector.js';
 import { HeadsdownService } from '../services/headsdown-service.js';
-import { PRDService } from '../services/prd-service.js';
 import { AgentDiscordRouter } from '../services/agent-discord-router.js';
 import { FactStoreService } from '../services/fact-store-service.js';
 import { TrajectoryStoreService } from '../services/trajectory-store-service.js';
@@ -82,6 +80,16 @@ import { LeadHandoffService } from '../services/lead-handoff-service.js';
 import { ChannelRouter } from '../services/channel-router.js';
 import { NotificationRouter } from '../services/notification-router.js';
 import { JobExecutorService } from '../services/job-executor-service.js';
+import { DoraMetricsService } from '../services/dora-metrics-service.js';
+import { MetricsCollectionService } from '../services/metrics-collection-service.js';
+import { ErrorBudgetService } from '../services/error-budget-service.js';
+import { FrictionTrackerService } from '../services/friction-tracker-service.js';
+import { FailureClassifierService } from '../services/failure-classifier-service.js';
+import {
+  getReactiveSpawnerService,
+  ReactiveSpawnerService,
+} from '../services/reactive-spawner-service.js';
+import { registerAvaCronTasks } from '../services/ava-cron-tasks.js';
 
 // Services originally loaded via top-level dynamic imports — now static for proper typing
 import { ProjectLifecycleService } from '../services/project-lifecycle-service.js';
@@ -93,9 +101,15 @@ import {
   DataIntegrityWatchdogService,
   getDataIntegrityWatchdogService,
 } from '../services/data-integrity-watchdog-service.js';
-import { ProjectPlanningService } from '../services/project-planning-service.js';
 import { changelogService } from '../services/changelog-service.js';
 import { ProjectPMService } from '../services/project-pm-service.js';
+import * as projectPmModule from '../services/project-pm.module.js';
+import { CrdtSyncService } from '../services/crdt-sync-service.js';
+import { ProjectAssignmentService } from '../services/project-assignment-service.js';
+import { AvaChannelService } from '../services/ava-channel-service.js';
+import { WorkIntakeService } from '../services/work-intake-service.js';
+import { TodoService } from '../services/todo-service.js';
+import type { AvaChannelReactorService } from '../services/ava-channel-reactor-service.js';
 
 const logger = createLogger('Server:Services');
 
@@ -122,12 +136,10 @@ export interface ServiceContainer {
   // Agent infrastructure
   agentService: AgentService;
   roleRegistryService: RoleRegistryService;
-  agentFactoryService: AgentFactoryService;
 
   // Sensor registry
   sensorRegistryService: SensorRegistryService;
   contextAggregator: ContextAggregator;
-  dynamicAgentExecutor: DynamicAgentExecutor;
   headsdownService: HeadsdownService;
 
   // Metrics & ledger
@@ -144,6 +156,7 @@ export interface ServiceContainer {
 
   // Auto-mode
   autoModeService: AutoModeService;
+  workIntakeService: WorkIntakeService;
   hitlFormService: HITLFormService;
 
   // Claude usage
@@ -207,6 +220,7 @@ export interface ServiceContainer {
   projectService: ProjectService;
   projectLifecycleService: ProjectLifecycleService;
   completionDetectorService: CompletionDetectorService;
+  projectAssignmentService: ProjectAssignmentService;
 
   // Ceremonies
   ceremonyAuditLog: CeremonyAuditLogService;
@@ -229,9 +243,6 @@ export interface ServiceContainer {
   triageService: TriageService;
   issueCreationService: IssueCreationService;
 
-  // Project planning
-  projectPlanningService: ProjectPlanningService | null;
-
   // Project PM Agent
   projectPmService: ProjectPMService;
 
@@ -246,6 +257,42 @@ export interface ServiceContainer {
 
   // Content flow (singleton)
   contentFlowService: typeof contentFlowService;
+
+  // CRDT sync service (multi-instance coordination)
+  crdtSyncService: CrdtSyncService;
+
+  // Ava Channel (private multi-instance Ava communication)
+  avaChannelService: AvaChannelService;
+
+  // Todo workspace (per-project todo lists synced via CRDT)
+  todoService: TodoService;
+
+  // DORA metrics (lead time, deployment frequency, change failure rate, recovery time, rework rate)
+  doraMetricsService: DoraMetricsService;
+
+  // DORA metrics collection (event-driven time-series collector, persists to .automaker/metrics/dora.json)
+  metricsCollectionService: MetricsCollectionService;
+
+  // Error budget (rolling change fail rate tracker, persists to .automaker/metrics/error-budget.json)
+  errorBudgetService: ErrorBudgetService;
+
+  // Friction tracker (self-improvement loop — recurring failure pattern detection)
+  frictionTrackerService: FrictionTrackerService;
+
+  // Reactive spawner (trigger-based agent spawning with rate limiting and circuit breaking)
+  reactiveSpawnerService: ReactiveSpawnerService;
+
+  // CRDT document store (set by crdt-store.module, used by dependent modules)
+  _crdtStore?: import('@protolabsai/crdt').CRDTStore;
+
+  // CRDT document store cleanup (set by crdt-store.module, called on shutdown)
+  _crdtStoreCleanup?: () => Promise<void>;
+
+  // Ava Channel Reactor (set by ava-channel-reactor.module, called on shutdown)
+  avaChannelReactorService?: AvaChannelReactorService;
+
+  // Ava Channel Reactor stop function (set by ava-channel-reactor.module, called on shutdown)
+  _avaChannelReactorStop?: () => void;
 
   // Drift detection interval (set by wireServices, cleared by shutdown)
   driftCheckInterval: ReturnType<typeof setInterval> | null;
@@ -264,12 +311,34 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
   // Wire settingsService into the contentFlowService singleton for model resolution
   contentFlowService.setSettingsService(settingsService);
   const userIdentityService = new UserIdentityService(settingsService);
+  // Features are local to each instance — no CRDT sync.
   const featureLoader = new FeatureLoader();
+  featureLoader.setEventEmitter(events);
 
   // Trust Tier Service for quarantine pipeline
   const trustTierService = new TrustTierService(dataDir);
   const agentService = new AgentService(dataDir, events, settingsService, undefined, featureLoader);
   const metricsService = new MetricsService(featureLoader);
+  const doraMetricsService = new DoraMetricsService(featureLoader);
+
+  // DORA Metrics Collection Service — event-driven time-series persistence
+  const metricsCollectionService = new MetricsCollectionService(events, featureLoader, repoRoot);
+  metricsCollectionService.initialize();
+
+  // Error Budget Service — rolling change fail rate tracker (persists to .automaker/metrics/error-budget.json)
+  const errorBudgetService = new ErrorBudgetService(repoRoot);
+  // Wire error budget into the event pipeline: record merges and CI failures
+  events.subscribe((type, payload) => {
+    const p = payload as Record<string, unknown>;
+    const featureId = p['featureId'] as string | undefined;
+    if (!featureId) return;
+
+    if (type === 'feature:pr-merged') {
+      errorBudgetService.recordMerge(featureId, false);
+    } else if (type === 'pr:ci-failure' || type === 'pr:remediation-started') {
+      errorBudgetService.markCiFailure(featureId);
+    }
+  });
 
   // Metrics Ledger & Archival
   const ledgerService = new LedgerService(featureLoader, events);
@@ -285,6 +354,7 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
   // Calendar service (singleton wired in wireServices)
   const googleCalendarSyncService = new GoogleCalendarSyncService(settingsService, calendarService);
   const autoModeService = new AutoModeService(events, settingsService);
+  const workIntakeService = new WorkIntakeService();
   const hitlFormService = new HITLFormService({
     events,
     followUpFeature: (projectPath, featureId, prompt) =>
@@ -354,16 +424,8 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
     logger.error('Failed to register built-in integrations:', error);
   }
 
-  // Agent Factory and Dynamic Executor (uses registry for template resolution)
-  const agentFactoryService = new AgentFactoryService(roleRegistryService, events);
-  const dynamicAgentExecutor = new DynamicAgentExecutor(events);
-
   // Antagonistic Review Service for Ava + Jon PRD reviews
-  const antagonisticReviewService = AntagonisticReviewService.getInstance(
-    agentFactoryService,
-    events,
-    settingsService
-  );
+  const antagonisticReviewService = AntagonisticReviewService.getInstance(events, settingsService);
 
   // Agent Scoring Service (auto-scores agent traces based on feature lifecycle)
   // Created for side effects only (event subscriptions in constructor)
@@ -376,9 +438,6 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
     featureLoader,
     roleRegistryService
   );
-
-  // PRDService for SPARC PRD management (side-effect initialization)
-  PRDService.getInstance(events);
 
   // DevServerService with event emitter for real-time log streaming
   const devServerService = getDevServerService();
@@ -457,7 +516,7 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
     hitlFormService
   );
 
-  const projectService = new ProjectService(featureLoader);
+  const projectService = new ProjectService(featureLoader, events);
   projectService.setCalendarService(calendarService);
 
   // Project Lifecycle Service
@@ -602,32 +661,67 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
     enabled: true,
   });
 
-  // Project Planning Service — LangGraph flow for project planning
-  // Wrapped in try-catch: ChatAnthropic throws if ANTHROPIC_API_KEY is missing
-  let projectPlanningService: ProjectPlanningService | null = null;
-  try {
-    const { createLLMProjectPlanningConfig } =
-      await import('../services/project-planning-executors.js');
-    const planningFlowConfig = await createLLMProjectPlanningConfig({ settingsService });
-    projectPlanningService = new ProjectPlanningService(
-      events,
-      repoRoot,
-      planningFlowConfig,
-      settingsService
-    );
-  } catch (err) {
-    logger.warn(
-      'Project planning service unavailable:',
-      err instanceof Error ? err.message : String(err)
-    );
-  }
-
   // Project PM Service — session store for PM Agent chat
   const projectPmService = new ProjectPMService();
+
+  // Todo Service — per-project workspace, CRDT-synced when hivemind active
+  const todoService = new TodoService();
+
+  // CRDT Sync Service — multi-instance coordination via WebSocket sync server
+  const crdtSyncService = new CrdtSyncService();
+
+  // Project Assignment Service — manages project-to-instance assignment
+  const projectAssignmentService = new ProjectAssignmentService(projectService, crdtSyncService);
+
+  // Ava Channel Service — private multi-instance Ava communication channel
+  const avaChannelService = new AvaChannelService(join(dataDir, 'ava-channel-archive'), {
+    instanceId: crdtSyncService.getInstanceId(),
+  });
+  avaChannelService.setEventEmitter((type, payload) =>
+    events.emit(type as import('@protolabsai/types').EventType, payload)
+  );
+
+  // Friction Tracker Service — self-improvement loop (requires featureLoader + avaChannelService)
+  const frictionTrackerService = new FrictionTrackerService({
+    featureLoader,
+    avaChannelService,
+    projectPath: repoRoot,
+    instanceId: crdtSyncService.getInstanceId(),
+  });
+
+  // Wire friction tracker into the feature-status-change event pipeline.
+  // On every blocked status change, classify the reason and record the pattern.
+  const failureClassifierService = new FailureClassifierService();
+  events.subscribe((type, payload) => {
+    if (type !== 'feature:status-changed') return;
+    const p = payload as { newStatus?: string; reason?: string; statusChangeReason?: string };
+    if (p.newStatus !== 'blocked') return;
+
+    const reason = p.reason ?? p.statusChangeReason ?? '';
+    const classification = failureClassifierService.classify(reason);
+
+    void frictionTrackerService.recordFailure(classification.category);
+  });
+
+  // Reactive Spawner Service — trigger-based agent spawning with rate limiting and circuit breaking
+  const reactiveSpawnerService = getReactiveSpawnerService(repoRoot);
+
+  // Register Ava cron tasks (daily board health, PR triage, staging ping)
+  void registerAvaCronTasks({ schedulerService, reactiveSpawnerService, projectPath: repoRoot });
+
+  // Subscribe to calendar:reminder events and forward to ReactiveSpawner
+  calendarService.onReminder((payload) => {
+    void reactiveSpawnerService
+      .spawnForCron(payload.title, payload.description)
+      .catch((err) => logger.warn('[CalendarReminder] spawnForCron failed:', err));
+  });
 
   // Wire integrations health checks (requires integrationService + integrationRegistryService)
   integrationService.initialize(events, settingsService, featureLoader);
   wireHealthChecks(integrationRegistryService);
+
+  // Wire authorityService into leadEngineerService for authority enforcement
+  leadEngineerService.setAuthorityService(authorityService);
 
   // Wire contextFidelityService into leadEngineerService
   leadEngineerService.setCheckpointService(pipelineCheckpointService);
@@ -636,6 +730,32 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
   leadEngineerService.setKnowledgeStoreService(knowledgeStoreService);
   leadEngineerService.setHITLFormService(hitlFormService);
   await leadEngineerService.initialize();
+
+  // Wire project-affinity filtering into auto-mode when projectPreferences are configured.
+  // This enables multi-instance deployments to scope feature pickup to assigned projects.
+  // Single-instance setups (no proto.config.yaml projectPreferences) are unaffected.
+  try {
+    const protoConfig = await loadProtoConfig(repoRoot);
+    const projectPreferences = protoConfig?.['projectPreferences'] as
+      | { preferredProjects?: string[]; overflowEnabled?: boolean }
+      | undefined;
+    const hasPreferredProjects =
+      Array.isArray(projectPreferences?.preferredProjects) &&
+      projectPreferences.preferredProjects.length > 0;
+    if (hasPreferredProjects) {
+      const overflowEnabled = projectPreferences?.overflowEnabled ?? true;
+      autoModeService.setProjectAssignmentService(
+        crdtSyncService.getInstanceId(),
+        projectAssignmentService,
+        overflowEnabled
+      );
+      logger.info(
+        `[Affinity] Project-affinity filtering enabled (instanceId=${crdtSyncService.getInstanceId()}, preferredProjects=${projectPreferences?.preferredProjects?.join(',') ?? ''}, overflow=${overflowEnabled})`
+      );
+    }
+  } catch (err) {
+    logger.warn('[Affinity] Failed to load project preferences — affinity filtering skipped:', err);
+  }
 
   // Wire pipelineOrchestrator processors
   pipelineOrchestrator.setProcessors({ ops: pmAgent, gtm: gtmAgent, projm: projmAgent });
@@ -660,10 +780,8 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
   // Issue Management Pipeline initialization
   issueCreationService.initialize();
 
-  // Project Planning Service start (listens for planning events)
-  if (projectPlanningService) {
-    projectPlanningService.start();
-  }
+  // Wire project-pm module event subscriptions (status sync)
+  await projectPmModule.register({ events, projectPmService, projectService });
 
   return {
     dataDir,
@@ -675,8 +793,6 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
     trustTierService,
     agentService,
     roleRegistryService,
-    agentFactoryService,
-    dynamicAgentExecutor,
     headsdownService,
     metricsService,
     ledgerService,
@@ -687,6 +803,7 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
     automationService,
     jobExecutorService,
     autoModeService,
+    workIntakeService,
     hitlFormService,
     claudeUsageService,
     mcpTestService,
@@ -724,6 +841,7 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
     projectService,
     projectLifecycleService,
     completionDetectorService,
+    projectAssignmentService,
     ceremonyAuditLog,
     ceremonyService,
     leadEngineerService,
@@ -741,8 +859,15 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
     specGenerationMonitor,
     gitWorkflowService,
     contentFlowService,
-    projectPlanningService,
     projectPmService,
+    crdtSyncService,
+    todoService,
+    avaChannelService,
+    doraMetricsService,
+    metricsCollectionService,
+    errorBudgetService,
+    frictionTrackerService,
+    reactiveSpawnerService,
     driftCheckInterval: null,
   };
 }

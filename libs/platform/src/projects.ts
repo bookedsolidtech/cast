@@ -352,10 +352,18 @@ export async function listProjectPlans(projectPath: string): Promise<string[]> {
   }
 
   const entries = (await secureFs.readdir(projectsDir, { withFileTypes: true })) as any[];
-  return entries
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .sort((a, b) => a.localeCompare(b)); // Sort for deterministic output
+  const dirs = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+
+  // Only return projects that have a valid project.json — stub directories
+  // (from failed creation or deleted projects) are filtered out
+  const valid: string[] = [];
+  for (const slug of dirs) {
+    if (await projectPlanExists(projectPath, slug)) {
+      valid.push(slug);
+    }
+  }
+
+  return valid.sort((a, b) => a.localeCompare(b));
 }
 
 /**

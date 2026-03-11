@@ -9,6 +9,8 @@ usageStats:
   referenced: 0
   successfulFeatures: 0
 ---
+<!-- domain: Database & Persistence | Data storage patterns, query optimization, schema decisions -->
+
 # database
 
 #### [Pattern] Compute derived fields (prReviewDurationMs) at write-time rather than query-time (2026-02-11)
@@ -157,3 +159,20 @@ usageStats:
 - **Problem solved:** DEFAULT_AVA_CONFIG already had concrete defaults for model, temperature, systemPrompt, etc. New mcpServers field needed to follow same pattern.
 - **Why this works:** Concrete empty array allows downstream code to call `.filter()` and `.map()` without null checks. Optional type in interface allows ava-config.json to omit the field entirely (schema evolution). Both design goals met simultaneously.
 - **Trade-offs:** More memory for empty array vs undefined, but eliminates defensive checks throughout the codebase. Clearer code at cost of one extra object allocation per load.
+
+#### [Pattern] Dual-layer artifact storage: separate index.json alongside individual artifact files at `.automaker/projects/{slug}/artifacts/{type}/{id}.json` (2026-03-07)
+- **Problem solved:** Need both fast artifact querying (listArtifacts) and durable individual artifact storage
+- **Why this works:** Index enables O(1) listing without filesystem scans. Individual files enable easy backup, version control, and atomic writes per artifact.
+- **Trade-offs:** Gain: fast queries, atomic per-artifact writes, human-readable on-disk format. Lose: index-file consistency requires careful synchronization, dual-write problem.
+
+### Event list persisted as-is (no compaction/archival) rather than maintaining rolling aggregate that's updated in place (2026-03-10)
+- **Context:** Over time, error-budget.json array will grow as more PRs are merged. No cleanup logic removes old events outside the window.
+- **Why:** Immutable log semantics: audit trail intact, window filtering is pure function of current time. Alternative (aggregate update) requires deciding when to purge, handling edge cases around window boundaries.
+- **Rejected:** Maintaining in-place aggregate (compact to {totalLastWeek, failedLastWeek}): loses history, requires scheduled compaction job, complex to get window transitions right.
+- **Trade-offs:** Easier: correctness guaranteed by query logic. Harder: file grows unbounded (mitigated by low event frequency—~handful per day worst case).
+- **Breaking if changed:** If changed to compacting aggregate: history lost, audit trail gone, window boundary logic becomes complex and bug-prone.
+
+#### [Gotcha] prReviewDurationMs calculated as Date.now() - prCreatedAt in same code block as prMergedAt assignment. Calculation uses raw milliseconds while prMergedAt is serialized to ISO string, creating subtle timing/precision inconsistency. Refactoring or delaying calculation breaks the implicit coupling and causes duration divergence. (2026-03-10)
+- **Situation:** Persisting merge metrics: both prMergedAt and prReviewDurationMs set synchronously after merge confirmation
+- **Root cause:** Works currently due to colocation, but creates hidden dependency. Better design: calculate duration from deserialized prMergedAt to ensure values are verifiably consistent.
+- **How to avoid:** Simple synchronous approach works when collocated; explicit dependency would require parsing prMergedAt post-persistence

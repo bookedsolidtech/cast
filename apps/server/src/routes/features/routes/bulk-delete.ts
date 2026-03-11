@@ -44,7 +44,7 @@ export function createBulkDeleteHandler(featureLoader: FeatureLoader, events?: E
             const success = await featureLoader.delete(projectPath, featureId);
             if (success) {
               if (feature && events) {
-                events.emit('feature:deleted', {
+                events.broadcast('feature:deleted', {
                   projectPath,
                   featureId: feature.id,
                   feature,

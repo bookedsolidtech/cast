@@ -16,6 +16,7 @@ This is a greenfield codebase. We are building the future, not maintaining the p
 
 - When creating plans, start with the minimal viable scope. Do NOT propose multi-phase plans unless explicitly asked. Default to the smallest, lowest-risk approach first.
 - Do not exit plan mode or transition away from planning until the user explicitly confirms the plan is complete and approved. Wait for user signal before proceeding to implementation.
+- **Plan completion verification**: Before committing a multi-step plan implementation, run the verification checklist in `.automaker/context/plan-completion-verification.md`. CI catches broken code but NOT unwired code — a service with passing tests can be completely disconnected from the runtime. Every new file must have a non-test importer. Every new service must have an integration test covering its wiring point.
 
 ## Git Workflow
 
@@ -113,12 +114,18 @@ npm run dev:web             # UI only (localhost:3007) — requires server runni
 npm run dev:server          # Backend server only (localhost:3008)
 npm run dev:electron        # Desktop app mode (bundles server automatically)
 npm run dev:electron:debug  # Desktop with DevTools open
+npm run dev:headless        # Production-mode server locally (builds packages + server first)
 
 # Building
 npm run build               # Build web application
 npm run build:packages      # Build all shared packages (required before other builds)
 npm run build:electron      # Build desktop app for current platform
+npm run build:electron:legless      # Legless Electron build (no bundled server)
+npm run build:electron:legless:dir  # Legless Electron unpacked directory (for testing)
 npm run build:server        # Build server only
+
+# Preview / Local Production Testing
+npm run preview:web         # Build web app + serve via vite preview (localhost:4173, includes PWA)
 
 # Testing
 npm run test                # E2E tests (Playwright, headless)

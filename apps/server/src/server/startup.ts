@@ -38,7 +38,10 @@ export async function runStartup(
     worktreeLifecycleService,
     agentService,
     knowledgeStoreService,
+    crdtSyncService,
+    projectAssignmentService,
     dataDir,
+    repoRoot,
   } = services;
 
   // Migrate settings from legacy Electron userData location if needed
@@ -72,6 +75,54 @@ export async function runStartup(
 
   await agentService.initialize();
   logger.info('Agent service initialized');
+
+  // Start CRDT sync service (multi-instance coordination)
+  try {
+    await crdtSyncService.start(repoRoot);
+    logger.info('[CRDT] Sync service started');
+  } catch (err) {
+    logger.warn('[CRDT] Sync service failed to start (single-instance mode):', err);
+  }
+
+  // Claim preferred projects at boot (reads projectPreferences from proto.config.yaml)
+  try {
+    const claimed = await projectAssignmentService.claimPreferredProjects(repoRoot);
+    if (claimed.length > 0) {
+      logger.info(
+        `[ASSIGN] Claimed ${claimed.length} preferred project(s) at boot: ${claimed.join(', ')}`
+      );
+    }
+  } catch (err) {
+    logger.warn('[ASSIGN] Failed to claim preferred projects at boot:', err);
+  }
+
+  // Initialize CRDT document store and inject into services
+  // Must run after CrdtSyncService.start() so proto.config.yaml is loaded
+  try {
+    const { register: registerCrdtStore } = await import('../services/crdt-store.module.js');
+    const result = await registerCrdtStore(services);
+    if (result) {
+      services._crdtStore = result.store;
+      services._crdtStoreCleanup = result.close;
+      logger.info('[CRDT] Document store initialized and injected into services');
+    }
+  } catch (err) {
+    logger.warn('[CRDT] Document store failed to initialize (filesystem fallback):', err);
+  }
+
+  // Initialize Ava Channel Reactor (depends on crdt-store.module having run first)
+  try {
+    const { register: registerAvaChannelReactor } =
+      await import('../services/ava-channel-reactor.module.js');
+    const result = await registerAvaChannelReactor(services);
+    if (result) {
+      services.avaChannelReactorService = result.service;
+      services._avaChannelReactorStop = result.stop;
+      logger.info('[REACTOR] Ava Channel Reactor started');
+    }
+  } catch (err) {
+    logger.warn('[REACTOR] Ava Channel Reactor failed to start:', err);
+  }
 
   // Initialize Knowledge Store Service for all known projects
   if (knowledgeStoreService) {
@@ -137,6 +188,14 @@ export async function runStartup(
         await services.projectService.ensureBugsProject(projectPath);
       } catch (err) {
         logger.warn(`[STARTUP] Failed to ensure bugs project for ${projectPath}:`, err);
+      }
+      try {
+        await services.projectService.ensureSystemImprovementsProject(projectPath);
+      } catch (err) {
+        logger.warn(
+          `[STARTUP] Failed to ensure system-improvements project for ${projectPath}:`,
+          err
+        );
       }
     }
   } catch (err) {

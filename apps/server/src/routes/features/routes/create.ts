@@ -119,12 +119,13 @@ export function createCreateHandler(
 
       const created = await featureLoader.create(projectPath, sanitizedFeature);
 
-      // Emit feature_created event for hooks
+      // Broadcast feature_created event for hooks + CRDT sync
       if (events) {
-        events.emit('feature:created', {
+        events.broadcast('feature:created', {
           featureId: created.id,
           featureName: created.title,
           projectPath,
+          feature: created,
         });
       }
 

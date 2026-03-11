@@ -12,7 +12,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { getHttpApiClient } from '@/lib/http-api-client';
-import { createLogger } from '@protolabsai/utils';
+import { createLogger } from '@protolabsai/utils/logger';
 import type { EventType } from '@protolabsai/types';
 
 const logger = createLogger('useFlowExecution');

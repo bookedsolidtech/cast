@@ -79,23 +79,33 @@ Priority scoring is computed by `getEffectivePriority()` in `libs/types/src/acti
 
 The `ActionableItemBridgeService` subscribes to system events and auto-creates actionable items:
 
-| Event                        | Creates Item Type | Priority | Notes                                |
-| ---------------------------- | ----------------- | -------- | ------------------------------------ |
-| `hitl:form-requested`        | `hitl_form`       | high     | Links to form via `formId`           |
-| `notification:created`       | `notification`    | low      | Informational                        |
-| `escalation:ui-notification` | `escalation`      | varies   | Maps escalation severity to priority |
-| `pipeline:gate-waiting`      | `gate`            | high     | Links to feature via `featureId`     |
-| `ceremony:fired`             | `notification`    | low      | Ceremony delivery status             |
+| Event                         | Creates Item Type | Priority | Notes                                                             |
+| ----------------------------- | ----------------- | -------- | ----------------------------------------------------------------- |
+| `hitl:form-requested`         | `hitl_form`       | high     | Links to form via `formId`                                        |
+| `notification:created`        | `notification`    | low      | Informational                                                     |
+| `escalation:ui-notification`  | `escalation`      | varies   | Maps escalation severity to priority                              |
+| `pipeline:gate-waiting`       | `gate`            | high     | Links to feature via `featureId`                                  |
+| `ceremony:fired`              | `notification`    | low      | Ceremony delivery status                                          |
+| `authority:awaiting-approval` | `approval`        | high     | Authority system queued a proposal for human review               |
+| `feature:status-changed`      | (auto-dismiss)    | —        | Dismisses pending gate/escalation items when feature is unblocked |
+| `hitl:form-responded`         | (auto-dismiss)    | —        | Resolves authority approval items when HITL form is submitted     |
+
+### Authority approval flow
+
+When the authority system (via `AuthorityService`) evaluates a proposal and cannot auto-approve it (risk exceeds the agent's trust level), it emits `authority:awaiting-approval`. The bridge creates an `approval` actionable item linking to the pending `requestId`. When the human responds via the inbox approval modal, the bridge calls `AuthorityService.resolveApproval()` with the outcome.
+
+`hitl:form-responded` is also handled by the bridge: if the submitted form carries an authority `requestId`, the bridge auto-resolves the queued approval so the authority queue stays in sync with the inbox.
 
 ## Auto-clear on feature unblock
 
-When a feature transitions from `blocked` to `backlog` or `in_progress`, the system auto-dismisses associated actionable items. This prevents stale escalation and gate items from cluttering the inbox after the underlying issue is resolved.
+When a feature transitions from `blocked` to `backlog` or `in_progress`, the `feature:status-changed` event triggers the bridge to auto-dismiss associated gate and escalation items. This prevents stale items from cluttering the inbox after the underlying issue is resolved.
 
-The auto-dismiss is triggered by the `escalation:acknowledged` event subscriber in `event-subscriptions.module.ts`, which:
+The `feature:status-changed` handler in `ActionableItemBridgeService`:
 
-1. Finds the blocked feature associated with the deduplication key
-2. Transitions the feature back to `backlog`
-3. Dismisses any pending actionable items linked to that feature
+1. Checks whether the new status is `backlog` or `in_progress` (i.e., unblocked)
+2. Dismisses any pending actionable items linked to that `featureId`
+
+Previously (before the bridge handled this directly), the auto-dismiss was triggered by the `escalation:acknowledged` subscriber in `event-subscriptions.module.ts`. Both paths remain valid; the bridge handler covers the common case where the feature naturally progresses out of `blocked`.
 
 ## 4-tab UI
 

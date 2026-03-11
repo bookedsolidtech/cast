@@ -5,10 +5,12 @@ relevantTo: [auth]
 importance: 0.7
 relatedFiles: []
 usageStats:
-  loaded: 22
-  referenced: 4
-  successfulFeatures: 4
+  loaded: 53
+  referenced: 22
+  successfulFeatures: 22
 ---
+<!-- domain: Authentication & Authorization | OAuth, token management, access control -->
+
 # auth
 
 #### [Gotcha] OAuth token stored as nested path in settings (integrations.linear.agentToken) requires specific path string, not object traversal (2026-02-12)
@@ -49,3 +51,34 @@ usageStats:
 - **Problem solved:** Multiple authentication paths (MCP plugin, REST API key, web UI session, internal service-to-service) need to be distinguished to assign appropriate trust tier and validation level.
 - **Why this works:** Headers are available before authentication middleware (which may not run in all paths). Allows differentiation of origin without requiring full auth context object. Explicit header parsing makes source determination visible in code.
 - **Trade-offs:** Header-based approach is fragile (missing header defaults to internal = tier 4, potentially over-permissive). Alternative (explicit auth middleware) is more robust but heavier and breaks MCP plugin architecture.
+
+#### [Pattern] Layered fallback chain for server URL: `localStorage` (user override) → `Electron IPC cache` (last known good) → `env vars` (deploy-time). Each layer is checked in order; first non-null wins. (2026-03-10)
+- **Problem solved:** App must support user-set overrides (dev/testing) while maintaining safe defaults (prod, Electron context).
+- **Why this works:** Resilience: if one source is unavailable/corrupted, app doesn't crash. User preference (localStorage) is checked first, so user can override env vars. Graceful degradation.
+- **Trade-offs:** Simple to implement, but source of truth shifts at runtime. Code cannot assume `getServerUrl()` takes the same path twice (localStorage might be cleared between calls). Potential for subtle bugs if caller assumes consistency.
+
+### Server URL override checked in auth layer before falling back to cached/env values (2026-03-10)
+- **Context:** Need to support runtime server URL override that survives page reloads while maintaining fallback to default config
+- **Why:** localStorage provides client-side persistence without network round trips. Placing override check in auth.ts getServerUrl() ensures any caller automatically gets override if set, without needing to thread it through component props
+- **Rejected:** Alternative: separate config service (requires dependency injection everywhere) or URL params (not persistent, verbose). Could store on server (requires auth + network call, complexity)
+- **Trade-offs:** Simple and automatic for consumers, but tightly couples auth layer to runtime config concerns. localStorage is per-origin, won't work across different ports/domains without CORS setup
+- **Breaking if changed:** Removing localStorage check removes override capability. Persisting auth state across page reloads relies on getServerUrl() being called at startup before any connections are made
+
+### Override mechanism uses localStorage key `'automaker:serverUrlOverride'` checked first in `getServerUrl()` fallback chain before environment variables (2026-03-10)
+- **Context:** Need to allow runtime server URL changes without environment redeploy or page reload
+- **Why:** localStorage survives page reload but is volatile (cleared on browser data clear), so it's safe for transient overrides. Key-based lookup is faster than parsing config objects
+- **Rejected:** Session storage (lost on tab close); IndexedDB (overkill); URL params (exposed in history)
+- **Trade-offs:** Easier: simple string key, no serialization. Harder: no version control, survives across sessions unintentionally
+- **Breaking if changed:** If localStorage key is renamed without migration, users lose saved override. If storage cleared (browser settings), override disappears silently
+
+#### [Gotcha] Service checks agent trust tier but NOT the human/caller requesting the action. Assumes caller is already authorized to submit proposals (2026-03-10)
+- **Situation:** Who authorized the caller to request this action?
+- **Root cause:** Delegation: authority-service only enforces agent capability, not human authority. Caller must validate first.
+- **How to avoid:** Cleaner separation of concerns but creates implicit contract: caller must validate authorization before calling
+
+### Use localStorage for persistent server configuration (serverUrlOverride, recentServerUrls) instead of backend storage (2026-03-10)
+- **Context:** Server URL selection happens during app initialization before establishing server connection; users need offline capability
+- **Why:** Avoids chicken-and-egg problem: cannot persist to server if you don't know which server to connect to. Client-side persistence enables offline use.
+- **Rejected:** Backend persistence would require bootstrapping with a default server URL, creating initialization ordering issues
+- **Trade-offs:** Simpler, faster, works offline, but configuration doesn't sync across devices or persist after localStorage clear
+- **Breaking if changed:** Moving to backend storage requires solving initialization sequence (how to know server URL before connecting); removing localStorage loses offline capability

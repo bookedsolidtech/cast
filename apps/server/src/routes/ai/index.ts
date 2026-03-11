@@ -12,7 +12,7 @@
 
 import { Router, type Request, type Response } from 'express';
 import { streamText } from 'ai';
-import { anthropic } from '@ai-sdk/anthropic';
+import { getAnthropicModel } from '../../lib/ai-provider.js';
 import { createLogger } from '@protolabsai/utils';
 
 const logger = createLogger('AIRoutes');
@@ -70,7 +70,7 @@ export function createAIRoutes(): Router {
       );
 
       const result = streamText({
-        model: anthropic('claude-haiku-4-5-20251001'),
+        model: await getAnthropicModel('claude-haiku-4-5-20251001'),
         system: `You are an inline text autocomplete engine. Given the preceding text and the current line being typed, predict the next 5-15 words that naturally continue the thought. Rules:
 - Output ONLY the predicted continuation text, nothing else
 - Do not repeat any text already written
@@ -137,7 +137,7 @@ export function createAIRoutes(): Router {
       logger.info(`AI rewrite: instruction="${instruction}", text=${text.length}chars`);
 
       const result = streamText({
-        model: anthropic('claude-sonnet-4-5-20250929'),
+        model: await getAnthropicModel('claude-sonnet-4-5-20250929'),
         system: `You are an inline text editor. You receive selected text and an instruction for how to transform it. Rules:
 - Output ONLY the rewritten text, nothing else
 - Preserve the general formatting intent (paragraphs, lists, emphasis)
@@ -215,7 +215,7 @@ export function createAIRoutes(): Router {
       const specificInstruction = commandInstructions[command] || command;
 
       const result = streamText({
-        model: anthropic('claude-sonnet-4-5-20250929'),
+        model: await getAnthropicModel('claude-sonnet-4-5-20250929'),
         system: `You are an AI writing assistant integrated into a rich text editor. You receive a command and document context, and generate content accordingly. Rules:
 - Output ONLY the generated content, nothing else
 - Use simple HTML tags that TipTap supports: <p>, <strong>, <em>, <s>, <code>, <ul>, <ol>, <li>, <blockquote>, <h1>-<h3>, <pre><code>

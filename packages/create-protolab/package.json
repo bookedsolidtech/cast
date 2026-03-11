@@ -20,6 +20,7 @@
   ],
   "scripts": {
     "build": "tsc --project tsconfig.json && npm run postbuild",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
     "postbuild": "cp -r templates dist/",
     "dev": "tsc --watch",
     "test": "vitest run",

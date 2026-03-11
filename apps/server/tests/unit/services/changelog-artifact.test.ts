@@ -158,7 +158,7 @@ describe('ChangelogService — changelog artifact persistence', () => {
 
     // Bypass FS — we only test artifact persistence here
     vi.spyOn(service as any, 'storeChangelog').mockResolvedValue(undefined);
-    vi.spyOn(service as any, 'postToDiscord').mockResolvedValue(undefined);
+    vi.spyOn(service as any, 'postChangelogEmbed').mockResolvedValue(undefined);
 
     return { service, mockFeatureLoader, mockProjectService, mockSettingsService };
   }
@@ -174,13 +174,12 @@ describe('ChangelogService — changelog artifact persistence', () => {
       milestoneNumber: 1,
     });
 
-    // Staging code passes raw markdown string as 4th arg (not metadata object)
     await poll(() => {
       expect(mockArtifactService.saveArtifact).toHaveBeenCalledWith(
         '/test/project',
         'test-project',
         'changelog',
-        expect.any(String)
+        expect.objectContaining({ scope: 'milestone', content: expect.any(String) })
       );
     });
   });
@@ -204,7 +203,7 @@ describe('ChangelogService — changelog artifact persistence', () => {
         '/test/project',
         'test-project',
         'changelog',
-        expect.any(String)
+        expect.objectContaining({ scope: 'project', content: expect.any(String) })
       );
     });
   });
@@ -251,7 +250,7 @@ describe('ChangelogService — changelog artifact persistence', () => {
     );
 
     vi.spyOn(service as any, 'storeChangelog').mockResolvedValue(undefined);
-    vi.spyOn(service as any, 'postToDiscord').mockResolvedValue(undefined);
+    vi.spyOn(service as any, 'postChangelogEmbed').mockResolvedValue(undefined);
 
     mockEvents.emit('milestone:completed', {
       projectPath: '/test/project',
@@ -319,7 +318,7 @@ describe('ChangelogService — changelog artifact persistence', () => {
       );
 
       vi.spyOn(service as any, 'storeChangelog').mockResolvedValue(undefined);
-      vi.spyOn(service as any, 'postToDiscord').mockResolvedValue(undefined);
+      vi.spyOn(service as any, 'postChangelogEmbed').mockResolvedValue(undefined);
 
       mockEvents.emit('milestone:completed', {
         projectPath: tmpDir,
@@ -402,7 +401,7 @@ describe('EventLedgerService — escalation artifact persistence', () => {
           signal: 'feature_escalated',
           reason: 'Max retries exceeded',
           featureId: 'feat-123',
-          context: expect.objectContaining({
+          featureContext: expect.objectContaining({
             projectPath: '/my/project',
             projectSlug: 'my-project',
           }),

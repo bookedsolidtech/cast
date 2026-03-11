@@ -539,6 +539,60 @@ export const hitlFormResponse: LeadFastPathRule = {
 };
 
 /**
+ * rollbackTriggered — Feature in DONE/DEPLOY with health degradation signal → escalate.
+ * Fires when the health monitor or DORA metrics emits a degradation signal for a
+ * recently-deployed feature. Calls rollback logic and transitions feature to ESCALATE.
+ */
+export const rollbackTriggered: LeadFastPathRule = {
+  name: 'rollbackTriggered',
+  description:
+    'Feature in done/deploy with health degradation signal → move to escalate for rollback',
+  triggers: ['feature:health-degraded', 'health:signal'],
+
+  evaluate(worldState, _eventType, payload): LeadRuleAction[] {
+    const event = payload as Record<string, unknown> | null;
+    if (!event) return [];
+
+    const featureId = event.featureId as string | undefined;
+    if (!featureId) return [];
+
+    const feature = worldState.features[featureId];
+    if (!feature) return [];
+
+    // Only trigger for features that have been deployed (done or deploy status)
+    if (feature.status !== 'done' && feature.status !== 'deploy') return [];
+
+    // Feature must have a merged PR to be rollbackable
+    if (!feature.prMergedAt || !feature.prNumber) return [];
+
+    return [
+      {
+        type: 'update_feature',
+        featureId,
+        updates: {
+          statusChangeReason: `Health degradation detected after deploy — rollback triggered for PR #${feature.prNumber}`,
+        },
+      },
+      {
+        type: 'move_feature',
+        featureId,
+        toStatus: 'blocked',
+      },
+      {
+        type: 'log',
+        level: 'warn',
+        message: `rollbackTriggered: feature ${featureId} (PR #${feature.prNumber}) escalated due to health degradation signal`,
+      },
+      {
+        type: 'escalate_llm',
+        reason: `Health degradation detected for deployed feature ${featureId} (PR #${feature.prNumber}). Rollback required.`,
+        context: { featureId, prNumber: feature.prNumber, prMergedAt: feature.prMergedAt },
+      },
+    ];
+  },
+};
+
+/**
  * missingCIChecks — PR waiting >30min for required CI checks that have never registered.
  * Surfaces a diagnostic warning with the missing check names and a suggested cause
  * (e.g., a CI workflow configured to only trigger on PRs targeting a different base branch).
@@ -576,6 +630,127 @@ export const missingCIChecks: LeadFastPathRule = {
   },
 };
 
+// ────────────────────────── Error Budget Rule ──────────────────────────
+
+/**
+ * errorBudgetExhausted — Error budget exhausted: log warning to surface condition.
+ *
+ * Fires when `worldState.errorBudgetExhausted` is true.
+ * Emits a warn log so the condition is visible in server logs and the rule log.
+ * The actual pickup restriction (only bug-fix features) is enforced by
+ * FeatureScheduler reading errorBudgetExhausted from world state.
+ */
+export const errorBudgetExhausted: LeadFastPathRule = {
+  name: 'errorBudgetExhausted',
+  description:
+    'Error budget exhausted — log warning (scheduler restricts pickup to bug-fix features)',
+  triggers: [
+    'feature:pr-merged',
+    'pr:ci-failure',
+    'pr:remediation-started',
+    'lead-engineer:rule-evaluated',
+  ],
+
+  evaluate(worldState): LeadRuleAction[] {
+    if (!worldState.errorBudgetExhausted) return [];
+
+    return [
+      {
+        type: 'log',
+        level: 'warn',
+        message:
+          'errorBudgetExhausted: change fail rate exceeds threshold — ' +
+          'auto-mode restricted to bug-fix features until the budget recovers',
+      },
+    ];
+  },
+};
+
+// ────────────────────────── Review Queue Monitor ──────────────────────────
+
+/** Default maximum PRs allowed in review state before pausing pickup */
+const DEFAULT_MAX_PENDING_REVIEWS = 5;
+
+/**
+ * ReviewQueueMonitor — tracks review queue depth over time.
+ *
+ * Records a timestamped sample each time the queue depth is checked.
+ * Exposes helpers for determining whether the queue is saturated.
+ */
+export class ReviewQueueMonitor {
+  /** Chronological history of review queue depth samples */
+  readonly history: Array<{ timestamp: number; depth: number }> = [];
+
+  /** Maximum number of historical samples to keep */
+  private readonly maxHistory: number;
+
+  constructor(maxHistory = 100) {
+    this.maxHistory = maxHistory;
+  }
+
+  /**
+   * Record the current review queue depth.
+   * @param depth Number of features currently in review state
+   */
+  record(depth: number): void {
+    this.history.push({ timestamp: Date.now(), depth });
+    if (this.history.length > this.maxHistory) {
+      this.history.shift();
+    }
+  }
+
+  /**
+   * Return the most recently recorded depth, or 0 if no samples.
+   */
+  currentDepth(): number {
+    return this.history.length > 0 ? this.history[this.history.length - 1].depth : 0;
+  }
+
+  /**
+   * Return true if the current depth meets or exceeds the threshold.
+   */
+  isSaturated(threshold: number): boolean {
+    return this.currentDepth() >= threshold;
+  }
+}
+
+/**
+ * reviewQueueSaturated — Pause auto-mode feature pickup when the review queue is full.
+ *
+ * Fires when the number of features in 'review' state meets or exceeds
+ * `maxPendingReviews` (from WorkflowSettings, default 5). Emits a log action
+ * to surface the condition. The actual pickup pause is enforced in FeatureScheduler
+ * by checking the review queue depth before starting new features.
+ */
+export const reviewQueueSaturated: LeadFastPathRule = {
+  name: 'reviewQueueSaturated',
+  description:
+    'Review queue depth >= maxPendingReviews → log saturation (pickup paused by scheduler)',
+  triggers: ['feature:status-changed', 'feature:pr-merged', 'lead-engineer:rule-evaluated'],
+
+  evaluate(worldState, _eventType, _payload): LeadRuleAction[] {
+    const reviewCount = Object.values(worldState.features).filter(
+      (f) => f.status === 'review'
+    ).length;
+
+    const threshold =
+      (worldState as LeadWorldState & { maxPendingReviews?: number }).maxPendingReviews ??
+      DEFAULT_MAX_PENDING_REVIEWS;
+
+    if (reviewCount >= threshold) {
+      return [
+        {
+          type: 'log',
+          level: 'warn',
+          message: `reviewQueueSaturated: ${reviewCount}/${threshold} PRs in review — auto-mode feature pickup paused until queue drains`,
+        },
+      ];
+    }
+
+    return [];
+  },
+};
+
 // ────────────────────────── Exports ──────────────────────────
 
 /** Default set of fast-path rules */
@@ -594,6 +769,9 @@ export const DEFAULT_RULES: LeadFastPathRule[] = [
   classifiedRecovery,
   hitlFormResponse,
   missingCIChecks,
+  rollbackTriggered,
+  reviewQueueSaturated,
+  errorBudgetExhausted,
 ];
 
 /**

@@ -40,7 +40,12 @@ export type EventType =
   | 'actionable-item:created'
   | 'actionable-item:status-changed'
   | 'chat:tool-progress'
-  | 'scheduler:task-failed';
+  | 'chat:user-input-request'
+  | 'scheduler:task-failed'
+  | 'feature:created'
+  | 'feature:updated'
+  | 'feature:deleted'
+  | 'feature:status-changed';
 
 export type EventCallback = (payload: unknown) => void;
 
@@ -68,6 +73,26 @@ export class BaseHttpClient {
           this.connectWebSocket();
         });
     }
+  }
+
+  /**
+   * Force-close the current WebSocket connection and reconnect using the current server URL.
+   * Called when the server URL override changes at runtime.
+   */
+  public reconnect(): void {
+    this.serverUrl = getServerUrl();
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    if (this.ws) {
+      this.ws.onclose = null; // suppress auto-reconnect from the old socket's onclose
+      this.ws.close();
+      this.ws = null;
+    }
+    this.isConnecting = false;
+    this.reconnectAttempt = 0;
+    this.connectWebSocket();
   }
 
   // -- WebSocket infrastructure -----------------------------------------------

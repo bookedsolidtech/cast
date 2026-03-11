@@ -161,6 +161,109 @@ export interface WorkflowSettings {
     /** Also create GitHub issues (existing behavior, default: true) */
     createGithubIssues?: boolean;
   };
+  /**
+   * Run verification commands (typecheck, build) after merge to catch regressions.
+   * On failure, creates a bug-fix feature on the board. Original feature is still marked done
+   * since the code is already merged.
+   * @default true
+   */
+  postMergeVerification?: boolean;
+  /**
+   * Commands to execute during post-merge verification.
+   * `npm run build:packages` is added automatically when libs/ files were touched.
+   * @default ['npm run typecheck']
+   */
+  postMergeVerificationCommands?: string[];
+  /**
+   * Run pre-flight checks before launching the agent in EXECUTE state.
+   * Checks include: worktree currency (git fetch + rebase if behind), package build
+   * (if libs/ files changed since worktree creation), and dependency merge verification
+   * (foundation deps must be done, not just in review).
+   * Pre-flight failures are classified as infrastructure failures and do NOT count
+   * against the feature's agent retry budget.
+   * @default true
+   */
+  preFlightChecks?: boolean;
+  /**
+   * Maximum number of PRs allowed in the review state before auto-mode pauses
+   * new feature pickup. Prevents flooding the review queue.
+   * When review count >= this threshold, the reviewQueueSaturated rule fires and
+   * the scheduler pauses pickup until the queue drains below the threshold.
+   * @default 5
+   */
+  maxPendingReviews?: number;
+  /**
+   * Rolling window (in days) over which the change fail rate is computed
+   * for the error budget system. PRs merged outside this window are excluded.
+   * @default 7
+   */
+  errorBudgetWindow?: number;
+  /**
+   * Change fail rate threshold (0-1) above which the error budget is considered
+   * exhausted. When exhausted, auto-mode only picks up features tagged as bug-fix.
+   * Example: 0.2 = 20% of merged PRs failed CI post-merge.
+   * @default 0.2
+   */
+  errorBudgetThreshold?: number;
+  /**
+   * Enable execution gate checks before launching the agent in EXECUTE state.
+   * When enabled, checks: (1) review queue depth < maxPendingReviews,
+   * (2) error budget not exhausted, (3) CI not saturated (pending check runs < threshold).
+   * If any check fails, the feature is returned to backlog with a statusChangeReason.
+   * @default true
+   */
+  executionGate?: boolean;
+  /**
+   * Maximum number of pending GitHub check runs across open PRs before CI is
+   * considered saturated. When saturated, execution gate blocks new agent starts.
+   * @default 10
+   */
+  maxPendingCiRuns?: number;
+  /**
+   * Enable real authority enforcement in executeAction().
+   * When true, actions above the agent's trust tier risk threshold are blocked,
+   * an approval request is created in the actionable items queue, and the denial
+   * is logged with full context (agent, action, risk level, trust tier).
+   * When false (default), executeAction() is a no-op placeholder — existing behavior unchanged.
+   * @default false
+   */
+  authorityEnforcement?: boolean;
+  /**
+   * Maximum cost in USD allowed per feature execution. If the feature's costUsd
+   * reaches or exceeds this value after agent execution, the agent is killed and the
+   * feature is moved to blocked with a statusChangeReason explaining the cap was hit.
+   * A `cost:exceeded` event is emitted.
+   * @default undefined (off — no cost cap enforced)
+   */
+  maxCostUsdPerFeature?: number;
+  /**
+   * Maximum wall-clock runtime in minutes allowed per feature execution. Measured from
+   * the feature's startedAt timestamp. If elapsed minutes >= this value after agent
+   * execution, the feature is moved to blocked with a statusChangeReason explaining the
+   * cap was hit. A `runtime:exceeded` event is emitted.
+   * @default 60
+   */
+  maxRuntimeMinutesPerFeature?: number;
+  /**
+   * Maximum number of features allowed in the in_progress state before the lane
+   * is considered saturated. Used to compute the wipSaturation metric on board summary.
+   * @default 5
+   */
+  maxInProgress?: number;
+  /**
+   * Maximum number of features allowed in the review state before the lane
+   * is considered saturated. Used to compute the wipSaturation metric on board summary.
+   * @default 10
+   */
+  maxInReview?: number;
+  /**
+   * When true, auto-mode pauses new feature pickup when the error budget is exhausted
+   * (burn rate >= exhaustion threshold, default 1.0 = 100% consumed). Pickup resumes
+   * automatically when the budget recovers (burn rate drops below 0.8). Running agents
+   * are NOT affected — only new feature starts are blocked.
+   * @default true
+   */
+  errorBudgetAutoFreeze?: boolean;
 }
 
 /** Default workflow settings */
@@ -192,4 +295,7 @@ export const DEFAULT_WORKFLOW_SETTINGS: WorkflowSettings = {
     enabled: false,
     createGithubIssues: true,
   },
+  postMergeVerification: true,
+  postMergeVerificationCommands: ['npm run typecheck'],
+  preFlightChecks: true,
 };

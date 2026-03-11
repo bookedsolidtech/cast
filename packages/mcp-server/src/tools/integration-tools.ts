@@ -45,6 +45,80 @@ export const integrationTools: Tool[] = [
   },
 
   {
+    name: 'send_discord_channel_message',
+    description:
+      'Send a message or embed to a Discord channel by channel ID. Use embed for structured notifications (errors, status updates, heartbeats).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        channelId: {
+          type: 'string',
+          description: 'Discord channel ID to send the message to',
+        },
+        content: {
+          type: 'string',
+          description: 'Plain text message content (required if no embed)',
+        },
+        embed: {
+          type: 'object',
+          description: 'Rich embed object. When provided, sends as an embed instead of plain text.',
+          properties: {
+            title: { type: 'string', description: 'Embed title' },
+            description: { type: 'string', description: 'Embed body text' },
+            color: {
+              type: 'number',
+              description: 'Embed color as decimal (e.g. 3066993 for green, 15548997 for red)',
+            },
+            fields: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string' },
+                  value: { type: 'string' },
+                  inline: { type: 'boolean' },
+                },
+                required: ['name', 'value'],
+              },
+              description: 'Embed fields',
+            },
+            footer: {
+              type: 'object',
+              properties: { text: { type: 'string' } },
+              required: ['text'],
+            },
+            timestamp: {
+              type: 'string',
+              description: 'ISO 8601 timestamp',
+            },
+          },
+          required: ['title'],
+        },
+      },
+      required: ['channelId'],
+    },
+  },
+  {
+    name: 'read_discord_channel_messages',
+    description:
+      'Read recent messages from a Discord channel by channel ID. Returns messages with author, content, and timestamp.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        channelId: {
+          type: 'string',
+          description: 'Discord channel ID to read messages from',
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of messages to return (default: 10, max: 100)',
+        },
+      },
+      required: ['channelId'],
+    },
+  },
+
+  {
     name: 'twitch_list_suggestions',
     description:
       'View Twitch chat suggestion queue with filtering. Use filter="unprocessed" to see only new suggestions, "approved" for processed ones, or "all" for everything.',

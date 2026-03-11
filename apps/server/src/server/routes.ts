@@ -78,6 +78,7 @@ import { createAlertsRoutes } from '../routes/alerts/index.js';
 import { createEngineRoutes } from '../routes/engine/index.js';
 import { createLangfuseRoutes } from '../routes/langfuse/index.js';
 import { createChatRoutes } from '../routes/chat/index.js';
+import { createCodexRoutes } from '../routes/codex/index.js';
 import { createAIRoutes } from '../routes/ai/index.js';
 import { createNotesRoutes } from '../routes/notes/index.js';
 import { createTodoRoutes } from '../routes/todo/index.js';
@@ -88,6 +89,9 @@ import { createAutomationsRoutes } from '../routes/automations/index.js';
 import { createSensorRoutes } from '../routes/sensors/index.js';
 import { createProjectPmRoutes } from '../routes/project-pm/index.js';
 import { createLedgerRoutes } from '../routes/ledger/index.js';
+import { createAvaChannelRoutes } from '../routes/ava-channel/index.js';
+import { createHivemindRoutes } from '../routes/hivemind/index.js';
+import { createDoraRoutes } from '../routes/dora/index.js';
 
 const logger = createLogger('Server:Routes');
 
@@ -125,11 +129,10 @@ export function registerRoutes(app: Express, services: ServiceContainer): void {
     briefingCursorService,
     projectService,
     projectLifecycleService,
+    projectAssignmentService,
     automationService,
     avaGatewayService,
     discordBotService,
-    agentFactoryService,
-    dynamicAgentExecutor,
     roleRegistryService,
     ceremonyService,
     ceremonyAuditLog,
@@ -151,11 +154,13 @@ export function registerRoutes(app: Express, services: ServiceContainer): void {
     gtmAgent,
     completionDetectorService,
     antagonisticReviewService,
-    projectPlanningService,
     contentFlowService,
     repoRoot,
     sensorRegistryService,
     projectPmService,
+    crdtSyncService,
+    todoService,
+    avaChannelService,
   } = services;
 
   // Run stale validation cleanup every hour to prevent memory leaks from crashed validations
@@ -220,7 +225,7 @@ export function registerRoutes(app: Express, services: ServiceContainer): void {
   app.use('/api', authMiddleware);
 
   // --- PROTECTED HEALTH ENDPOINTS (detailed info requires auth) ---
-  app.get('/api/health/detailed', createDetailedHandler());
+  app.get('/api/health/detailed', createDetailedHandler(crdtSyncService));
   app.get('/api/health/quick', createQuickHandler());
   app.get(
     '/api/health/standard',
@@ -323,7 +328,16 @@ export function registerRoutes(app: Express, services: ServiceContainer): void {
     )
   );
   app.use('/api/pipeline', createPipelineRoutes(pipelineService));
-  app.use('/api/metrics', createMetricsRoutes(metricsService, ledgerService));
+  app.use(
+    '/api/metrics',
+    createMetricsRoutes(
+      metricsService,
+      ledgerService,
+      services.doraMetricsService,
+      featureLoader,
+      services.frictionTrackerService
+    )
+  );
   app.use('/api/notifications', createNotificationsRoutes(notificationService));
   app.use('/api/hitl-forms', createHITLFormRoutes(hitlFormService));
   app.use(
@@ -339,15 +353,19 @@ export function registerRoutes(app: Express, services: ServiceContainer): void {
   );
   app.use(
     '/api/projects',
-    createProjectsRoutes(featureLoader, events, projectService, projectLifecycleService)
+    createProjectsRoutes(
+      featureLoader,
+      events,
+      projectService,
+      projectLifecycleService,
+      undefined,
+      projectAssignmentService
+    )
   );
   app.use('/api/automations', createAutomationsRoutes(automationService));
   app.use('/api/ava', createAvaRoutes(services));
   app.use('/api/discord', createDiscordRoutes(discordBotService));
-  app.use(
-    '/api/agents',
-    createAgentManagementRoutes(roleRegistryService, agentFactoryService, dynamicAgentExecutor)
-  );
+  app.use('/api/agents', createAgentManagementRoutes(roleRegistryService));
   app.use(
     '/api/ceremonies',
     createCeremoniesRoutes(events, featureLoader, projectService, ceremonyService, ceremonyAuditLog)
@@ -384,14 +402,12 @@ export function registerRoutes(app: Express, services: ServiceContainer): void {
     )
   );
   app.use('/api/langfuse', createLangfuseRoutes());
-  app.use(
-    '/api/flows',
-    createFlowsRoutes(antagonisticReviewService, projectPlanningService ?? undefined)
-  );
+  app.use('/api/flows', createFlowsRoutes(antagonisticReviewService));
   app.use('/api/chat', createChatRoutes(services));
+  app.use('/api/codex', createCodexRoutes());
   app.use('/api/ai', createAIRoutes());
   app.use('/api/notes', createNotesRoutes(events));
-  app.use('/api/todos', createTodoRoutes(events));
+  app.use('/api/todos', createTodoRoutes(todoService));
   app.use('/api/sitrep', createSitrepRoutes({ featureLoader, autoModeService, repoRoot }));
   // Knowledge store routes (chunked retrieval)
   if (knowledgeStoreService) {
@@ -421,6 +437,18 @@ export function registerRoutes(app: Express, services: ServiceContainer): void {
   // Ledger REST endpoints (event persistence layer)
   app.use('/api/ledger', createLedgerRoutes(ledgerService, featureLoader));
   logger.info('Ledger routes mounted at /api/ledger');
+
+  // Ava Channel routes (private coordination channel for Ava instances)
+  app.use('/api/ava-channel', createAvaChannelRoutes(avaChannelService, featureLoader));
+  logger.info('Ava channel routes mounted at /api/ava-channel');
+
+  // Hivemind routes (peer discovery and instance status for the unified dashboard)
+  app.use('/api/hivemind', createHivemindRoutes(crdtSyncService));
+  logger.info('Hivemind routes mounted at /api/hivemind');
+
+  // DORA metrics routes (lead time, deployment frequency, change failure rate, recovery, rework)
+  app.use('/api/dora', createDoraRoutes(services.doraMetricsService));
+  logger.info('DORA metrics routes mounted at /api/dora');
 
   // Note: Sentry v8 automatically captures Express errors - no manual error handler needed
 }

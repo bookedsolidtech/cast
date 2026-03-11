@@ -20,6 +20,7 @@ import { createGenerateTitleHandler } from './routes/generate-title.js';
 import { createHealthHandler } from './routes/health.js';
 import { createAssignAgentHandler } from './routes/assign-agent.js';
 import { createSummaryHandler } from './routes/summary.js';
+import { createRollbackHandler } from './routes/rollback.js';
 import type { FeatureHealthService } from '../../services/feature-health-service.js';
 import type { RoleRegistryService } from '../../services/role-registry-service.js';
 import type { TrustTierService } from '../../services/trust-tier-service.js';
@@ -62,7 +63,11 @@ export function createFeaturesRoutes(
     validatePathParams('projectPath'),
     createDeleteHandler(featureLoader, events)
   );
-  router.post('/summary', validatePathParams('projectPath'), createSummaryHandler(featureLoader));
+  router.post(
+    '/summary',
+    validatePathParams('projectPath'),
+    createSummaryHandler(featureLoader, settingsService)
+  );
   router.post('/agent-output', createAgentOutputHandler(featureLoader));
   router.post('/raw-output', createRawOutputHandler(featureLoader));
   router.post('/generate-title', createGenerateTitleHandler(settingsService));
@@ -75,6 +80,8 @@ export function createFeaturesRoutes(
   if (healthService) {
     router.post('/health', validatePathParams('projectPath'), createHealthHandler(healthService));
   }
+
+  router.post('/rollback', validatePathParams('projectPath'), createRollbackHandler(featureLoader));
 
   return router;
 }

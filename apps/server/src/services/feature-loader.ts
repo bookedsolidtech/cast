@@ -48,6 +48,8 @@ export type { Feature };
 export class FeatureLoader implements FeatureStore {
   private integrityWatchdog: DataIntegrityWatchdogService | null = null;
   private events: EventEmitter | null = null;
+  /** Instance ID stamped onto newly created features as createdByInstance */
+  private instanceId: string | null = null;
 
   setIntegrityWatchdog(watchdog: DataIntegrityWatchdogService): void {
     this.integrityWatchdog = watchdog;
@@ -56,11 +58,19 @@ export class FeatureLoader implements FeatureStore {
   setEventEmitter(events: EventEmitter): void {
     this.events = events;
   }
+
+  /**
+   * Set the instance ID used to stamp createdByInstance on new features.
+   * Call this once at startup when multi-instance identity is configured.
+   */
+  setInstanceId(instanceId: string): void {
+    this.instanceId = instanceId;
+  }
   /**
    * Normalize feature status to canonical values
    * Defensive: ensures all features use the 6-status system
    */
-  private normalizeFeature(feature: Feature): Feature {
+  protected normalizeFeature(feature: Feature): Feature {
     let normalized = feature;
 
     // Guard: archived features are always treated as 'done' regardless of what
@@ -378,7 +388,7 @@ export class FeatureLoader implements FeatureStore {
   /**
    * Normalize a title for comparison (case-insensitive, trimmed)
    */
-  private normalizeTitle(title: string): string {
+  protected normalizeTitle(title: string): string {
     return title.toLowerCase().trim();
   }
 
@@ -559,6 +569,11 @@ export class FeatureLoader implements FeatureStore {
           reason: 'Feature created',
         },
       ],
+      // Stamp the creating instance ID when multi-instance identity is configured.
+      // Caller-supplied createdByInstance takes precedence (e.g. CRDT sync from peer).
+      ...(featureData.createdByInstance == null && this.instanceId != null
+        ? { createdByInstance: this.instanceId }
+        : {}),
     };
 
     // Write feature.json atomically with backup support
@@ -706,7 +721,7 @@ export class FeatureLoader implements FeatureStore {
       this.events &&
       !options?.skipEventEmission
     ) {
-      this.events.emit('feature:status-changed', {
+      this.events.broadcast('feature:status-changed', {
         featureId,
         projectPath,
         oldStatus: feature.status,
@@ -716,6 +731,7 @@ export class FeatureLoader implements FeatureStore {
           typeof updates.statusChangeReason === 'string'
             ? updates.statusChangeReason
             : 'status updated',
+        feature: updatedFeature,
       });
     }
 

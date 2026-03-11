@@ -3,8 +3,36 @@
  * Shared type definitions for AutoMaker
  */
 
+// Agent definition factory context types
+export type { AgentDefinitionContext, WorldStateSlice } from './agent.js';
+
+// Ava Channel types — private multi-instance communication channel
+export type {
+  AvaChannelContext,
+  AvaChatMessage,
+  AvaChannelDocument,
+  PostMessageOptions,
+  GetMessagesOptions,
+  MessageIntent,
+  MessageClassifierRule,
+  ClassificationContext,
+  CapacityHeartbeat,
+  WorkRequest,
+  WorkOffer,
+  EscalationRequest,
+  EscalationOffer,
+  EscalationAccept,
+  HealthAlert,
+  DoraReport,
+  PatternResolved,
+} from './ava-channel.js';
+
 // Event Ledger types — append-only JSONL event persistence layer
 export type { EventLedgerCorrelationIds, EventLedgerEntry } from './event-ledger.js';
+
+// EventBus-CRDT bridge types
+export { CRDT_SYNCED_EVENT_TYPES } from './events.js';
+export type { CrdtFeatureEvent } from './events.js';
 
 // Automation registry supplementary types (CreateAutomationInput, UpdateAutomationInput, FlowFactory)
 // Core types (Automation, AutomationRunRecord, etc.) are already exported from the base workspace types
@@ -111,11 +139,15 @@ export type { EventBus, EventSubscription } from './event-bus.js';
 
 // Hivemind types (multi-instance mesh coordination)
 export type {
+  CompactionDiagnosticsSnapshot,
   InstanceCapacity,
   HivemindDomain,
   InstanceIdentity,
   HivemindPeer,
   HivemindConfig,
+  PeerCapacitySummary,
+  SyncRole,
+  SyncServerStatus,
 } from './hivemind.js';
 
 // Project orchestration types
@@ -134,13 +166,9 @@ export type {
   Project,
   SPARCPrd,
   PRDReviewComment,
-  DeepResearchResult,
-  CreateProjectFromPRDOptions,
-  CreateFeaturesFromProjectOptions,
   FeatureFactoryResult,
   CreateProjectInput,
   UpdateProjectInput,
-  CreateFeaturesResult,
   ProjectLifecyclePhase,
   LifecycleInitiateResult,
   LifecyclePrdResult,
@@ -155,6 +183,10 @@ export type {
   ProjectArtifact,
   MilestoneSummary,
   ProjectSummary,
+  TimelineEntryType,
+  TimelineEntryAuthor,
+  TimelineEntry,
+  ProjectTimelineFile,
 } from './project.js';
 
 // Calendar types
@@ -340,6 +372,9 @@ export type {
   ClaudeApiProfileTemplate,
   // Workflow settings types
   WorkflowSettings,
+  // Ava Channel reactor settings
+  AvaChannelReactorSettings,
+  SchedulerSettings,
 } from './settings.js';
 export {
   DEFAULT_KEYBOARD_SHORTCUTS,
@@ -369,6 +404,9 @@ export {
   DEFAULT_TRUST_BOUNDARY_CONFIG,
   // Workflow settings defaults
   DEFAULT_WORKFLOW_SETTINGS,
+  // Ava Channel reactor settings defaults
+  DEFAULT_AVA_CHANNEL_REACTOR_SETTINGS,
+  DEFAULT_SCHEDULER_SETTINGS,
   // Integration config defaults
   DEFAULT_DISCORD_INTEGRATION,
   // Claude-compatible provider templates (new)
@@ -727,6 +765,10 @@ export type {
 } from './review.js';
 export { DistillationDepth } from './review.js';
 
+// Antagonistic Review service types (ReviewResult, ConsolidatedReview, ReviewRequest)
+export type { ReviewResult, ConsolidatedReview, ReviewRequest } from './antagonistic-review.js';
+export { extractPRDFromText } from './antagonistic-review.js';
+
 // Content generation types
 export { SectionSchema, OutlineSchema } from './content.js';
 export type { ContentType, ContentConfig, Section, Outline, ResearchSummary } from './content.js';
@@ -742,15 +784,25 @@ export type {
   CycleTimeBucket,
   TimeSeriesMetric,
   TimeGroupBy,
+  DoraTimeSeriesEntry,
+  DoraTimeSeriesDocument,
+  AgenticAutonomyRate,
+  AgenticRemediationRecord,
+  AgenticWipSaturation,
+  AgenticMetricsEntry,
+  AgenticMetricsDocument,
 } from './metrics.js';
 
 // Lead Engineer types (production-phase nerve center)
-export { FeatureState } from './lead-engineer.js';
+export { FeatureState, WorldStateDomain } from './lead-engineer.js';
 export type {
   LeadFeatureSnapshot,
   LeadAgentSnapshot,
   LeadPRSnapshot,
   LeadMilestoneSnapshot,
+  AvaWorldState,
+  PMWorldState,
+  LEWorldState,
   LeadWorldState,
   LeadRuleAction,
   LeadFastPathRule,
@@ -881,6 +933,14 @@ export {
   ProtoGitSchema,
   ProtoLabSchema,
   ProtoDefaultsSchema,
+  ProtoHiveSchema,
+  ProtoInstanceSchema,
+  ProtoAssignmentSchema,
+  ProtoInstanceProfileSchema,
+  ProtoWorkIntakeSchema,
+  InstanceRoleSchema,
+  SharedSettingsSchema,
+  ProjectPreferencesSchema,
 } from './proto-config.js';
 export type {
   ProtoConfig,
@@ -889,7 +949,29 @@ export type {
   ProtoGit,
   ProtoLab,
   ProtoDefaults,
+  ProtoHive,
+  ProtoInstance,
+  ProtoAssignment,
+  ProtoInstanceProfile,
+  ProtoWorkIntake,
+  InstanceRole,
+  SharedSettings,
+  ProjectPreferences,
 } from './proto-config.js';
+
+// DORA metrics types (lead time, deployment frequency, change failure rate, recovery time, rework rate)
+export type { DoraMetrics, MetricValue, DoraRegulationAlert } from './dora-metrics.js';
+
+// Friction tracker types (self-improvement loop — recurring failure pattern detection)
+export type { FrictionReport } from './friction-report.js';
+
+// ReactiveSpawner types (trigger-based agent spawning with rate limiting and circuit breaking)
+export type {
+  TriggerCategory,
+  TriggerContext,
+  SpawnResult,
+  HealingBudget,
+} from './reactive-spawner.js';
 
 // PenFile types (vector graphics format v2.8)
 export type {

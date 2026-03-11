@@ -57,6 +57,49 @@ export class ExecuteProcessor implements StateProcessor {
   }
 
   /**
+   * Resolve the effective cost cap (maxCostUsdPerFeature) for this project.
+   * Returns undefined when not configured (cap is off).
+   */
+  private async resolveMaxCostUsdPerFeature(projectPath: string): Promise<number | undefined> {
+    try {
+      if (this.serviceContext.settingsService) {
+        const settings = await this.serviceContext.settingsService.getProjectSettings(projectPath);
+        const configured = (
+          settings.workflow as typeof settings.workflow & { maxCostUsdPerFeature?: number }
+        )?.maxCostUsdPerFeature;
+        if (typeof configured === 'number' && configured > 0) {
+          return configured;
+        }
+      }
+    } catch {
+      /* non-fatal — cap is off */
+    }
+    return undefined;
+  }
+
+  /**
+   * Resolve the effective runtime cap (maxRuntimeMinutesPerFeature) for this project.
+   * Returns the configured value, defaulting to 60 minutes.
+   */
+  private async resolveMaxRuntimeMinutesPerFeature(projectPath: string): Promise<number> {
+    const DEFAULT_RUNTIME_MINUTES = 60;
+    try {
+      if (this.serviceContext.settingsService) {
+        const settings = await this.serviceContext.settingsService.getProjectSettings(projectPath);
+        const configured = (
+          settings.workflow as typeof settings.workflow & { maxRuntimeMinutesPerFeature?: number }
+        )?.maxRuntimeMinutesPerFeature;
+        if (typeof configured === 'number' && configured > 0) {
+          return configured;
+        }
+      }
+    } catch {
+      /* non-fatal — fall back to default */
+    }
+    return DEFAULT_RUNTIME_MINUTES;
+  }
+
+  /**
    * Resolve the effective max infra retries for this project.
    * Reads from project workflow settings when the settings service is available,
    * falling back to the module-level constant so behaviour is unchanged for
@@ -101,6 +144,39 @@ export class ExecuteProcessor implements StateProcessor {
         shouldContinue: true,
         reason: ctx.escalationReason,
       };
+    }
+
+    // Check kill conditions before proceeding with execution
+    const killConditions = ctx.feature.killConditions;
+    if (killConditions && killConditions.length > 0) {
+      // Check if any cost-based kill condition is triggered
+      const costKill = killConditions.find((condition: string) => {
+        const lower = condition.toLowerCase();
+        if (!lower.includes('cost') && !lower.includes('usd') && !lower.includes('$')) {
+          return false;
+        }
+        // Extract a numeric threshold from the condition string (e.g., "$5", "5 USD", "5.00")
+        const match = condition.match(/\$?\s*(\d+(?:\.\d+)?)\s*(?:usd)?/i);
+        if (match) {
+          const threshold = parseFloat(match[1]);
+          return !isNaN(threshold) && totalCost >= threshold;
+        }
+        return false;
+      });
+
+      if (costKill) {
+        ctx.escalationReason = `Kill condition triggered: ${costKill}`;
+        logger.warn('[EXECUTE] Kill condition triggered, escalating', {
+          featureId: ctx.feature.id,
+          condition: costKill,
+          costUsd: totalCost,
+        });
+        return {
+          nextState: 'ESCALATE',
+          shouldContinue: true,
+          reason: ctx.escalationReason,
+        };
+      }
     }
 
     // Check agent retry limit (configurable via workflow settings, falls back to module constant)
@@ -289,6 +365,115 @@ export class ExecuteProcessor implements StateProcessor {
       logger.warn('[EXECUTE] Failed to load sibling reflections:', err);
     }
 
+    // Load milestone facts (project-level knowledge accumulation)
+    try {
+      if (ctx.feature.projectSlug) {
+        const fsPromises = await import('node:fs/promises');
+        const milestoneFactsDir = path.join(
+          getAutomakerDir(ctx.projectPath),
+          'projects',
+          ctx.feature.projectSlug,
+          'milestone-facts'
+        );
+        let entries: string[] = [];
+        try {
+          const dirEntries = await fsPromises.readdir(milestoneFactsDir);
+          entries = dirEntries.filter((e) => e.endsWith('.json'));
+        } catch {
+          // No milestone-facts directory yet — skip
+        }
+        if (entries.length > 0) {
+          const allFacts: Array<{ content: string; category: string; confidence: number }> = [];
+          for (const entry of entries) {
+            try {
+              const raw = await fsPromises.readFile(path.join(milestoneFactsDir, entry), 'utf-8');
+              const parsed = JSON.parse(raw) as {
+                facts: Array<{ content: string; category: string; confidence: number }>;
+              };
+              allFacts.push(...(parsed.facts ?? []));
+            } catch {
+              // Skip malformed files
+            }
+          }
+          if (allFacts.length > 0) {
+            // Group by category and format as Project Knowledge section
+            const byCategory = new Map<string, Array<{ content: string; confidence: number }>>();
+            for (const fact of allFacts) {
+              const cat = fact.category || 'general';
+              if (!byCategory.has(cat)) byCategory.set(cat, []);
+              byCategory.get(cat)!.push({
+                content: fact.content,
+                confidence: fact.confidence,
+              });
+            }
+            const lines: string[] = [
+              '## Project Knowledge\n\nPatterns established in completed milestones:\n',
+            ];
+            for (const [cat, catFacts] of byCategory) {
+              lines.push(`### ${cat}`);
+              for (const { confidence, content } of catFacts) {
+                lines.push(`- [${Math.round(confidence * 100)}%] ${content}`);
+              }
+            }
+            let projectKnowledge = lines.join('\n');
+            // Cap at ~2000 tokens (approx 8000 chars at 4 chars/token)
+            const TOKEN_CHAR_CAP = 8000;
+            if (projectKnowledge.length > TOKEN_CHAR_CAP) {
+              projectKnowledge = projectKnowledge.slice(0, TOKEN_CHAR_CAP) + '\n...(truncated)';
+            }
+            ctx.projectKnowledge = projectKnowledge;
+            logger.info(
+              `[EXECUTE] Loaded project knowledge from ${entries.length} milestone fact files (${allFacts.length} facts)`
+            );
+          }
+        }
+      }
+    } catch (err) {
+      logger.warn('[EXECUTE] Failed to load milestone facts:', err);
+    }
+
+    // Run pre-flight checks (worktree currency, package builds, dep merge verification)
+    const preFlightEnabled = await this.isPreFlightEnabled(ctx.projectPath);
+    if (preFlightEnabled) {
+      const preFlightResult = await this.runPreFlightChecks(ctx);
+      if (!preFlightResult.passed) {
+        // Pre-flight failures are infrastructure failures — do NOT burn agent retry budget
+        logger.warn('[EXECUTE] Pre-flight check failed — escalating as infrastructure failure', {
+          featureId: ctx.feature.id,
+          reason: preFlightResult.reason,
+        });
+        ctx.escalationReason = `Pre-flight check failed: ${preFlightResult.reason}`;
+        return {
+          nextState: 'ESCALATE',
+          shouldContinue: false,
+          reason: ctx.escalationReason,
+        };
+      }
+      logger.info('[EXECUTE] Pre-flight checks passed', { featureId: ctx.feature.id });
+    }
+
+    // Execution gate: check Flow Control system state before launching the agent
+    const executionGateEnabled = await this.isExecutionGateEnabled(ctx.projectPath);
+    if (executionGateEnabled) {
+      const gateResult = await this.runExecutionGate(ctx);
+      if (!gateResult.passed) {
+        logger.warn('[EXECUTE] Execution gate blocked feature — returning to backlog', {
+          featureId: ctx.feature.id,
+          reason: gateResult.reason,
+        });
+        await this.serviceContext.featureLoader.update(ctx.projectPath, ctx.feature.id, {
+          status: 'backlog',
+          statusChangeReason: gateResult.reason,
+        });
+        return {
+          nextState: null,
+          shouldContinue: false,
+          reason: gateResult.reason,
+        };
+      }
+      logger.info('[EXECUTE] Execution gate passed', { featureId: ctx.feature.id });
+    }
+
     logger.info('[EXECUTE] Launching agent via autoModeService.executeFeature()', {
       featureId: ctx.feature.id,
       retryCount: ctx.retryCount,
@@ -443,6 +628,65 @@ export class ExecuteProcessor implements StateProcessor {
       if (updated.prNumber) ctx.prNumber = updated.prNumber;
     }
 
+    // ── Kill criteria: cost cap ───────────────────────────────────────────────
+    const maxCostUsd = await this.resolveMaxCostUsdPerFeature(ctx.projectPath);
+    if (maxCostUsd !== undefined) {
+      const currentCost = ctx.feature.costUsd ?? 0;
+      if (currentCost >= maxCostUsd) {
+        const reason = `Cost cap exceeded: $${currentCost.toFixed(2)} >= cap $${maxCostUsd.toFixed(2)}`;
+        logger.warn('[EXECUTE] Cost cap exceeded — blocking feature', {
+          featureId: ctx.feature.id,
+          costUsd: currentCost,
+          capUsd: maxCostUsd,
+        });
+        await this.serviceContext.featureLoader.update(ctx.projectPath, ctx.feature.id, {
+          status: 'blocked',
+          statusChangeReason: reason,
+        });
+        this.serviceContext.events.emit('cost:exceeded' as EventType, {
+          featureId: ctx.feature.id,
+          projectPath: ctx.projectPath,
+          costUsd: currentCost,
+          capUsd: maxCostUsd,
+        });
+        return {
+          nextState: null,
+          shouldContinue: false,
+          reason,
+        };
+      }
+    }
+
+    // ── Kill criteria: runtime cap ────────────────────────────────────────────
+    const maxRuntimeMinutes = await this.resolveMaxRuntimeMinutesPerFeature(ctx.projectPath);
+    if (ctx.startedAt) {
+      const elapsedMs = Date.now() - new Date(ctx.startedAt).getTime();
+      const elapsedMinutes = elapsedMs / 60_000;
+      if (elapsedMinutes >= maxRuntimeMinutes) {
+        const reason = `Runtime cap exceeded: ${elapsedMinutes.toFixed(1)} min >= cap ${maxRuntimeMinutes} min`;
+        logger.warn('[EXECUTE] Runtime cap exceeded — blocking feature', {
+          featureId: ctx.feature.id,
+          elapsedMinutes,
+          capMinutes: maxRuntimeMinutes,
+        });
+        await this.serviceContext.featureLoader.update(ctx.projectPath, ctx.feature.id, {
+          status: 'blocked',
+          statusChangeReason: reason,
+        });
+        this.serviceContext.events.emit('runtime:exceeded' as EventType, {
+          featureId: ctx.feature.id,
+          projectPath: ctx.projectPath,
+          elapsedMinutes,
+          capMinutes: maxRuntimeMinutes,
+        });
+        return {
+          nextState: null,
+          shouldContinue: false,
+          reason,
+        };
+      }
+    }
+
     // Save EXECUTE handoff — parse modified files and questions from agent output
     if (this.serviceContext.leadHandoffService) {
       try {
@@ -543,6 +787,385 @@ export class ExecuteProcessor implements StateProcessor {
   }
 
   /**
+   * Resolve whether the execution gate is enabled for this project.
+   * Reads from project workflow settings; defaults to true.
+   */
+  private async isExecutionGateEnabled(projectPath: string): Promise<boolean> {
+    try {
+      if (this.serviceContext.settingsService) {
+        const settings = await this.serviceContext.settingsService.getProjectSettings(projectPath);
+        if (typeof settings.workflow?.executionGate === 'boolean') {
+          return settings.workflow.executionGate;
+        }
+      }
+    } catch {
+      /* non-fatal — fall through to default */
+    }
+    return true; // default: enabled
+  }
+
+  /**
+   * Run execution gate checks before launching the agent.
+   *
+   * (a) Review queue depth < maxPendingReviews
+   * (b) Error budget not exhausted
+   * (c) CI not saturated (pending GitHub check runs < threshold)
+   *
+   * Returns { passed: true } on success, or { passed: false, reason } on failure.
+   */
+  private async runExecutionGate(ctx: StateContext): Promise<{ passed: boolean; reason?: string }> {
+    const { projectPath } = ctx;
+
+    // Resolve thresholds from workflow settings
+    const DEFAULT_MAX_PENDING_REVIEWS = 5;
+    const DEFAULT_MAX_PENDING_CI_RUNS = 10;
+    let maxPendingReviews = DEFAULT_MAX_PENDING_REVIEWS;
+    let maxPendingCiRuns = DEFAULT_MAX_PENDING_CI_RUNS;
+    let errorBudgetThreshold = 0.2;
+    let errorBudgetWindowDays = 7;
+
+    try {
+      if (this.serviceContext.settingsService) {
+        const settings = await this.serviceContext.settingsService.getProjectSettings(projectPath);
+        const workflow = settings.workflow as typeof settings.workflow & {
+          maxPendingReviews?: number;
+          maxPendingCiRuns?: number;
+          errorBudgetThreshold?: number;
+          errorBudgetWindow?: number;
+        };
+        if (typeof workflow?.maxPendingReviews === 'number') {
+          maxPendingReviews = workflow.maxPendingReviews;
+        }
+        if (typeof workflow?.maxPendingCiRuns === 'number') {
+          maxPendingCiRuns = workflow.maxPendingCiRuns;
+        }
+        if (typeof workflow?.errorBudgetThreshold === 'number') {
+          errorBudgetThreshold = workflow.errorBudgetThreshold;
+        }
+        if (typeof workflow?.errorBudgetWindow === 'number') {
+          errorBudgetWindowDays = workflow.errorBudgetWindow;
+        }
+      }
+    } catch {
+      /* non-fatal — use defaults */
+    }
+
+    // ── (a) Review queue depth ────────────────────────────────────────────────
+    try {
+      const allFeatures = await this.serviceContext.featureLoader.getAll(projectPath);
+      const reviewDepth = allFeatures.filter((f) => f.status === 'review').length;
+      if (reviewDepth >= maxPendingReviews) {
+        return {
+          passed: false,
+          reason: `Execution gate: review queue saturated (${reviewDepth}/${maxPendingReviews} features in review)`,
+        };
+      }
+    } catch (err) {
+      logger.warn('[EXECUTE][gate] Could not check review queue depth (non-fatal):', err);
+    }
+
+    // ── (b) Error budget ──────────────────────────────────────────────────────
+    try {
+      const { ErrorBudgetService } = await import('./error-budget-service.js');
+      const errorBudget = new ErrorBudgetService(projectPath, {
+        windowDays: errorBudgetWindowDays,
+        threshold: errorBudgetThreshold,
+      });
+      if (errorBudget.isExhausted()) {
+        const state = errorBudget.getState();
+        return {
+          passed: false,
+          reason: `Execution gate: error budget exhausted (fail rate ${(state.failRate * 100).toFixed(1)}% >= threshold ${(state.threshold * 100).toFixed(1)}%)`,
+        };
+      }
+    } catch (err) {
+      logger.warn('[EXECUTE][gate] Could not check error budget (non-fatal):', err);
+    }
+
+    // ── (c) CI saturation ─────────────────────────────────────────────────────
+    try {
+      const allFeatures = await this.serviceContext.featureLoader.getAll(projectPath);
+      const reviewFeatures = allFeatures.filter((f) => f.status === 'review' && f.branchName);
+      let pendingCiCount = 0;
+      for (const f of reviewFeatures) {
+        if (!f.branchName) continue;
+        try {
+          const { stdout } = await execAsync(
+            `gh pr list --head "${f.branchName}" --state open --json number --limit 1`,
+            { cwd: projectPath, timeout: 10_000 }
+          );
+          const prs: { number: number }[] = JSON.parse(stdout || '[]');
+          if (prs.length === 0) continue;
+          const prNumber = prs[0].number;
+          // Count pending check runs on this PR's HEAD
+          const { stdout: checksOut } = await execAsync(
+            `gh pr checks ${prNumber} --json state --jq '[.[] | select(.state == "PENDING")] | length'`,
+            { cwd: projectPath, timeout: 15_000 }
+          );
+          const pending = parseInt(checksOut.trim(), 10);
+          if (!isNaN(pending)) {
+            pendingCiCount += pending;
+          }
+        } catch {
+          /* non-fatal per PR */
+        }
+      }
+      if (pendingCiCount >= maxPendingCiRuns) {
+        return {
+          passed: false,
+          reason: `Execution gate: CI saturated (${pendingCiCount} pending check runs >= threshold ${maxPendingCiRuns})`,
+        };
+      }
+    } catch (err) {
+      logger.warn('[EXECUTE][gate] Could not check CI saturation (non-fatal):', err);
+    }
+
+    return { passed: true };
+  }
+
+  /**
+   * Resolve whether pre-flight checks are enabled for this project.
+   * Reads from project workflow settings; defaults to true.
+   */
+  private async isPreFlightEnabled(projectPath: string): Promise<boolean> {
+    try {
+      if (this.serviceContext.settingsService) {
+        const settings = await this.serviceContext.settingsService.getProjectSettings(projectPath);
+        if (typeof settings.workflow?.preFlightChecks === 'boolean') {
+          return settings.workflow.preFlightChecks;
+        }
+      }
+    } catch {
+      /* non-fatal — fall through to default */
+    }
+    return true; // default: enabled
+  }
+
+  /**
+   * Pre-flight checklist run before the agent is launched.
+   *
+   * a. Worktree currency: git fetch origin + compare HEAD with origin/<baseBranch>.
+   *    If the worktree is behind, attempt a rebase. On conflict, abort and escalate.
+   * b. Package build: if any libs/ files changed since worktree creation, run
+   *    `npm run build:packages`. On failure, escalate.
+   * c. Dependency merge verification: for each dep with isFoundation=true, the dep
+   *    must be 'done'/'completed'/'verified' (i.e. merged), not merely in 'review'.
+   *
+   * Returns { passed: true } on success, or { passed: false, reason } on failure.
+   * Failures are infrastructure failures — callers must NOT burn agent retry budget.
+   */
+  private async runPreFlightChecks(
+    ctx: StateContext
+  ): Promise<{ passed: boolean; reason?: string }> {
+    const { feature, projectPath } = ctx;
+
+    // ── (a) Worktree currency check ──────────────────────────────────────────
+    const worktreeDir = await this.resolveWorktreeDir(projectPath, feature.branchName);
+    const workDir = worktreeDir ?? projectPath;
+
+    try {
+      logger.info('[EXECUTE][pre-flight] Fetching origin', { featureId: feature.id });
+      await execAsync('git fetch origin', { cwd: workDir, timeout: 30_000 });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.warn('[EXECUTE][pre-flight] git fetch failed (non-fatal, continuing)', { msg });
+      // Non-fatal: network blip should not block the agent
+    }
+
+    // Determine base branch (default to 'dev')
+    let baseBranch = 'dev';
+    try {
+      const { stdout: upstream } = await execAsync(
+        'git rev-parse --abbrev-ref --symbolic-full-name @{u}',
+        { cwd: workDir, timeout: 5_000 }
+      );
+      const upstreamTrimmed = upstream.trim();
+      if (upstreamTrimmed && upstreamTrimmed.startsWith('origin/')) {
+        baseBranch = upstreamTrimmed.slice('origin/'.length);
+      }
+    } catch {
+      /* no upstream set — use default */
+    }
+
+    // ── Commit .automaker/ drift before rebasing ──────────────────────────────
+    // Services write to .automaker/ (ledger, metrics, sessions, features) without
+    // committing. This drift causes "cannot rebase: You have unstaged changes".
+    // The LE owns committing this drift as part of its pre-flight responsibility.
+    try {
+      const { stdout: driftStatus } = await execAsync(
+        'git status --porcelain .automaker/ apps/server/.automaker/',
+        { cwd: workDir, timeout: 10_000 }
+      );
+      if (driftStatus.trim().length > 0) {
+        logger.info('[EXECUTE][pre-flight] Committing .automaker/ drift before rebase', {
+          featureId: feature.id,
+          files: driftStatus.trim().split('\n').length,
+        });
+        await execAsync('git add .automaker/ apps/server/.automaker/', {
+          cwd: workDir,
+          timeout: 10_000,
+        });
+        await execAsync('git commit --no-verify -m "chore: commit automaker drift before rebase"', {
+          cwd: workDir,
+          timeout: 15_000,
+        });
+        logger.info('[EXECUTE][pre-flight] Drift committed successfully');
+      }
+    } catch (driftErr) {
+      const driftMsg = driftErr instanceof Error ? driftErr.message : String(driftErr);
+      logger.warn('[EXECUTE][pre-flight] Drift commit failed (non-fatal)', { msg: driftMsg });
+    }
+
+    try {
+      const { stdout: revList } = await execAsync(
+        `git rev-list --count HEAD..origin/${baseBranch}`,
+        { cwd: workDir, timeout: 10_000 }
+      );
+      const behind = parseInt(revList.trim(), 10);
+      if (!isNaN(behind) && behind > 0) {
+        logger.info(
+          `[EXECUTE][pre-flight] Worktree is ${behind} commits behind origin/${baseBranch}, rebasing`,
+          { featureId: feature.id }
+        );
+        try {
+          await execAsync(`git rebase origin/${baseBranch}`, { cwd: workDir, timeout: 60_000 });
+          logger.info('[EXECUTE][pre-flight] Rebase succeeded', { featureId: feature.id });
+        } catch (rebaseErr) {
+          // Abort the rebase to leave the worktree clean
+          try {
+            await execAsync('git rebase --abort', { cwd: workDir, timeout: 10_000 });
+          } catch {
+            /* best-effort */
+          }
+          const rebaseMsg = rebaseErr instanceof Error ? rebaseErr.message : String(rebaseErr);
+          return {
+            passed: false,
+            reason: `Worktree rebase onto origin/${baseBranch} failed (conflicts or error): ${rebaseMsg}`,
+          };
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.warn('[EXECUTE][pre-flight] Could not determine rev-list distance (non-fatal)', {
+        msg,
+      });
+      // Non-fatal: if we can't determine distance, proceed
+    }
+
+    // ── (b) Package build check ───────────────────────────────────────────────
+    try {
+      // Check if any libs/ files changed since the worktree branch diverged from its merge base
+      const { stdout: mergeBase } = await execAsync(`git merge-base HEAD origin/${baseBranch}`, {
+        cwd: workDir,
+        timeout: 10_000,
+      }).catch(() => ({ stdout: 'HEAD~1' }));
+
+      const { stdout: changedFiles } = await execAsync(
+        `git diff --name-only ${mergeBase.trim()} HEAD`,
+        { cwd: workDir, timeout: 10_000 }
+      ).catch(() => ({ stdout: '' }));
+
+      const libsChanged = changedFiles.split('\n').some((f) => f.trim().startsWith('libs/'));
+
+      if (libsChanged) {
+        logger.info('[EXECUTE][pre-flight] libs/ files changed — running npm run build:packages', {
+          featureId: feature.id,
+        });
+        try {
+          await execAsync('npm run build:packages', { cwd: projectPath, timeout: 120_000 });
+          logger.info('[EXECUTE][pre-flight] Package build succeeded', { featureId: feature.id });
+        } catch (buildErr) {
+          const buildMsg = buildErr instanceof Error ? buildErr.message : String(buildErr);
+          return {
+            passed: false,
+            reason: `Package build (npm run build:packages) failed after libs/ changes: ${buildMsg}`,
+          };
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.warn('[EXECUTE][pre-flight] Package build check error (non-fatal)', { msg });
+      // Non-fatal: proceed if we can't determine changed files
+    }
+
+    // ── (c) Dependency merge verification ────────────────────────────────────
+    if (feature.dependencies && feature.dependencies.length > 0) {
+      try {
+        const allFeatures = await this.serviceContext.featureLoader.getAll(projectPath);
+        const unmergedFoundationDeps: string[] = [];
+
+        for (const depId of feature.dependencies) {
+          const dep = allFeatures.find((f) => f.id === depId);
+          if (!dep) {
+            unmergedFoundationDeps.push(`${depId} (not found)`);
+            continue;
+          }
+          if (dep.isFoundation) {
+            // Foundation deps must be done (merged), 'review' is NOT sufficient
+            const isMerged =
+              dep.status === 'done' || dep.status === 'completed' || dep.status === 'verified';
+            if (!isMerged) {
+              unmergedFoundationDeps.push(
+                `${depId} (${dep.title || depId}, status=${dep.status} — needs merge)`
+              );
+            }
+          }
+        }
+
+        if (unmergedFoundationDeps.length > 0) {
+          return {
+            passed: false,
+            reason: `Foundation dependencies not yet merged: ${unmergedFoundationDeps.join(', ')}`,
+          };
+        }
+
+        logger.info('[EXECUTE][pre-flight] Dependency merge verification passed', {
+          featureId: feature.id,
+          depCount: feature.dependencies.length,
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        logger.warn('[EXECUTE][pre-flight] Dependency check error (non-fatal)', { msg });
+        // Non-fatal: if we can't load features, proceed
+      }
+    }
+
+    return { passed: true };
+  }
+
+  /**
+   * Resolve the worktree directory for the given branch, or null if not found.
+   * Uses `git worktree list --porcelain` in the project root.
+   */
+  private async resolveWorktreeDir(
+    projectPath: string,
+    branchName: string | undefined
+  ): Promise<string | null> {
+    if (!branchName) return null;
+    try {
+      const { stdout } = await execAsync('git worktree list --porcelain', {
+        cwd: projectPath,
+        timeout: 10_000,
+      });
+      // Porcelain format: blocks separated by blank lines
+      // Each block: "worktree <path>\nHEAD <sha>\nbranch refs/heads/<name>"
+      const blocks = stdout.trim().split(/\n\n+/);
+      for (const block of blocks) {
+        const lines = block.split('\n');
+        const worktreeLine = lines.find((l) => l.startsWith('worktree '));
+        const branchLine = lines.find((l) => l.startsWith('branch '));
+        if (!worktreeLine || !branchLine) continue;
+        const worktreePath = worktreeLine.slice('worktree '.length).trim();
+        const branch = branchLine.slice('branch refs/heads/'.length).trim();
+        if (branch === branchName) return worktreePath;
+      }
+    } catch {
+      /* non-fatal */
+    }
+    return null;
+  }
+
+  /**
    * Execute the feature and wait for a completion event.
    * Uses executeFeature() directly (not through process()) to avoid recursion.
    */
@@ -610,6 +1233,9 @@ export class ExecuteProcessor implements StateProcessor {
         contextParts.push(
           `## Review Feedback (Changes Requested)\n\nAddress these issues:\n\n${ctx.reviewFeedback}`
         );
+      }
+      if (ctx.projectKnowledge) {
+        contextParts.push(ctx.projectKnowledge);
       }
       if (ctx.siblingReflections && ctx.siblingReflections.length > 0) {
         contextParts.push(

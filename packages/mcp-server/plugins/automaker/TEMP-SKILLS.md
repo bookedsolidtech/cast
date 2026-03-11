@@ -4,9 +4,9 @@ Skills and commands that exist for a specific purpose and should be removed once
 
 ## Active Temporary Skills
 
-| Skill             | Type    | Added      | Remove When             | Reason                                                                  |
-| ----------------- | ------- | ---------- | ----------------------- | ----------------------------------------------------------------------- |
-| `/upgrade-plugin` | command | 2026-02-28 | All testers on v0.15.x+ | Early tester migration from v1.1.1 plugin to monorepo-synced versioning |
+| Skill            | Type    | Added      | Remove When             | Reason                                                                  |
+| ---------------- | ------- | ---------- | ----------------------- | ----------------------------------------------------------------------- |
+| `/update-plugin` | command | 2026-02-28 | All testers on v0.15.x+ | Early tester migration from v1.1.1 plugin to monorepo-synced versioning |
 
 ## Removal Checklist
 

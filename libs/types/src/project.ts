@@ -21,7 +21,8 @@ export type ProjectStatus =
   | 'approved' // PRD approved, ready to scaffold
   | 'scaffolded' // Project structure created
   | 'active' // Features created, work in progress
-  | 'completed'; // All features done
+  | 'completed' // All features done
+  | 'cancelled'; // Project abandoned or killed at any gate
 
 /**
  * Project health indicator for status updates
@@ -117,6 +118,23 @@ export interface Phase {
 
   /** Feature ID after scaffolding (links phase to created feature) */
   featureId?: string;
+
+  // --- Phase claim fields (mesh coordination) ---
+
+  /** Instance ID that owns execution of this phase */
+  claimedBy?: string;
+
+  /** ISO timestamp when the phase was claimed */
+  claimedAt?: string;
+
+  /** Execution status for mesh coordination */
+  executionStatus?: 'unclaimed' | 'claimed' | 'in_progress' | 'done' | 'failed';
+
+  /** PR URL created by the executing instance */
+  prUrl?: string;
+
+  /** Error message if execution failed */
+  lastError?: string;
 }
 
 /**
@@ -188,8 +206,23 @@ export interface Project {
   /** Display color (hex) */
   color?: string;
 
-  /** Ongoing projects never complete — they are persistent containers (e.g., Bugs) */
+  /**
+   * Project type — 'finite' completes when all features are done, 'ongoing' is a persistent container.
+   * Replaces the `ongoing` boolean field.
+   */
+  type?: 'finite' | 'ongoing';
+
+  /** @deprecated Use `type` field instead. */
   ongoing?: boolean;
+
+  /** Instance ID or agent name this project is assigned to */
+  assignedTo?: string;
+
+  /** ISO 8601 timestamp when the project was assigned */
+  assignedAt?: string;
+
+  /** Who performed the assignment (agent ID, instance name, or 'user') */
+  assignedBy?: string;
 
   /** External links */
   links?: ProjectLink[];
@@ -223,6 +256,9 @@ export interface Project {
 
   /** Feedback from last "request changes" review */
   reviewFeedback?: string;
+
+  /** Ceremony cadence configuration */
+  cadence?: CadenceConfig;
 }
 
 /**
@@ -280,92 +316,6 @@ export interface PRDReviewComment {
 }
 
 /**
- * Result from deep research agent
- */
-export interface DeepResearchResult {
-  /** Topic that was researched */
-  topic: string;
-
-  /** Relevant files identified in the codebase */
-  relevantFiles: Array<{
-    path: string;
-    reason: string;
-    patterns?: string[];
-  }>;
-
-  /** Existing patterns documented */
-  existingPatterns: Array<{
-    name: string;
-    description: string;
-    examples?: string[];
-  }>;
-
-  /** Constraints and gotchas noted */
-  constraints: Array<{
-    description: string;
-    severity: 'info' | 'warning' | 'critical';
-  }>;
-
-  /** Recommended approach areas */
-  recommendations: string[];
-
-  /** Summary for PRD creation */
-  summary: string;
-
-  /** Timestamp */
-  generatedAt: string;
-}
-
-/**
- * Options for creating a project from PRD
- */
-export interface CreateProjectFromPRDOptions {
-  /** Project slug */
-  slug: string;
-
-  /** PRD content */
-  prd: SPARCPrd;
-
-  /** Milestones to create */
-  milestones: Array<{
-    title: string;
-    description: string;
-    phases: Array<{
-      title: string;
-      description: string;
-      filesToModify?: string[];
-      acceptanceCriteria?: string[];
-      complexity?: PhaseComplexity;
-      dependencies?: string[];
-    }>;
-    dependencies?: string[];
-  }>;
-
-  /** Optional research summary */
-  researchSummary?: string;
-}
-
-/**
- * Options for creating features from a project
- */
-export interface CreateFeaturesFromProjectOptions {
-  /** Project path */
-  projectPath: string;
-
-  /** Project slug */
-  projectSlug: string;
-
-  /** Whether to create epic features for milestones */
-  createEpics?: boolean;
-
-  /** Whether to set up dependencies between features */
-  setupDependencies?: boolean;
-
-  /** Initial status for created features */
-  initialStatus?: 'backlog' | 'in-progress';
-}
-
-/**
  * Result from feature factory
  */
 export interface FeatureFactoryResult {
@@ -419,7 +369,13 @@ export interface CreateProjectInput {
   /** Display color (hex) */
   color?: string;
 
-  /** Create an ongoing project (never completes) */
+  /**
+   * Project type — 'finite' completes when all features are done, 'ongoing' is a persistent container.
+   * Replaces the `ongoing` boolean field.
+   */
+  type?: 'finite' | 'ongoing';
+
+  /** @deprecated Use `type` field instead. */
   ongoing?: boolean;
 
   /** Optional initial milestones */
@@ -504,26 +460,15 @@ export interface UpdateProjectInput {
 
   /** Feedback from "request changes" review */
   reviewFeedback?: string;
-}
 
-/**
- * Result from creating features from a project
- */
-export interface CreateFeaturesResult {
-  /** Number of features created */
-  featuresCreated: number;
+  /** Instance ID or agent name to assign this project to */
+  assignedTo?: string;
 
-  /** Number of epics created */
-  epicsCreated: number;
+  /** ISO 8601 timestamp when the project was assigned */
+  assignedAt?: string;
 
-  /** Created feature IDs */
-  featureIds: string[];
-
-  /** Created epic IDs */
-  epicIds: string[];
-
-  /** Any errors encountered */
-  errors?: string[];
+  /** Who performed the assignment (agent ID, instance name, or 'user') */
+  assignedBy?: string;
 }
 
 /**
@@ -706,6 +651,70 @@ export interface ProjectSummary {
     escalations: ArtifactIndexEntry[];
   };
   recentTimeline: unknown[];
+}
+
+/**
+ * Entry type for the ceremony timeline
+ */
+export type TimelineEntryType =
+  | 'standup'
+  | 'retro'
+  | 'status_report'
+  | 'decision'
+  | 'escalation'
+  | 'milestone_complete';
+
+/**
+ * Author role for a timeline entry
+ */
+export type TimelineEntryAuthor = 'pm' | 'ava' | 'operator' | 'lead-engineer';
+
+/**
+ * A single entry in the project ceremony timeline
+ */
+export interface TimelineEntry {
+  /** Unique entry ID */
+  id: string;
+
+  /** Entry type */
+  type: TimelineEntryType;
+
+  /** Markdown content */
+  content: string;
+
+  /** Author role */
+  author: TimelineEntryAuthor;
+
+  /** ISO 8601 timestamp */
+  timestamp: string;
+
+  /** Optional metadata */
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Persistent file format for the project timeline (stored as timeline.json)
+ */
+export interface ProjectTimelineFile {
+  version: 1;
+  entries: TimelineEntry[];
+}
+
+/**
+ * Cadence configuration for project ceremonies
+ */
+export interface CadenceConfig {
+  /** How often standups occur (default: 'daily') */
+  standupFrequency: 'daily' | 'weekly' | 'never';
+
+  /** How often retros occur (default: 'per-milestone') */
+  retroFrequency: 'per-milestone' | 'weekly' | 'monthly' | 'never';
+
+  /** ISO date of last standup */
+  lastStandupAt?: string;
+
+  /** ISO date of last retro */
+  lastRetroAt?: string;
 }
 
 /**

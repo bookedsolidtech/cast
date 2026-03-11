@@ -33,12 +33,25 @@ import type { EventEmitter } from '../lib/events.js';
 import * as secureFs from '../lib/secure-fs.js';
 import type { RiskClassifier } from './risk-classifier.js';
 import type { WorkItemForClassification, RiskClassification } from './risk-classifier.js';
+import type { ActionableItemService } from './actionable-item-service.js';
 
 const logger = createLogger('AuthorityService');
 
 // ============================================================================
 // Internal Types
 // ============================================================================
+
+/**
+ * ExecuteActionResult — the outcome of an executeAction() call.
+ * 'allowed'  → the action passed enforcement (or enforcement is disabled).
+ * 'blocked'  → the action was blocked because risk exceeded the agent's trust tier.
+ */
+export interface ExecuteActionResult {
+  verdict: 'allowed' | 'blocked';
+  reason: string;
+  /** Approval request ID created when the action is blocked */
+  requestId?: string;
+}
 
 /**
  * RegisteredAgent - Runtime extension of AuthorityAgent with project context.
@@ -95,6 +108,26 @@ const AGENTS_FILE = 'agents.json';
 const TRUST_PROFILES_FILE = 'trust-profiles.json';
 const APPROVAL_QUEUE_FILE = 'approval-queue.json';
 const AUDIT_LOG_FILE = 'audit-log.json';
+/** Append-only JSONL file for all policy decisions */
+const DECISIONS_FILE = 'decisions.json';
+
+/**
+ * PolicyDecisionRecord - Single line in the append-only decisions.json JSONL file.
+ * Captures every policy decision for audit and replay.
+ */
+interface PolicyDecisionRecord {
+  id: string;
+  timestamp: string;
+  projectPath: string;
+  proposal: ActionProposal;
+  decision: PolicyDecision;
+  /** Optional approval request ID when verdict is require_approval */
+  requestId?: string;
+  /** How the decision was resolved (for approval/denial events) */
+  resolvedBy?: string;
+  resolvedAt?: string;
+  resolution?: 'approve' | 'reject' | 'modify';
+}
 
 /** Default trust level assigned to each role on registration */
 const DEFAULT_TRUST_BY_ROLE: Record<AuthorityRole, TrustLevel> = {
@@ -112,6 +145,14 @@ const MAX_RISK_BY_TRUST: Record<TrustLevel, RiskLevel> = {
   1: 'low',
   2: 'medium',
   3: 'high',
+};
+
+/** Numeric order for risk levels — used to compare risk severity */
+const RISK_LEVEL_ORDER: Record<RiskLevel, number> = {
+  low: 0,
+  medium: 1,
+  high: 2,
+  critical: 3,
 };
 
 /**
@@ -135,6 +176,7 @@ const ACTION_TYPE_TO_ENGINE_ACTION: Partial<Record<PolicyActionType, PolicyActio
 export class AuthorityService {
   private readonly events: EventEmitter;
   private readonly riskClassifier?: RiskClassifier;
+  private actionableItemService?: ActionableItemService;
 
   /** In-memory cache keyed by projectPath */
   private agents: Map<string, RegisteredAgent[]> = new Map();
@@ -146,6 +188,14 @@ export class AuthorityService {
   constructor(events: EventEmitter, riskClassifier?: RiskClassifier) {
     this.events = events;
     this.riskClassifier = riskClassifier;
+  }
+
+  /**
+   * Wire in the ActionableItemService for creating approval actionable items.
+   * Called after construction to avoid circular dependencies.
+   */
+  setActionableItemService(actionableItemService: ActionableItemService): void {
+    this.actionableItemService = actionableItemService;
   }
 
   // --------------------------------------------------------------------------
@@ -280,6 +330,9 @@ export class AuthorityService {
           projectPath
         );
 
+        // Persist decision record
+        await this.persistDecisionRecord({ proposal, decision, projectPath });
+
         // Update stats
         this.updateProfileStats(agent.role, 'allow', projectPath);
 
@@ -332,12 +385,16 @@ export class AuthorityService {
     });
 
     if (decision.verdict === 'allow') {
+      // Persist allow decision
+      await this.persistDecisionRecord({ proposal, decision, projectPath });
       this.events.emit('authority:approved', {
         projectPath,
         proposal,
         decision,
       });
     } else if (decision.verdict === 'deny') {
+      // Persist deny decision
+      await this.persistDecisionRecord({ proposal, decision, projectPath });
       this.events.emit('authority:rejected', {
         projectPath,
         proposal,
@@ -346,6 +403,8 @@ export class AuthorityService {
     } else if (decision.verdict === 'require_approval') {
       const request = await this.queueApprovalRequest(proposal, projectPath);
       decision.approver = request.id;
+      // Persist approval-needed decision
+      await this.persistDecisionRecord({ proposal, decision, projectPath, requestId: request.id });
       this.events.emit('authority:awaiting-approval', {
         projectPath,
         proposal,
@@ -396,6 +455,22 @@ export class AuthorityService {
 
     await this.persistApprovalQueue(projectPath);
 
+    // Persist resolution decision record
+    const resolvedVerdict: PolicyDecision['verdict'] = resolution === 'approve' ? 'allow' : 'deny';
+    await this.persistDecisionRecord({
+      proposal: request.proposal,
+      decision: {
+        verdict: resolvedVerdict,
+        reason: `${resolution} by ${resolvedBy}`,
+        approver: requestId,
+      },
+      projectPath,
+      requestId,
+      resolvedBy,
+      resolvedAt: new Date().toISOString(),
+      resolution,
+    });
+
     const eventType = resolution === 'approve' ? 'authority:approved' : 'authority:rejected';
     this.events.emit(eventType, {
       projectPath,
@@ -417,17 +492,128 @@ export class AuthorityService {
   }
 
   // --------------------------------------------------------------------------
-  // Action Execution (Placeholder)
+  // Action Execution
   // --------------------------------------------------------------------------
 
   /**
-   * Placeholder for delegating approved actions to FeatureLoader/AutoMode.
-   * In a full implementation, this would route to the appropriate service
-   * based on the action type.
+   * Execute an action proposed by an agent, with optional enforcement.
+   *
+   * When authorityEnforcement is false (default): logs and returns — existing behavior unchanged.
+   *
+   * When authorityEnforcement is true, performs real enforcement:
+   *   1. Looks up the agent's trust tier and its max-risk allowance.
+   *   2. If the proposal's risk exceeds the agent's max-risk level → BLOCK:
+   *      - Creates an approval request in the actionable items queue.
+   *      - Logs the denial with full context (agent, action, risk, trust tier).
+   *      - Returns an ExecuteActionResult with verdict 'blocked'.
+   *   3. If the proposal is pre-approved → AUTO-APPROVE immediately with no queue.
+   *   4. Otherwise the action is within trust → ALLOW.
+   *
+   * @param proposal    The action the agent wants to execute.
+   * @param projectPath The project this action belongs to.
+   * @param options     Enforcement options.
+   * @returns An ExecuteActionResult describing the enforcement outcome.
    */
-  async executeAction(proposal: ActionProposal): Promise<void> {
+  async executeAction(
+    proposal: ActionProposal,
+    projectPath?: string,
+    options?: { authorityEnforcement?: boolean }
+  ): Promise<ExecuteActionResult> {
+    const enforcement = options?.authorityEnforcement ?? false;
+
     logger.info(`Executing action: ${proposal.what} on ${proposal.target} by ${proposal.who}`);
-    // Future: delegate to FeatureLoader, AutoModeService, etc.
+
+    if (!enforcement || !projectPath) {
+      // Passthrough — original placeholder behaviour
+      return { verdict: 'allowed', reason: 'Authority enforcement is disabled' };
+    }
+
+    await this.initialize(projectPath);
+
+    const agent = this.findAgentById(proposal.who, projectPath);
+    if (!agent) {
+      const reason = `Agent ${proposal.who} is not registered`;
+      logger.warn(`executeAction blocked: ${reason}`);
+      await this.persistDecisionRecord({
+        proposal,
+        decision: { verdict: 'deny', reason },
+        projectPath,
+      });
+      return { verdict: 'blocked', reason };
+    }
+
+    // Pre-approved actions bypass the risk threshold check
+    if (proposal.preApproved) {
+      const reason = 'Action is pre-approved';
+      logger.info(`executeAction auto-approved: ${proposal.what} (pre-approved)`);
+      await this.persistDecisionRecord({
+        proposal,
+        decision: { verdict: 'allow', reason },
+        projectPath,
+      });
+      this.updateProfileStats(agent.role, 'allow', projectPath);
+      return { verdict: 'allowed', reason };
+    }
+
+    const maxRisk = MAX_RISK_BY_TRUST[agent.trust];
+    const proposalRiskOrder = RISK_LEVEL_ORDER[proposal.risk];
+    const maxRiskOrder = RISK_LEVEL_ORDER[maxRisk];
+
+    if (proposalRiskOrder > maxRiskOrder) {
+      // Block — risk exceeds the agent's trust tier threshold
+      const reason =
+        `Action '${proposal.what}' has risk '${proposal.risk}' which exceeds ` +
+        `agent trust tier ${agent.trust} max risk '${maxRisk}'`;
+
+      logger.warn(
+        `executeAction BLOCKED: agent=${proposal.who} action=${proposal.what} ` +
+          `risk=${proposal.risk} trustTier=${agent.trust} maxRisk=${maxRisk}`
+      );
+
+      // Create an approval request in the queue
+      const request = await this.queueApprovalRequest(proposal, projectPath);
+
+      // Persist the denial decision record
+      await this.persistDecisionRecord({
+        proposal,
+        decision: { verdict: 'deny', reason, approver: request.id },
+        projectPath,
+        requestId: request.id,
+      });
+
+      // Update stats
+      this.updateProfileStats(agent.role, 'deny', projectPath);
+
+      this.events.emit('authority:rejected', {
+        projectPath,
+        proposal,
+        decision: { verdict: 'deny', reason },
+      });
+
+      return { verdict: 'blocked', reason, requestId: request.id };
+    }
+
+    // Action is within the agent's trust tier — allow
+    const reason = `Action '${proposal.what}' (risk: ${proposal.risk}) is within agent trust tier ${agent.trust} (max risk: ${maxRisk})`;
+    logger.info(
+      `executeAction ALLOWED: agent=${proposal.who} action=${proposal.what} risk=${proposal.risk}`
+    );
+
+    await this.persistDecisionRecord({
+      proposal,
+      decision: { verdict: 'allow', reason },
+      projectPath,
+    });
+
+    this.updateProfileStats(agent.role, 'allow', projectPath);
+
+    this.events.emit('authority:approved', {
+      projectPath,
+      proposal,
+      decision: { verdict: 'allow', reason },
+    });
+
+    return { verdict: 'allowed', reason };
   }
 
   // --------------------------------------------------------------------------
@@ -686,6 +872,7 @@ export class AuthorityService {
 
   /**
    * Create and persist an approval request for a proposal that requires human review.
+   * Also creates an actionable item via ActionableItemService so it appears in the inbox.
    */
   private async queueApprovalRequest(
     proposal: ActionProposal,
@@ -700,6 +887,30 @@ export class AuthorityService {
     const queue = this.getApprovalQueueForProject(projectPath);
     queue.push(request);
     await this.persistApprovalQueue(projectPath);
+
+    // Create an actionable item so approval appears in the unified inbox
+    if (this.actionableItemService) {
+      try {
+        await this.actionableItemService.createActionableItem({
+          projectPath,
+          actionType: 'approval',
+          priority: proposal.risk === 'critical' || proposal.risk === 'high' ? 'urgent' : 'high',
+          title: `Approval required: ${proposal.what}`,
+          message: `Agent ${proposal.who} wants to ${proposal.what} on "${proposal.target}". Justification: ${proposal.justification}`,
+          category: 'authority',
+          actionPayload: {
+            requestId: request.id,
+            proposalWhat: proposal.what,
+            proposalTarget: proposal.target,
+            proposalRisk: proposal.risk,
+            proposalWho: proposal.who,
+          },
+        });
+        logger.info(`Actionable item created for approval request: ${request.id}`);
+      } catch (error) {
+        logger.error('Failed to create actionable item for approval request:', error);
+      }
+    }
 
     logger.info(`Approval request queued: ${request.id} for action ${proposal.what}`);
     return request;
@@ -817,5 +1028,43 @@ export class AuthorityService {
     const filePath = path.join(this.getAuthorityDir(projectPath), AUDIT_LOG_FILE);
     const data: AuditLogFile = { entries: this.getAuditLogForProject(projectPath) };
     await atomicWriteJson(filePath, data, { createDirs: true });
+  }
+
+  /**
+   * Append a single policy decision record as a JSONL line to decisions.json.
+   * This is an append-only log — existing lines are never modified.
+   */
+  private async persistDecisionRecord(params: {
+    proposal: ActionProposal;
+    decision: PolicyDecision;
+    projectPath: string;
+    requestId?: string;
+    resolvedBy?: string;
+    resolvedAt?: string;
+    resolution?: 'approve' | 'reject' | 'modify';
+  }): Promise<void> {
+    const { proposal, decision, projectPath, requestId, resolvedBy, resolvedAt, resolution } =
+      params;
+    const record: PolicyDecisionRecord = {
+      id: randomUUID(),
+      timestamp: new Date().toISOString(),
+      projectPath,
+      proposal,
+      decision,
+      ...(requestId !== undefined && { requestId }),
+      ...(resolvedBy !== undefined && { resolvedBy }),
+      ...(resolvedAt !== undefined && { resolvedAt }),
+      ...(resolution !== undefined && { resolution }),
+    };
+
+    const authorityDir = this.getAuthorityDir(projectPath);
+    await this.ensureAuthorityDir(authorityDir);
+    const filePath = path.join(authorityDir, DECISIONS_FILE);
+
+    try {
+      await secureFs.appendFile(filePath, JSON.stringify(record) + '\n', 'utf-8');
+    } catch (error) {
+      logger.error('Failed to persist policy decision record:', error);
+    }
   }
 }

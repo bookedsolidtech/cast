@@ -1,17 +1,16 @@
 /**
- * GitHub Issue Escalation Channel
+ * Bug Feature Escalation Channel
  *
- * Creates GitHub issues for code-level findings that need PR references:
+ * Creates in-app bug features on the "bugs" project board for code-level
+ * findings that need tracking:
  * - Security vulnerabilities
  * - Recurring code patterns
  * - CI infrastructure failures
  *
- * Extends existing IssueCreationService for GitHub API operations.
  * Labels: severity, source, category
  * Links to: PR, file paths, CodeRabbit thread URLs
  */
 
-import { execSync } from 'node:child_process';
 import { createLogger } from '@protolabsai/utils';
 import {
   EscalationSource,
@@ -20,14 +19,17 @@ import {
   type EscalationSignal,
 } from '@protolabsai/types';
 import type { FeatureLoader } from '../feature-loader.js';
+import type { EventEmitter } from '../../lib/events.js';
 
 const logger = createLogger('GitHubIssueChannel');
 
 export interface GitHubIssueChannelConfig {
   /** FeatureLoader for accessing feature data */
   featureLoader: FeatureLoader;
-  /** Project path for GitHub CLI operations */
+  /** Project path for feature operations */
   projectPath: string;
+  /** Event emitter for broadcasting bug creation to WebSocket clients */
+  events: EventEmitter;
 }
 
 /**
@@ -67,7 +69,7 @@ function sourceToLabel(source: EscalationSource): string {
 }
 
 /**
- * GitHubIssueChannel implements EscalationChannel for GitHub Issues
+ * GitHubIssueChannel implements EscalationChannel by creating in-app bug features
  */
 export class GitHubIssueChannel implements EscalationChannel {
   readonly name = 'github-issue';
@@ -76,14 +78,7 @@ export class GitHubIssueChannel implements EscalationChannel {
 
   constructor(config: GitHubIssueChannelConfig) {
     this.config = config;
-
-    // Verify gh CLI is available
-    try {
-      execSync('gh --version', { encoding: 'utf-8', timeout: 5000 });
-      logger.info('GitHubIssueChannel initialized with gh CLI');
-    } catch {
-      logger.warn('gh CLI not available — GitHub issue creation will fail');
-    }
+    logger.info('GitHubIssueChannel initialized (creating in-app bug features)');
   }
 
   /**
@@ -117,89 +112,47 @@ export class GitHubIssueChannel implements EscalationChannel {
   }
 
   /**
-   * Send escalation signal by creating a GitHub issue
+   * Send escalation signal by creating an in-app bug feature
    */
   async send(signal: EscalationSignal): Promise<void> {
-    // Check if we've already created an issue for this deduplication key
+    // Check if we've already created a bug for this deduplication key
     if (this.issuedDeduplicationKeys.has(signal.deduplicationKey)) {
-      logger.debug(`Issue already created for deduplication key: ${signal.deduplicationKey}`);
+      logger.debug(`Bug already filed for deduplication key: ${signal.deduplicationKey}`);
       return;
     }
 
-    // Search for existing issue to avoid duplicates
-    const existingIssue = await this.searchExistingIssue(signal);
-    if (existingIssue) {
-      logger.info(`Existing issue found: ${existingIssue}, skipping creation`);
-      this.issuedDeduplicationKeys.add(signal.deduplicationKey);
-      return;
-    }
+    // Reserve dedup key before any async work to prevent parallel duplicates
+    this.issuedDeduplicationKeys.add(signal.deduplicationKey);
 
     try {
       const title = this.buildIssueTitle(signal);
       const body = await this.buildIssueBody(signal);
-      const labels = this.buildLabels(signal);
 
-      const issueUrl = await this.createIssue(title, body, labels);
+      const bugFeature = await this.config.featureLoader.create(this.config.projectPath, {
+        title,
+        description: body,
+        category: 'bug',
+        projectSlug: 'bugs',
+        complexity: 'medium',
+        status: 'backlog',
+      });
 
-      logger.info(`Created GitHub issue for signal ${signal.type}: ${issueUrl}`);
-      this.issuedDeduplicationKeys.add(signal.deduplicationKey);
+      logger.info(`Created bug feature for signal ${signal.type}: ${bugFeature.id}`);
+
+      this.config.events.emit('issue:created', {
+        featureId: signal.context.featureId,
+        projectPath: this.config.projectPath,
+        bugFeatureId: bugFeature.id,
+        source: signal.source,
+        severity: signal.severity,
+        timestamp: Date.now(),
+      });
     } catch (error) {
-      logger.error(`Failed to create GitHub issue for signal ${signal.type}:`, error);
+      // Roll back dedup key so the signal can be retried
+      this.issuedDeduplicationKeys.delete(signal.deduplicationKey);
+      logger.error(`Failed to create bug feature for signal ${signal.type}:`, error);
       throw error;
     }
-  }
-
-  /**
-   * Search for existing GitHub issue matching this signal
-   */
-  private async searchExistingIssue(signal: EscalationSignal): Promise<string | null> {
-    try {
-      // Search for open issues with similar title
-      const searchTerm = this.getSearchTerm(signal);
-      const cmd = `gh issue list --search "${searchTerm}" --state open --limit 5 --json number,title,url`;
-
-      const output = execSync(cmd, {
-        cwd: this.config.projectPath,
-        encoding: 'utf-8',
-        timeout: 10_000,
-      }).trim();
-
-      if (!output) return null;
-
-      const issues = JSON.parse(output) as Array<{
-        number: number;
-        title: string;
-        url: string;
-      }>;
-
-      // Return first matching issue
-      if (issues.length > 0) {
-        return issues[0].url;
-      }
-
-      return null;
-    } catch (error) {
-      logger.debug('Issue search failed (not critical):', error);
-      return null;
-    }
-  }
-
-  /**
-   * Get search term for deduplication
-   */
-  private getSearchTerm(signal: EscalationSignal): string {
-    const featureId = signal.context.featureId as string | undefined;
-    const prNumber = signal.context.prNumber as number | undefined;
-
-    if (featureId) {
-      return `[Escalation] ${signal.type} ${featureId}`;
-    }
-
-    if (prNumber) {
-      return `[Escalation] ${signal.type} PR #${prNumber}`;
-    }
-
-    return `[Escalation] ${signal.type}`;
   }
 
   /**
@@ -219,7 +172,7 @@ export class GitHubIssueChannel implements EscalationChannel {
       title += ` (PR #${prNumber})`;
     }
 
-    // Truncate if too long (GitHub limit is 256 chars)
+    // Truncate if too long
     return title.length > 200 ? title.slice(0, 197) + '...' : title;
   }
 
@@ -232,7 +185,7 @@ export class GitHubIssueChannel implements EscalationChannel {
     // Header
     sections.push('## Escalation Signal');
     sections.push('');
-    sections.push(`This issue was automatically created by the Automaker escalation system.`);
+    sections.push(`This bug was automatically created by the escalation system.`);
     sections.push('');
 
     // Signal details
@@ -347,7 +300,7 @@ export class GitHubIssueChannel implements EscalationChannel {
   }
 
   /**
-   * Build issue labels
+   * Build issue labels (kept for logging/categorization)
    */
   private buildLabels(signal: EscalationSignal): string[] {
     const labels: string[] = ['escalation', 'automated'];
@@ -365,32 +318,6 @@ export class GitHubIssueChannel implements EscalationChannel {
     }
 
     return labels;
-  }
-
-  /**
-   * Create GitHub issue using gh CLI
-   */
-  private async createIssue(title: string, body: string, labels: string[]): Promise<string> {
-    const labelArg = labels.join(',');
-
-    const cmd = `gh issue create --title ${this.shellEscape(title)} --body ${this.shellEscape(body)} --label ${this.shellEscape(labelArg)}`;
-
-    const output = execSync(cmd, {
-      cwd: this.config.projectPath,
-      encoding: 'utf-8',
-      timeout: 30_000,
-    }).trim();
-
-    // gh issue create outputs the issue URL
-    return output;
-  }
-
-  /**
-   * Escape a string for safe shell usage
-   */
-  private shellEscape(str: string): string {
-    // Use single quotes and escape any single quotes in the string
-    return "'" + str.replace(/'/g, "'\\''") + "'";
   }
 
   /**

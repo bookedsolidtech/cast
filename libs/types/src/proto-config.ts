@@ -93,6 +93,151 @@ export const ProtoDefaultsSchema = z.object({
 export type ProtoDefaults = z.infer<typeof ProtoDefaultsSchema>;
 
 // ---------------------------------------------------------------------------
+// Instance role — primary work focus for work routing
+// ---------------------------------------------------------------------------
+
+/**
+ * Role influences work routing but doesn't hard-block.
+ * A frontend instance picks up backend work if nothing else is available.
+ */
+export type InstanceRole = 'fullstack' | 'frontend' | 'backend' | 'infra' | 'docs' | 'qa';
+
+export const InstanceRoleSchema = z.enum([
+  'fullstack',
+  'frontend',
+  'backend',
+  'infra',
+  'docs',
+  'qa',
+]);
+
+// ---------------------------------------------------------------------------
+// Instance profile — identity and role for mesh coordination
+// ---------------------------------------------------------------------------
+
+export const ProtoInstanceProfileSchema = z.object({
+  /** Human-readable display name for this instance */
+  name: z.string().optional(),
+  /** Primary work focus (default: fullstack) */
+  role: InstanceRoleSchema.default('fullstack'),
+  /** Additional capabilities beyond the primary role */
+  tags: z.array(z.string()).optional(),
+});
+
+export type ProtoInstanceProfile = z.infer<typeof ProtoInstanceProfileSchema>;
+
+// ---------------------------------------------------------------------------
+// Work intake — pull-based phase claiming from shared projects
+// ---------------------------------------------------------------------------
+
+export const ProtoWorkIntakeSchema = z.object({
+  /** Whether work intake is enabled (default: true when mesh is active) */
+  enabled: z.boolean().default(true),
+  /** Tick interval in ms for checking claimable phases (default: 30000) */
+  tickIntervalMs: z.number().int().min(5000).default(30_000),
+  /** Timeout in ms before a stale claim becomes reclaimable (default: 1800000 = 30min) */
+  claimTimeoutMs: z.number().int().min(60_000).default(1_800_000),
+});
+
+export type ProtoWorkIntake = z.infer<typeof ProtoWorkIntakeSchema>;
+
+// ---------------------------------------------------------------------------
+// Hive identity — multi-instance mesh coordination
+// ---------------------------------------------------------------------------
+
+export const ProtoHiveSchema = z.object({
+  /** Shared identifier for the hive cluster (all instances share this) */
+  hiveId: z.string().optional(),
+  /** WebSocket port used for CRDT sync between instances */
+  syncPort: z.number().int().min(1024).max(65535).default(9800),
+  /** Whether multi-instance mesh sync is enabled */
+  meshEnabled: z.boolean().default(false),
+});
+
+export type ProtoHive = z.infer<typeof ProtoHiveSchema>;
+
+// ---------------------------------------------------------------------------
+// Instance registry — per-instance identity entries
+// ---------------------------------------------------------------------------
+
+export const ProtoInstanceSchema = z.object({
+  /** Stable unique ID for this instance (e.g. "dev-mac", "ci-runner-1") */
+  instanceId: z.string(),
+  /** Hostname this entry applies to (used for auto-detection) */
+  hostname: z.string().optional(),
+  /** Maximum number of concurrent features this instance can handle */
+  capacity: z.number().int().min(1).default(1),
+});
+
+export type ProtoInstance = z.infer<typeof ProtoInstanceSchema>;
+
+// ---------------------------------------------------------------------------
+// Assignment strategy — how work is distributed across instances
+// ---------------------------------------------------------------------------
+
+export const ProtoAssignmentSchema = z.object({
+  /** Work distribution algorithm */
+  strategy: z.enum(['round-robin', 'capacity-weighted', 'random']).default('round-robin'),
+  /** Whether features stay pinned to the instance that started them */
+  stickyFeatures: z.boolean().default(false),
+});
+
+export type ProtoAssignment = z.infer<typeof ProtoAssignmentSchema>;
+
+// ---------------------------------------------------------------------------
+// Shared Settings — settings that propagate across instances via CRDT sync
+// ---------------------------------------------------------------------------
+
+/**
+ * SharedSettings defines which settings are eligible for cross-instance
+ * propagation. Credentials and API keys are NEVER included here.
+ *
+ * Resolution order: proto.config defaults < shared CRDT settings < local overrides
+ */
+export const SharedSettingsSchema = z.object({
+  /**
+   * Maximum concurrent agents across all projects on this hive.
+   * Maps to ProjectSettings.maxConcurrentAgents.
+   */
+  maxConcurrentAgents: z.number().int().min(1).optional(),
+  /** Shared workflow tuning parameters */
+  workflow: z
+    .object({
+      /** Maximum retries before escalation (default varies by implementation) */
+      maxRetries: z.number().int().min(0).optional(),
+      /** Whether to automatically commit after each agent step */
+      enableAutoCommit: z.boolean().optional(),
+      /** Whether to automatically open PRs after feature completion */
+      enableAutoPR: z.boolean().optional(),
+      /** Whether to skip validation phase in the pipeline */
+      skipValidation: z.boolean().optional(),
+    })
+    .optional(),
+});
+
+export type SharedSettings = z.infer<typeof SharedSettingsSchema>;
+
+// ---------------------------------------------------------------------------
+// Project preferences — preferred projects and overflow routing
+// ---------------------------------------------------------------------------
+
+export const ProjectPreferencesSchema = z.object({
+  /**
+   * List of project slugs this instance prefers to work on.
+   * When set, auto-mode will prioritize features from these projects.
+   */
+  preferredProjects: z.array(z.string()).optional(),
+  /**
+   * Whether this instance can accept work overflow from non-preferred projects.
+   * When false, the instance only picks up features from preferredProjects.
+   * Defaults to true.
+   */
+  overflowEnabled: z.boolean().default(true),
+});
+
+export type ProjectPreferences = z.infer<typeof ProjectPreferencesSchema>;
+
+// ---------------------------------------------------------------------------
 // Root ProtoConfig
 // ---------------------------------------------------------------------------
 
@@ -111,6 +256,24 @@ export const ProtoConfigSchema = z.object({
   protolab: ProtoLabSchema.optional(),
   /** Project-level defaults for features and automation */
   defaults: ProtoDefaultsSchema.optional(),
+  /** Hive mesh identity and sync configuration */
+  hive: ProtoHiveSchema.optional(),
+  /** Registry of known instances in this hive */
+  instances: z.array(ProtoInstanceSchema).optional(),
+  /** Work assignment strategy across instances */
+  assignment: ProtoAssignmentSchema.optional(),
+  /** Instance identity and role for mesh coordination */
+  instance: ProtoInstanceProfileSchema.optional(),
+  /** Pull-based work intake configuration */
+  workIntake: ProtoWorkIntakeSchema.optional(),
+  /**
+   * Shared settings defaults — lowest-priority layer in config resolution.
+   * These values are overridden by shared CRDT settings and local overrides.
+   * Credentials and API keys MUST NOT be placed here.
+   */
+  sharedSettings: SharedSettingsSchema.optional(),
+  /** Project routing preferences — which projects this instance prefers and overflow policy */
+  projectPreferences: ProjectPreferencesSchema.optional(),
 });
 
 export type ProtoConfig = z.infer<typeof ProtoConfigSchema>;

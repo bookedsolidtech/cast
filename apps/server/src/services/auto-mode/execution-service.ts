@@ -6,7 +6,7 @@
  * - executePipelineSteps / executePipelineStep: post-implementation pipeline steps
  * - runAgent: low-level agent streaming
  * - buildFeaturePrompt / buildTaskPrompt / buildPipelineStepPrompt: prompt assembly
- * - getPlanningPromptPrefix / extractTitleFromDescription: prompt helpers
+ * - getPlanningPromptPrefix: prompt helpers
  * - recordLearningsFromFeature: post-success learning extraction
  * - getHeapUsagePercent: memory monitoring helper
  */
@@ -43,7 +43,7 @@ import {
 } from '@protolabsai/utils';
 import { resolveModelString, resolvePhaseModel, DEFAULT_MODELS } from '@protolabsai/model-resolver';
 import { getFeatureDir } from '@protolabsai/platform';
-import { rebaseWorktreeOnMain } from '@protolabsai/git-utils';
+import { rebaseWorktreeOnMain, extractTitleFromDescription } from '@protolabsai/git-utils';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { randomUUID } from 'crypto';
@@ -77,6 +77,7 @@ import { checkAndRecoverUncommittedWork } from '../worktree-recovery-service.js'
 import { gitWorkflowService } from '../git-workflow-service.js';
 import type { KnowledgeStoreService } from '../knowledge-store-service.js';
 import { writeLock, removeLock } from '../../lib/worktree-lock.js';
+import { getReactiveSpawnerService } from '../reactive-spawner-service.js';
 
 import { TypedEventBus } from './typed-event-bus.js';
 import type {
@@ -453,13 +454,45 @@ export class ExecutionService {
           if (worktreePath) {
             logger.info(`Created worktree for branch "${branchName}": ${worktreePath}`);
           } else {
-            logger.warn(`Failed to create worktree for branch "${branchName}", using project path`);
+            // FATAL: Never fall back to projectPath when worktrees are enabled.
+            // Falling back silently causes agents to write into the main working tree,
+            // corrupting it and losing work from other features.
+            const reason = `Worktree creation failed for branch "${branchName}" (feature ${featureId}). Blocking feature to prevent main working tree corruption.`;
+            logger.error(reason);
+            await this.featureLoader.update(projectPath, featureId, {
+              status: 'blocked',
+              statusChangeReason: reason,
+            });
+            this.events.emit('feature:error', { projectPath, featureId, error: reason });
+            return;
           }
         }
+      } else if (useWorktrees && !branchName) {
+        // Worktrees are enabled but the feature has no branch name — cannot proceed safely
+        const reason = `Feature ${featureId} has no branchName but useWorktrees is enabled. Blocking feature — assign a branch name first.`;
+        logger.error(reason);
+        await this.featureLoader.update(projectPath, featureId, {
+          status: 'blocked',
+          statusChangeReason: reason,
+        });
+        this.events.emit('feature:error', { projectPath, featureId, error: reason });
+        return;
       }
 
       // Ensure workDir is always an absolute path for cross-platform compatibility
       const workDir = worktreePath ? path.resolve(worktreePath) : path.resolve(projectPath);
+
+      // Defense-in-depth: if worktrees are enabled, workDir must NOT be the project path
+      if (useWorktrees && path.resolve(workDir) === path.resolve(projectPath)) {
+        const reason = `Worktree safety check failed for feature ${featureId}: workDir resolved to projectPath ("${projectPath}"). Blocking feature to prevent main working tree corruption.`;
+        logger.error(reason);
+        await this.featureLoader.update(projectPath, featureId, {
+          status: 'blocked',
+          statusChangeReason: reason,
+        });
+        this.events.emit('feature:error', { projectPath, featureId, error: reason });
+        return;
+      }
 
       // CRITICAL: Rebase worktree onto latest origin/main before agent execution
       // This prevents agents from executing against stale code when PRs merge in quick succession
@@ -643,8 +676,41 @@ export class ExecutionService {
 
         try {
           await execAsync('git fetch origin', { cwd: workDir, timeout: 30000 });
+
+          // Stash unstaged changes before rebasing to prevent
+          // "cannot rebase: You have unstaged changes" errors
+          let stashed = false;
+          try {
+            const { stdout: statusOut } = await execAsync('git status --porcelain', {
+              cwd: workDir,
+              timeout: 10000,
+            });
+            if (statusOut.trim().length > 0) {
+              logger.info(`Unstaged changes detected in ${branchName}, stashing before rebase...`);
+              await execAsync('git stash --include-untracked', { cwd: workDir, timeout: 15000 });
+              stashed = true;
+            }
+          } catch (stashErr) {
+            logger.warn(
+              `Pre-rebase stash attempt failed for ${branchName}: ${stashErr instanceof Error ? stashErr.message : String(stashErr)}`
+            );
+          }
+
           await execAsync('git rebase origin/dev', { cwd: workDir, timeout: 60000 });
           logger.info(`Branch ${branchName} rebased onto origin/dev`);
+
+          // Pop the stash after a successful rebase
+          if (stashed) {
+            try {
+              await execAsync('git stash pop', { cwd: workDir, timeout: 15000 });
+              logger.info(`Stash popped successfully after rebase for ${branchName}`);
+            } catch (popErr) {
+              logger.warn(
+                `Stash pop had conflicts after rebase for ${branchName}: ${popErr instanceof Error ? popErr.message : String(popErr)}. Continuing with agent execution.`
+              );
+            }
+          }
+
           this.typedEventBus.emitAutoModeEvent('sync_completed', {
             featureId,
             branchName,
@@ -800,15 +866,8 @@ export class ExecutionService {
         );
       }
 
-      // Determine final status based on testing mode:
-      // - skipTests=false (automated testing): go directly to 'verified' (no manual verify needed)
-      // - skipTests=true (manual verification): go to 'waiting_approval' for manual review
-      const finalStatus = feature.skipTests ? 'waiting_approval' : 'verified';
-
-      // Ensure worktree is clean before marking as verified
+      // Ensure worktree is clean before post-completion workflow
       await ensureCleanWorktree(workDir, featureId, feature.branchName ?? 'main');
-
-      await this.callbacks.updateFeatureStatus(projectPath, featureId, finalStatus);
 
       // Record success to reset consecutive failure tracking
       this.callbacks.recordSuccessForProject(projectPath, feature?.branchName ?? null);
@@ -999,6 +1058,37 @@ export class ExecutionService {
             })
             .catch((e) => logger.warn(`Failed to persist git workflow error for ${featureId}:`, e));
         }
+      }
+
+      // PR-evidence gate: runs AFTER git workflow so prNumber/prMergedAt are populated.
+      // - skipTests=true (manual verification): go to 'waiting_approval'
+      // - skipTests=false + PR evidence: go to 'verified' (auto-verify)
+      // - skipTests=false + no PR evidence: go to 'review' (agent ran but no PR yet)
+      const postGitFeature = await this.featureLoader.get(projectPath, featureId);
+      const hasPrEvidence = !!(
+        postGitFeature?.prMergedAt ??
+        postGitFeature?.prNumber ??
+        gitWorkflowResult?.prNumber
+      );
+      let finalStatus: string | null = null;
+
+      // Only apply auto-verify if the git workflow didn't already set a terminal status
+      const gitAlreadySetStatus =
+        gitWorkflowResult?.prUrl &&
+        (postGitFeature?.status === 'review' || postGitFeature?.status === 'done');
+
+      if (!gitAlreadySetStatus) {
+        if (feature.skipTests) {
+          finalStatus = 'waiting_approval';
+        } else if (hasPrEvidence) {
+          finalStatus = 'verified';
+        } else {
+          finalStatus = 'review';
+          logger.warn(
+            `[AutoVerify] No PR evidence for ${featureId} after git workflow — moving to review for manual inspection.`
+          );
+        }
+        await this.callbacks.updateFeatureStatus(projectPath, featureId, finalStatus);
       }
 
       const gitInfo = gitWorkflowResult?.commitHash
@@ -1208,6 +1298,33 @@ export class ExecutionService {
             failureCount: newFailureCount,
           });
           logger.info(`Feature ${featureId} failure count: ${newFailureCount}`);
+
+          // Trigger self-healing when a feature has failed twice
+          if (newFailureCount === 2) {
+            try {
+              const spawner = getReactiveSpawnerService();
+              spawner
+                .spawnForError({
+                  errorType: 'feature_failure',
+                  message: `Feature "${feature.title || featureId}" has failed ${newFailureCount} times. Last error: ${errorInfo.message}`,
+                  featureId,
+                  severity: 'medium',
+                  metadata: {
+                    worktreePath: tempRunningFeature.worktreePath ?? undefined,
+                    failureCount: newFailureCount,
+                    errorType: errorInfo.type,
+                  },
+                })
+                .catch((err) =>
+                  logger.error(
+                    `ReactiveSpawner: spawnForError (feature_failure ${featureId}) failed:`,
+                    err
+                  )
+                );
+            } catch {
+              // ReactiveSpawnerService may not be initialized — silently skip
+            }
+          }
         }
 
         // Detect git commit / pre-commit hook failures. These are deterministic — retrying
@@ -1793,6 +1910,7 @@ This mock response was generated because AUTOMAKER_MOCK_AGENT=true was set.
       thinkingLevel: options?.thinkingLevel,
       maxTurns: options?.maxTurns,
       resume: options?.resume,
+      projectPath, // Enable worktree write guard
     });
 
     // Extract model, maxTurns, and allowedTools from SDK options
@@ -1896,6 +2014,7 @@ This mock response was generated because AUTOMAKER_MOCK_AGENT=true was set.
       credentials, // Pass credentials for resolving 'credentials' apiKeySource
       claudeCompatibleProvider, // Pass provider for alternative endpoint configuration (GLM, MiniMax, etc.)
       sdkSessionId: options?.resume, // Forward resume session ID for session continuity
+      hooks: sdkOptions.hooks as ExecuteOptions['hooks'], // Worktree write guard
     };
 
     // Execute via provider
@@ -2726,7 +2845,7 @@ After generating the revised spec, output:
       playwrightVerificationInstructions: string;
     }
   ): string {
-    const title = this.extractTitleFromDescription(feature.description);
+    const title = extractTitleFromDescription(feature.description);
 
     let prompt = `## Feature Implementation Task
 
@@ -2776,24 +2895,6 @@ You can use the Read tool to view these images at any time during implementation
     }
 
     return prompt;
-  }
-
-  /**
-   * Extract a title from feature description (first line or truncated).
-   */
-  extractTitleFromDescription(description: string): string {
-    if (!description || !description.trim()) {
-      return 'Untitled Feature';
-    }
-
-    // Get first line, or first 60 characters if no newline
-    const firstLine = description.split('\n')[0].trim();
-    if (firstLine.length <= 60) {
-      return firstLine;
-    }
-
-    // Truncate to 60 characters and add ellipsis
-    return firstLine.substring(0, 57) + '...';
   }
 
   /**

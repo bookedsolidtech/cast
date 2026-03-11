@@ -5,12 +5,70 @@
  * discovery for the hivemind distributed architecture.
  */
 
+/** Role of an instance in the sync mesh */
+export type SyncRole = 'primary' | 'worker';
+
+/** Compact capacity summary for a single peer — used in /health responses */
+export interface PeerCapacitySummary {
+  instanceId: string;
+  runningAgents: number;
+  maxAgents: number;
+  backlogCount: number;
+  ramUsagePercent: number;
+  cpuPercent: number;
+}
+
+/** Compact compaction diagnostics snapshot for the /health endpoint */
+export interface CompactionDiagnosticsSnapshot {
+  /** ISO timestamp of the last compaction run, or null if none has run */
+  lastCompactionAt: string | null;
+  /** Total document size from the most recent compaction pass, in bytes */
+  totalSizeBytes: number;
+  /** Number of documents tracked in the last compaction pass */
+  docCount: number;
+  /** Number of unacknowledged size-threshold alerts */
+  alertCount: number;
+}
+
+/** Health status of the CRDT sync service for the /health endpoint */
+export interface SyncServerStatus {
+  /** This instance's current role */
+  role: SyncRole;
+  /** Port the sync server is listening on (primary only) */
+  syncPort: number | null;
+  /** Whether connected to the sync mesh (server running or client connected) */
+  connected: boolean;
+  /** Number of known peers */
+  peerCount: number;
+  /** Currently online peers */
+  onlinePeers: HivemindPeer[];
+  /** Whether this instance is currently acting as the leader/primary */
+  isLeader: boolean;
+  /** Compact capacity snapshot for each online peer */
+  peerCapacitySummary?: PeerCapacitySummary[];
+  /**
+   * ISO timestamp when this instance last lost sync connectivity (network partition).
+   * null means the instance is currently connected (or was never disconnected).
+   */
+  partitionSince: string | null;
+  /** Number of local event changes queued while disconnected from the sync mesh */
+  queuedChanges: number;
+  /** CRDT document compaction diagnostics (populated if MaintenanceTracker is configured) */
+  compactionDiagnostics: CompactionDiagnosticsSnapshot | null;
+}
+
 /** Capacity metrics for an instance */
 export interface InstanceCapacity {
   cores: number;
   ramMb: number;
   maxAgents: number;
   runningAgents: number;
+  /** Number of features in backlog status across all active projects */
+  backlogCount: number;
+  /** System RAM usage as a percentage (0-100) */
+  ramUsagePercent: number;
+  /** CPU load as a percentage (0-100), derived from 1-minute load average */
+  cpuPercent: number;
 }
 
 /** A domain is a set of codebase paths owned by an instance */
@@ -27,6 +85,12 @@ export interface HivemindDomain {
 export interface InstanceIdentity {
   /** Unique instance identifier (defaults to os.hostname()) */
   instanceId: string;
+  /** Human-readable display name (from proto.config.yaml instance.name) */
+  name?: string;
+  /** Primary work focus role (from proto.config.yaml instance.role) */
+  role?: import('./proto-config.js').InstanceRole;
+  /** Additional capability tags (from proto.config.yaml instance.tags) */
+  tags?: string[];
   /** URL where this instance's API is reachable */
   url?: string;
   /** Current capacity metrics */
@@ -53,11 +117,19 @@ export interface HivemindPeer {
 export interface HivemindConfig {
   /** Whether hivemind is enabled for this instance */
   enabled: boolean;
+  /** Role of this instance in the sync mesh (default: worker) */
+  role?: SyncRole;
+  /** Port to start the sync WebSocket server on (primary only) */
+  syncPort?: number;
+  /** Unique instance identifier (defaults to os.hostname()) */
+  instanceId?: string;
+  /** URL where this instance's sync server is reachable (e.g. ws://host:4444) */
+  instanceUrl?: string;
   /** Shared hive identifier — instances must match to join */
   hiveId?: string;
   /** Hashed passphrase for hive membership auth */
   secret?: string;
-  /** Peer URLs for manual join (before auto-discovery) */
+  /** Peer URLs in priority order — index 0 is preferred primary */
   peers?: string[];
   /** Domains owned by this instance */
   domains?: HivemindDomain[];

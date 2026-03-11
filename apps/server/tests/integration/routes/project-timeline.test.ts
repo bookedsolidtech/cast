@@ -2,10 +2,11 @@
  * Integration tests for GET /api/projects/:slug/timeline
  *
  * Verifies that:
- * 1. All EventLedger events with matching projectSlug are returned
+ * 1. All EventLedger events with matching projectSlug are returned as TimelineEvents
  * 2. ?since= filters events correctly (exclusive)
  * 3. ?type= filters events by eventType
- * 4. Events are returned in chronological order
+ * 4. Events are returned in reverse chronological order (newest first)
+ * 5. Raw EventLedgerEntry is transformed to TimelineEvent shape
  *
  * Uses seeded JSONL data written to a temporary directory.
  */
@@ -19,6 +20,17 @@ import type { Request, Response } from 'express';
 import { EventLedgerService } from '@/services/event-ledger-service.js';
 import { createTimelineHandler } from '@/routes/projects/routes/timeline.js';
 import type { EventLedgerEntry } from '@protolabsai/types';
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+interface TimelineEvent {
+  id: string;
+  type: string;
+  title: string;
+  description?: string;
+  occurredAt: string;
+  author?: string;
+}
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -90,10 +102,17 @@ describe('GET /api/projects/:slug/timeline (integration)', () => {
 
   // Seeded entries for the target project (in non-chronological insert order)
   const entries: EventLedgerEntry[] = [
-    makeEntry('evt-003', T3, 'milestone:completed', PROJECT_SLUG, { milestone: 'm1' }),
-    makeEntry('evt-001', T1, 'project:lifecycle:launched', PROJECT_SLUG, { phase: 'alpha' }),
-    makeEntry('evt-004', T4, 'project:completed', PROJECT_SLUG),
-    makeEntry('evt-002', T2, 'feature:started', PROJECT_SLUG, { featureId: 'f-001' }),
+    makeEntry('evt-003', T3, 'milestone:completed', PROJECT_SLUG, {
+      title: 'Foundation',
+    }),
+    makeEntry('evt-001', T1, 'project:lifecycle:launched', PROJECT_SLUG, {
+      title: 'Test Project',
+    }),
+    makeEntry('evt-004', T4, 'project:completed', PROJECT_SLUG, { title: 'Test Project' }),
+    makeEntry('evt-002', T2, 'feature:started', PROJECT_SLUG, {
+      featureId: 'f-001',
+      featureTitle: 'Auth Module',
+    }),
     // Different project — must be excluded
     makeEntry('other-001', T1, 'project:lifecycle:launched', OTHER_SLUG),
   ];
@@ -112,32 +131,71 @@ describe('GET /api/projects/:slug/timeline (integration)', () => {
 
   // ─── Basic query ──────────────────────────────────────────────────────────
 
-  it('returns all events for the project in chronological order', async () => {
+  it('returns all events for the project in reverse chronological order', async () => {
     const req = mockReq(PROJECT_SLUG);
     const res = mockRes();
 
     await handler(req, res as unknown as Response);
 
     expect(res._status).toBe(200);
-    const body = res._body as { success: boolean; events: EventLedgerEntry[] };
+    const body = res._body as { success: boolean; events: TimelineEvent[] };
     expect(body.success).toBe(true);
 
     const { events } = body;
     expect(events).toHaveLength(4);
 
-    // Must be sorted ascending by timestamp
-    expect(events[0].id).toBe('evt-001');
-    expect(events[1].id).toBe('evt-002');
-    expect(events[2].id).toBe('evt-003');
-    expect(events[3].id).toBe('evt-004');
+    // Must be sorted descending by occurredAt (newest first)
+    expect(events[0].id).toBe('evt-004');
+    expect(events[1].id).toBe('evt-003');
+    expect(events[2].id).toBe('evt-002');
+    expect(events[3].id).toBe('evt-001');
 
-    // Must include type, timestamp, correlationIds, payload on each event
+    // Must be transformed to TimelineEvent shape
     for (const event of events) {
-      expect(event).toHaveProperty('eventType');
-      expect(event).toHaveProperty('timestamp');
-      expect(event).toHaveProperty('correlationIds');
-      expect(event).toHaveProperty('payload');
+      expect(event).toHaveProperty('type');
+      expect(event).toHaveProperty('title');
+      expect(event).toHaveProperty('occurredAt');
+      // Raw fields should NOT be present
+      expect(event).not.toHaveProperty('eventType');
+      expect(event).not.toHaveProperty('timestamp');
+      expect(event).not.toHaveProperty('correlationIds');
     }
+  });
+
+  it('transforms event types to display types', async () => {
+    const req = mockReq(PROJECT_SLUG);
+    const res = mockRes();
+
+    await handler(req, res as unknown as Response);
+
+    const body = res._body as { events: TimelineEvent[] };
+    const types = new Set(body.events.map((e) => e.type));
+
+    // project:lifecycle:launched -> project:launched
+    expect(types).toContain('project:launched');
+    // project:completed -> project:completed
+    expect(types).toContain('project:completed');
+    // feature:started -> feature:started
+    expect(types).toContain('feature:started');
+    // milestone:completed -> milestone:completed
+    expect(types).toContain('milestone:completed');
+  });
+
+  it('includes human-readable titles', async () => {
+    const req = mockReq(PROJECT_SLUG);
+    const res = mockRes();
+
+    await handler(req, res as unknown as Response);
+
+    const body = res._body as { events: TimelineEvent[] };
+
+    // Feature event should include feature title
+    const featureEvt = body.events.find((e) => e.type === 'feature:started');
+    expect(featureEvt?.title).toContain('Auth Module');
+
+    // Project launched should include project title
+    const launchEvt = body.events.find((e) => e.type === 'project:launched');
+    expect(launchEvt?.title).toContain('Test Project');
   });
 
   it('excludes events from other projects', async () => {
@@ -146,10 +204,11 @@ describe('GET /api/projects/:slug/timeline (integration)', () => {
 
     await handler(req, res as unknown as Response);
 
-    const body = res._body as { events: EventLedgerEntry[] };
-    const slugs = body.events.map((e) => e.correlationIds.projectSlug);
-    expect(slugs.every((s) => s === PROJECT_SLUG)).toBe(true);
-    expect(slugs).not.toContain(OTHER_SLUG);
+    const body = res._body as { events: TimelineEvent[] };
+    // Should only have 4 events (not the OTHER_SLUG one)
+    expect(body.events).toHaveLength(4);
+    const ids = body.events.map((e) => e.id);
+    expect(ids).not.toContain('other-001');
   });
 
   // ─── ?since= filter ───────────────────────────────────────────────────────
@@ -161,7 +220,7 @@ describe('GET /api/projects/:slug/timeline (integration)', () => {
 
     await handler(req, res as unknown as Response);
 
-    const body = res._body as { success: boolean; events: EventLedgerEntry[] };
+    const body = res._body as { success: boolean; events: TimelineEvent[] };
     expect(body.success).toBe(true);
 
     const ids = body.events.map((e) => e.id);
@@ -177,7 +236,7 @@ describe('GET /api/projects/:slug/timeline (integration)', () => {
 
     await handler(req, res as unknown as Response);
 
-    const body = res._body as { events: EventLedgerEntry[] };
+    const body = res._body as { events: TimelineEvent[] };
     expect(body.events).toHaveLength(0);
   });
 
@@ -201,12 +260,12 @@ describe('GET /api/projects/:slug/timeline (integration)', () => {
 
     await handler(req, res as unknown as Response);
 
-    const body = res._body as { success: boolean; events: EventLedgerEntry[] };
+    const body = res._body as { success: boolean; events: TimelineEvent[] };
     expect(body.success).toBe(true);
 
     expect(body.events).toHaveLength(1);
     expect(body.events[0].id).toBe('evt-002');
-    expect(body.events[0].eventType).toBe('feature:started');
+    expect(body.events[0].type).toBe('feature:started');
   });
 
   it('returns empty array when type matches no events', async () => {
@@ -215,7 +274,7 @@ describe('GET /api/projects/:slug/timeline (integration)', () => {
 
     await handler(req, res as unknown as Response);
 
-    const body = res._body as { events: EventLedgerEntry[] };
+    const body = res._body as { events: TimelineEvent[] };
     expect(body.events).toHaveLength(0);
   });
 
@@ -228,7 +287,7 @@ describe('GET /api/projects/:slug/timeline (integration)', () => {
 
     await handler(req, res as unknown as Response);
 
-    const body = res._body as { success: boolean; events: EventLedgerEntry[] };
+    const body = res._body as { success: boolean; events: TimelineEvent[] };
     expect(body.success).toBe(true);
 
     expect(body.events).toHaveLength(1);
@@ -243,7 +302,7 @@ describe('GET /api/projects/:slug/timeline (integration)', () => {
 
     await handler(req, res as unknown as Response);
 
-    const body = res._body as { success: boolean; events: EventLedgerEntry[] };
+    const body = res._body as { success: boolean; events: TimelineEvent[] };
     expect(body.success).toBe(true);
     expect(body.events).toHaveLength(0);
   });

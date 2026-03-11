@@ -59,6 +59,8 @@ export type {
   CapacityMetricsResponse,
   IntegrationStatusResponse,
   SystemHealthResponse,
+  FrictionResponse,
+  FailureBreakdownResponse,
   DevServerStartedEvent,
   DevServerOutputEvent,
   DevServerStoppedEvent,
@@ -116,6 +118,19 @@ export function getHttpApiClient(): HttpApiClient {
     httpApiClientInstance = new HttpApiClient();
   }
   return httpApiClientInstance;
+}
+
+/**
+ * Invalidate the cached HTTP client singleton and trigger WebSocket reconnection.
+ * Called when the server URL override changes so the new URL is picked up immediately.
+ */
+export function invalidateHttpClient(): void {
+  if (httpApiClientInstance) {
+    httpApiClientInstance.reconnect();
+  }
+  httpApiClientInstance = null;
+  // Re-create immediately so callers get a fresh instance pointing at the new URL
+  httpApiClientInstance = new HttpApiClient();
 }
 
 // Start API key initialization immediately when this module is imported

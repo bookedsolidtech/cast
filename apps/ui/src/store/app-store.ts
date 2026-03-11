@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 // Note: persist middleware removed - settings now sync via API (use-settings-sync.ts)
 import type { Project, TrashedProject } from '@/lib/electron';
-import { getHttpApiClient } from '@/lib/http-api-client';
+import { getHttpApiClient, invalidateHttpClient } from '@/lib/http-api-client';
 import { createLogger } from '@protolabsai/utils/logger';
 import { UI_SANS_FONT_OPTIONS, UI_MONO_FONT_OPTIONS } from '@/config/ui-font-options';
 import type {
@@ -12,6 +12,7 @@ import type {
   ServerLogLevel,
   EventHook,
   FeatureFlags,
+  HivemindPeer,
 } from '@protolabsai/types';
 import { DEFAULT_FEATURE_FLAGS } from '@protolabsai/types';
 import { DEFAULT_KEYBOARD_SHORTCUTS } from './types';
@@ -153,6 +154,24 @@ export interface AppState {
 
   // User Identity (for board assignment)
   userIdentity: string | null;
+
+  // Hivemind / Cross-instance dashboard
+  peers: HivemindPeer[];
+  instanceFilter: 'all' | 'mine'; // 'all' = show features from all instances, 'mine' = local only
+  selfInstanceId: string | null; // The instanceId of this Automaker instance
+
+  // Server URL runtime override
+  serverUrlOverride: string | null; // Runtime server URL override (null = use env var / default)
+  recentServerUrls: string[]; // Recently used server URLs, max 10, persisted in localStorage
+
+  // Server connection state
+  serverStatus: 'connected' | 'disconnected' | 'connecting'; // Current connection status
+  serverInfo: { version: string; status: string; timestamp: string } | null; // Info from /api/health
+  recentConnections: Array<{ url: string; lastConnected: string }>; // Recent connections with timestamps
+
+  // Connected instance identity
+  instanceName: string | null; // Human-readable name of the connected instance (e.g. 'Dev Server', 'Staging')
+  instanceRole: string | null; // Role of the connected instance (e.g. 'primary', 'worker')
 }
 
 export interface AppActions {
@@ -310,6 +329,23 @@ export interface AppActions {
   // User Identity actions
   setUserIdentity: (identity: string | null) => void;
 
+  // Hivemind / Cross-instance dashboard actions
+  setPeers: (peers: HivemindPeer[]) => void;
+  setInstanceFilter: (filter: 'all' | 'mine') => void;
+  fetchPeers: () => Promise<void>;
+  setSelfInstanceId: (id: string | null) => void;
+  fetchSelfInstanceId: () => Promise<void>;
+
+  // Server URL runtime override actions
+  setServerUrlOverride: (url: string | null) => void;
+  addRecentServerUrl: (url: string) => void; // Adds to recentServerUrls (max 10, deduplicated)
+
+  // Server connection actions
+  connectToServer: (url: string) => Promise<void>;
+  removeRecentConnection: (url: string) => void;
+  setInstanceName: (name: string | null) => void;
+  fetchInstanceInfo: () => Promise<void>;
+
   // Reset
   reset: () => void;
 }
@@ -384,6 +420,40 @@ const initialState: AppState = {
   lastProjectDir: '',
   recentFolders: [],
   userIdentity: null,
+  // Hivemind / Cross-instance dashboard
+  peers: [],
+  instanceFilter: 'all',
+  selfInstanceId: null,
+  // Server URL runtime override
+  serverUrlOverride: (() => {
+    try {
+      return localStorage.getItem('automaker:serverUrlOverride') ?? null;
+    } catch {
+      return null;
+    }
+  })(),
+  recentServerUrls: (() => {
+    try {
+      const stored = localStorage.getItem('automaker:recentServerUrls');
+      return stored ? (JSON.parse(stored) as string[]) : [];
+    } catch {
+      return [];
+    }
+  })(),
+  // Server connection state
+  serverStatus: 'disconnected' as 'connected' | 'disconnected' | 'connecting',
+  serverInfo: null,
+  recentConnections: (() => {
+    try {
+      const stored = localStorage.getItem('automaker:recentConnections');
+      return stored ? (JSON.parse(stored) as Array<{ url: string; lastConnected: string }>) : [];
+    } catch {
+      return [];
+    }
+  })(),
+  // Connected instance identity
+  instanceName: null,
+  instanceRole: null,
 };
 
 export const useAppStore = create<AppState & AppActions>()((set, get) => ({
@@ -420,12 +490,6 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       return;
     }
 
-    console.log('[MOVE_TO_TRASH] Moving project to trash:', {
-      projectId,
-      projectName: project.name,
-      currentProjectCount: get().projects.length,
-    });
-
     const remainingProjects = get().projects.filter((p) => p.id !== projectId);
     const existingTrash = get().trashedProjects.filter((p) => p.id !== projectId);
     const trashedProject: TrashedProject = {
@@ -436,11 +500,6 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
 
     const isCurrent = get().currentProject?.id === projectId;
     const nextCurrentProject = isCurrent ? null : get().currentProject;
-
-    console.log('[MOVE_TO_TRASH] Updating store with new state:', {
-      newProjectCount: remainingProjects.length,
-      newTrashedCount: [trashedProject, ...existingTrash].length,
-    });
 
     set({
       projects: remainingProjects,
@@ -1237,6 +1296,164 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
 
   // User Identity actions
   setUserIdentity: (identity) => set({ userIdentity: identity }),
+
+  // Hivemind / Cross-instance dashboard actions
+  setPeers: (peers) => set({ peers }),
+  setInstanceFilter: (instanceFilter) => set({ instanceFilter }),
+  fetchPeers: async () => {
+    try {
+      const api = getHttpApiClient();
+      const data = await api.hivemind.getPeers();
+      set({ peers: data.peers });
+    } catch (err) {
+      logger.warn('[AppStore] Failed to fetch hivemind peers:', err);
+    }
+  },
+  setSelfInstanceId: (selfInstanceId) => set({ selfInstanceId }),
+  fetchSelfInstanceId: async () => {
+    try {
+      const api = getHttpApiClient();
+      const data = await api.hivemind.getSelf();
+      const selfId = data.instanceId;
+      // Try to find a human-readable name via hivemind status (self shows up in onlinePeers)
+      let displayName: string | null = null;
+      try {
+        const status = await api.hivemind.getStatus();
+        const selfPeer = status.onlinePeers.find((p) => p.identity.instanceId === selfId);
+        displayName = selfPeer?.identity.name ?? null;
+      } catch {
+        // Status endpoint may fail — fall back to instanceId
+      }
+      set({ selfInstanceId: selfId, instanceName: displayName ?? selfId });
+    } catch (err) {
+      logger.warn('[AppStore] Failed to fetch self instanceId:', err);
+    }
+  },
+
+  // Server URL runtime override actions
+  setServerUrlOverride: (url) => {
+    // Persist override to localStorage
+    try {
+      if (url) {
+        localStorage.setItem('automaker:serverUrlOverride', url);
+      } else {
+        localStorage.removeItem('automaker:serverUrlOverride');
+      }
+    } catch {
+      // localStorage might be disabled
+    }
+
+    // Update recent URLs (deduplicated, max 10)
+    let recentServerUrls = get().recentServerUrls;
+    if (url) {
+      recentServerUrls = [url, ...recentServerUrls.filter((u) => u !== url)].slice(0, 10);
+      try {
+        localStorage.setItem('automaker:recentServerUrls', JSON.stringify(recentServerUrls));
+      } catch {
+        // localStorage might be disabled
+      }
+    }
+
+    set({ serverUrlOverride: url, recentServerUrls });
+
+    // Invalidate cached HTTP client and trigger WebSocket reconnection
+    invalidateHttpClient();
+  },
+
+  addRecentServerUrl: (url) => {
+    const recentServerUrls = [url, ...get().recentServerUrls.filter((u) => u !== url)].slice(0, 10);
+    try {
+      localStorage.setItem('automaker:recentServerUrls', JSON.stringify(recentServerUrls));
+    } catch {
+      // localStorage might be disabled
+    }
+    set({ recentServerUrls });
+  },
+
+  // Server connection actions
+  connectToServer: async (url) => {
+    set({ serverStatus: 'connecting', serverInfo: null, instanceName: null, instanceRole: null });
+    try {
+      const response = await fetch(`${url}/api/health`, {
+        method: 'GET',
+        cache: 'no-store',
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!response.ok) {
+        set({ serverStatus: 'disconnected' });
+        return;
+      }
+      const data = (await response.json()) as {
+        version?: string;
+        status?: string;
+        timestamp?: string;
+      };
+      const serverInfo = {
+        version: data.version ?? 'unknown',
+        status: data.status ?? 'ok',
+        timestamp: data.timestamp ?? new Date().toISOString(),
+      };
+
+      // Update recent connections (deduplicated, max 10)
+      const lastConnected = new Date().toISOString();
+      const existing = get().recentConnections.filter((c) => c.url !== url);
+      const recentConnections = [{ url, lastConnected }, ...existing].slice(0, 10);
+      try {
+        localStorage.setItem('automaker:recentConnections', JSON.stringify(recentConnections));
+      } catch {
+        // localStorage might be disabled
+      }
+
+      set({ serverStatus: 'connected', serverInfo, recentConnections });
+
+      // Apply the URL override so all subsequent API calls use the new server
+      get().setServerUrlOverride(url);
+    } catch {
+      set({ serverStatus: 'disconnected' });
+    }
+  },
+
+  removeRecentConnection: (url) => {
+    const recentConnections = get().recentConnections.filter((c) => c.url !== url);
+    try {
+      localStorage.setItem('automaker:recentConnections', JSON.stringify(recentConnections));
+    } catch {
+      // localStorage might be disabled
+    }
+    // Also remove from legacy recentServerUrls list for consistency
+    const recentServerUrls = get().recentServerUrls.filter((u) => u !== url);
+    try {
+      localStorage.setItem('automaker:recentServerUrls', JSON.stringify(recentServerUrls));
+    } catch {
+      // localStorage might be disabled
+    }
+    set({ recentConnections, recentServerUrls });
+  },
+
+  setInstanceName: (name) => set({ instanceName: name }),
+
+  fetchInstanceInfo: async () => {
+    try {
+      const api = getHttpApiClient();
+      // Fetch self instanceId
+      const selfData = await api.hivemind.getSelf();
+      const selfId = selfData.instanceId;
+      // Fetch hivemind status to get role and display name
+      let displayName: string | null = null;
+      let instanceRole: string | null = null;
+      try {
+        const status = await api.hivemind.getStatus();
+        instanceRole = status.role ?? null;
+        const selfPeer = status.onlinePeers.find((p) => p.identity.instanceId === selfId);
+        displayName = selfPeer?.identity.name ?? null;
+      } catch {
+        // Status endpoint may fail — fall back gracefully
+      }
+      set({ selfInstanceId: selfId, instanceName: displayName ?? selfId, instanceRole });
+    } catch (err) {
+      logger.warn('[AppStore] Failed to fetch instance info:', err);
+    }
+  },
 
   // Reset
   reset: () => set(initialState),

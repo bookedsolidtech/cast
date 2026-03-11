@@ -5,10 +5,12 @@ relevantTo: [performance]
 importance: 0.7
 relatedFiles: []
 usageStats:
-  loaded: 31
-  referenced: 12
-  successfulFeatures: 12
+  loaded: 36
+  referenced: 13
+  successfulFeatures: 13
 ---
+<!-- domain: Performance Optimization | Rendering, caching, latency reduction patterns -->
+
 # performance
 
 #### [Pattern] 30-minute maintenance task frequency for stale PR detection (2026-02-11)
@@ -251,3 +253,55 @@ usageStats:
 - **Problem solved:** Ledger file could grow large over time (weeks/months of events). Cold start must restore all state without OOM on memory-constrained systems.
 - **Why this works:** Streaming parser processes one JSONL line at a time, constant memory regardless of file size. readline handles line boundaries and backpressure automatically.
 - **Trade-offs:** Slightly more complex code (readline interface vs string split) but guaranteed constant memory footprint.
+
+#### [Pattern] Route handler accepts optional `research` parameter; if not provided, calls `researchRepo()` again before generating spec.md (2026-03-07)
+- **Problem solved:** Project setup can chain multiple operations; research is expensive (filesystem traversal + git inspection)
+- **Why this works:** Allows flexibility: research can be done once and reused, or each step can stand alone without tight coupling. Caller decides whether to cache.
+- **Trade-offs:** More flexible API, but potential for stale data if function called multiple times in session without recomputing research. Caller responsible for managing research freshness.
+
+#### [Pattern] Gate expensive render-time operations (syntax highlighting, markdown parsing, diff computation) behind an `isStreaming` prop. Defer enhancement to completion. (2026-03-09)
+- **Problem solved:** Streaming AI responses deliver tokens incrementally. Any useEffect depending on `code`/`content` re-fires on every token.
+- **Why this works:** Rendered output during streaming doesn't need to be perfect (users watch text appear). Deferring Prism.js until streaming completes produces identical final result while keeping UI responsive during delivery.
+- **Trade-offs:** Easier: eliminates render thrashing, smooth UX. Harder: requires threading `isStreaming` prop through component tree from parent.
+
+#### [Gotcha] Remote caching config in `turbo.json` (Vercel) is inert without `TURBO_TOKEN` and `TURBO_TEAM` env vars. Builds still work—turbo gracefully falls back to local filesystem cache—but remote cache is silently disabled. (2026-03-09)
+- **Situation:** Initial investigation: why is remote cache config present but CI builds aren't using Vercel's cache?
+- **Root cause:** Vercel's Turborepo is the official remote cache provider. Connection requires OAuth tokens that are environment-specific (local dev ≠ CI ≠ different CI providers).
+- **How to avoid:** Local caching works immediately with zero config (+) but misses 30-40% speedup from shared cache across machines (-). CI setup complexity: must inject TURBO_TOKEN/TURBO_TEAM.
+
+#### [Pattern] The `dev` task is excluded from caching (`"cache": false`) and marked `"persistent": true`. This prevents turbo from treating long-running dev servers as completed tasks and respects file watching. (2026-03-09)
+- **Problem solved:** Dev servers (e.g., `npm run dev` on apps/server, apps/ui) must stay running and restart on file changes. If cached, turbo would mark task as done and not re-run on changes.
+- **Why this works:** Dev servers are stateful, long-lived processes. Caching is designed for deterministic, repeatable tasks (build, test). Persistent flag tells turbo to ignore task completion and let the server manage its own lifecycle.
+- **Trade-offs:** Dev UX is preserved (+) but dev servers bypass cache infrastructure (slower feedback than cached tasks, but acceptable for iteration).
+
+#### [Pattern] Error deduplication uses hash-based Set with 1-hour TTL instead of permanent dedup or no dedup (2026-03-09)
+- **Problem solved:** Reactive spawner logs errors when workflows fail; needs to avoid log spam while still detecting recurring issues
+- **Why this works:** Hash prevents identical error spam (same message = same hash = skip log), 1-hour TTL allows same error to be logged again if it recurs later (user knows issue persists). Balances observability vs noise.
+- **Trade-offs:** Added memory for Set tracking, 1h cleanup logic, but much cleaner logs in failure scenarios
+
+#### [Pattern] React memoization (useMemo, stable dependency arrays) already handles the optimization that dangerouslySetInnerHTML was attempting to provide, making the security/maintainability trade-off unnecessary (2026-03-09)
+- **Problem solved:** The processedContent useMemo and stable remarkPlugins/rehypePlugins arrays ensure ReactMarkdown only re-renders when content actually changes. The old code assumed dangerouslySetInnerHTML was needed to prevent re-renders, but the memoization layer was already preventing them
+- **Why this works:** Once processedContent changes are memoized and plugin arrays are stable, React only reconciles when necessary. Adding dangerouslySetInnerHTML to avoid reconciliation becomes a second-order optimization that adds complexity for minimal gain
+- **Trade-offs:** Simpler mental model (one render path) vs. false sense of control from explicit dangerouslySetInnerHTML. The memoization is less obvious in the code but actually more reliable because it's maintained by React's dependency system
+
+#### [Gotcha] WebSocket reconnection is synchronous within HTTP client invalidation, not async queued. This blocks other pending requests during reconnect window (2026-03-10)
+- **Situation:** When URL override is set, reconnect() is called immediately before replacing singleton
+- **Root cause:** Synchronous approach is simpler to reason about—no race where request hits old client before reconnect completes. But synchronicity means UI freezes if reconnect slow
+- **How to avoid:** Easier: simpler control flow. Harder: poor UX if server slow to respond to reconnect
+
+#### [Pattern] Jaccard similarity on normalized word sets (threshold 0.6) chosen for title deduplication over Levenshtein/embedding-based approaches (2026-03-10)
+- **Problem solved:** Need lightweight duplication detection to prevent similar features from duplicating in backlog under capacity pressure
+- **Why this works:** O(n*w) complexity where w is word count (vs O(n²) for edit distance or network latency for embeddings); word-order-invariant (semantically handles paraphrasing); deterministic and debuggable
+- **Trade-offs:** Gained: fast, simple, no external deps. Lost: semantic understanding (doesn't catch 'fix auth bug' vs 'authentication issue' as similar)
+
+#### [Pattern] Singleton HTTP client maintained across lifetime with explicit invalidation when server URL changes (invalidateHttpClient), rather than creating new clients per request (2026-03-10)
+- **Problem solved:** Need efficient connection reuse (TCP pooling, keep-alive) while supporting runtime server URL changes
+- **Why this works:** Singleton achieves connection pooling and caching efficiency; invalidation pattern allows responding to runtime config changes without losing benefits
+- **Trade-offs:** More complex state management (must track and invalidate stale singleton) but significant performance benefit from connection reuse
+
+### Reload feature status early in `process()` and check if it's already done before running external merge detection. Skip gh CLI calls entirely if feature is done. (2026-03-10)
+- **Context:** External merge detection requires gh CLI call. Early exit avoids this expensive operation when feature status was already updated by parallel process or earlier state change.
+- **Why:** gh CLI calls are relatively expensive (subprocess spawn, network latency to GitHub). Single status check (reload) is cheap. Skip detection if not needed.
+- **Rejected:** Always running merge detection regardless of current status — wastes gh CLI calls on features that are already done
+- **Trade-offs:** Extra feature reload on every REVIEW.process() call, but saves many gh CLI calls. Reload is cached/fast; gh calls are not.
+- **Breaking if changed:** If early status check is removed, forces unnecessary gh CLI calls on every loop iteration, increasing latency and GitHub API quota usage

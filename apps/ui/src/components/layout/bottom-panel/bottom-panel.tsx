@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '@/store/app-store';
 import { useChatStore } from '@/store/chat-store';
 import { useIsMobile } from '@/hooks/use-media-query';
@@ -7,6 +7,7 @@ import { useSystemHealth } from '@/hooks/queries/use-metrics';
 import { isElectron, getOverlayAPI } from '@/lib/electron';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@protolabsai/ui/atoms';
+import { Popover, PopoverContent, PopoverTrigger } from '@protolabsai/ui/atoms';
 import {
   Bot,
   ListTodo,
@@ -16,7 +17,9 @@ import {
   Terminal,
   MessageCircle,
   HeartPulse,
+  Wifi,
 } from 'lucide-react';
+import { getServerUrlSync } from '@/lib/http-api-client';
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
@@ -31,6 +34,14 @@ function formatUptime(seconds: number): string {
   if (d > 0) return `${d}d ${h}h`;
   if (h > 0) return `${h}h ${m}m`;
   return `${m}m`;
+}
+
+function getHostname(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return url;
+  }
 }
 
 interface StatItemProps {
@@ -79,6 +90,27 @@ export function BottomPanel() {
   } = useProjectHealth(projectPath);
   const { data: systemHealth } = useSystemHealth(projectPath);
 
+  // Server connection state
+  const serverUrlOverride = useAppStore((s) => s.serverUrlOverride);
+  const instanceName = useAppStore((s) => s.instanceName);
+  const instanceRole = useAppStore((s) => s.instanceRole);
+  const peers = useAppStore((s) => s.peers);
+  const fetchSelfInstanceId = useAppStore((s) => s.fetchSelfInstanceId);
+  const fetchPeers = useAppStore((s) => s.fetchPeers);
+
+  const [tickerPopoverOpen, setTickerPopoverOpen] = useState(false);
+  const tickerHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasFetchedRef = useRef(false);
+
+  // Fetch instance info and peers on mount (once)
+  useEffect(() => {
+    if (!hasFetchedRef.current) {
+      hasFetchedRef.current = true;
+      fetchSelfInstanceId().catch(() => {});
+      fetchPeers().catch(() => {});
+    }
+  }, [fetchSelfInstanceId, fetchPeers]);
+
   const [time, setTime] = useState(() => new Date());
   useEffect(() => {
     const id = setInterval(() => setTime(new Date()), 1_000);
@@ -106,6 +138,25 @@ export function BottomPanel() {
     warn: 'text-yellow-500',
     error: 'text-red-500',
   }[systemStatus];
+
+  // Derive display label: instanceName > hostname of current URL > 'Server'
+  const currentServerUrl = serverUrlOverride ?? getServerUrlSync();
+  const displayLabel =
+    instanceName ?? (currentServerUrl ? getHostname(currentServerUrl) : 'Server');
+
+  // Peer stats
+  const onlinePeers = peers.filter((p) => p.identity.status !== 'offline');
+  const totalPeers = peers.length;
+
+  const handleTickerMouseEnter = () => {
+    if (tickerHoverTimerRef.current) clearTimeout(tickerHoverTimerRef.current);
+    tickerHoverTimerRef.current = setTimeout(() => setTickerPopoverOpen(true), 300);
+  };
+
+  const handleTickerMouseLeave = () => {
+    if (tickerHoverTimerRef.current) clearTimeout(tickerHoverTimerRef.current);
+    setTickerPopoverOpen(false);
+  };
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -244,6 +295,113 @@ export function BottomPanel() {
               )}
             </TooltipContent>
           </Tooltip>
+
+          {/* Server / instance ticker — hover popover */}
+          <div className="h-4 w-px bg-border" />
+          <Popover open={tickerPopoverOpen} onOpenChange={setTickerPopoverOpen}>
+            <PopoverTrigger asChild>
+              <button
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none p-0 focus:outline-none cursor-default"
+                aria-label="Instance connection info"
+                onMouseEnter={handleTickerMouseEnter}
+                onMouseLeave={handleTickerMouseLeave}
+              >
+                <Wifi className="h-3.5 w-3.5 text-emerald-500" />
+                <span className="max-w-[120px] truncate">{displayLabel}</span>
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              side="top"
+              align="start"
+              sideOffset={6}
+              className="w-64 p-3 text-xs"
+              onMouseEnter={() => {
+                if (tickerHoverTimerRef.current) clearTimeout(tickerHoverTimerRef.current);
+                setTickerPopoverOpen(true);
+              }}
+              onMouseLeave={handleTickerMouseLeave}
+            >
+              {/* Header: connection status */}
+              <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-border">
+                <span className="font-medium text-foreground">Connection</span>
+                <span className="flex items-center gap-1 text-emerald-400">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block" />
+                  connected
+                </span>
+              </div>
+
+              {/* Instance name & role */}
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-muted-foreground">Instance</span>
+                <span className="font-medium truncate max-w-[130px]">{displayLabel}</span>
+              </div>
+              {instanceRole && (
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-muted-foreground">Role</span>
+                  <span className="capitalize text-blue-400">{instanceRole}</span>
+                </div>
+              )}
+
+              {/* Peer count */}
+              <div className="flex items-center justify-between mt-1 mb-2">
+                <span className="text-muted-foreground">Peers</span>
+                <span>
+                  <span className="text-emerald-400 font-medium">{onlinePeers.length}</span>
+                  <span className="text-muted-foreground"> / {totalPeers} total</span>
+                </span>
+              </div>
+
+              {/* Compact peer list */}
+              {peers.length > 0 && (
+                <div className="space-y-1.5 border-t border-border pt-2">
+                  <p className="text-[10px] text-muted-foreground/70 mb-1">Peers</p>
+                  {peers.map((peer) => {
+                    const { identity } = peer;
+                    const isOnline = identity.status !== 'offline';
+                    const agentUsage =
+                      identity.capacity.maxAgents > 0
+                        ? identity.capacity.runningAgents / identity.capacity.maxAgents
+                        : 0;
+                    return (
+                      <div key={identity.instanceId} className="flex items-center gap-2">
+                        <span
+                          className={cn(
+                            'h-1.5 w-1.5 rounded-full shrink-0',
+                            isOnline ? 'bg-emerald-500' : 'bg-muted-foreground/40'
+                          )}
+                        />
+                        <span className="truncate flex-1 max-w-[100px]">
+                          {identity.name ?? identity.instanceId}
+                        </span>
+                        {identity.role && (
+                          <span className="text-[10px] text-muted-foreground/60 shrink-0">
+                            {identity.role}
+                          </span>
+                        )}
+                        {/* Capacity bar: running agents / max agents */}
+                        <div className="w-14 h-1 rounded-full bg-muted overflow-hidden shrink-0">
+                          <div
+                            className={cn(
+                              'h-full rounded-full transition-all',
+                              agentUsage > 0.85
+                                ? 'bg-red-500'
+                                : agentUsage > 0.6
+                                  ? 'bg-yellow-500'
+                                  : 'bg-emerald-500'
+                            )}
+                            style={{ width: `${Math.min(agentUsage * 100, 100)}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] text-muted-foreground/70 shrink-0 tabular-nums">
+                          {identity.capacity.runningAgents}/{identity.capacity.maxAgents}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
         </div>
 
         {/* Spacer */}
@@ -251,10 +409,18 @@ export function BottomPanel() {
 
         {/* Clock */}
         <span className="relative group text-xs tabular-nums text-muted-foreground cursor-default">
-          {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+          {time.toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+          })}
           <span className="absolute bottom-full right-0 mb-2 px-2.5 py-1.5 rounded-lg bg-popover text-popover-foreground text-xs font-medium border border-border shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap pointer-events-none tabular-nums">
             <span className="font-semibold">
-              {time.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
+              {time.toLocaleDateString([], {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+              })}
             </span>
             <span className="mx-1 text-muted-foreground/50">|</span>
             {time.toLocaleTimeString([], {

@@ -33,7 +33,7 @@ import {
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { anthropic } from '@ai-sdk/anthropic';
+import { getAnthropicModel } from '../../lib/ai-provider.js';
 import { createLogger } from '@protolabsai/utils';
 import { resolveModelString } from '@protolabsai/model-resolver';
 import { buildAvaSystemPrompt, type NotesContext } from './personas.js';
@@ -311,7 +311,7 @@ export function createChatRoutes(services: ServiceContainer): Router {
         (req.headers['x-model-alias'] as string) || bodyModel || avaConfig.model || 'sonnet';
 
       const resolvedModelId = resolveModelString(modelAlias, 'sonnet');
-      const aiModel = anthropic(resolvedModelId);
+      const aiModel = await getAnthropicModel(resolvedModelId);
 
       // Load Ava-level context (project root CLAUDE.md + Ava skill prompt)
       let projectContext: string | undefined;
@@ -384,8 +384,6 @@ export function createChatRoutes(services: ServiceContainer): Router {
               leadEngineerService: services.leadEngineerService,
               agentService: services.agentService,
               roleRegistryService: services.roleRegistryService,
-              agentFactoryService: services.agentFactoryService,
-              dynamicAgentExecutor: services.dynamicAgentExecutor,
               metricsService: services.metricsService,
               settingsService: services.settingsService,
               projectService: services.projectService,
@@ -396,6 +394,10 @@ export function createChatRoutes(services: ServiceContainer): Router {
                 ? services.sensorRegistryService
                 : undefined,
               canUseTool,
+              avaChannelService: services.avaChannelService,
+              discordBotService: services.discordBotService,
+              calendarService: services.calendarService,
+              healthMonitorService: services.healthMonitorService,
             },
             {
               ...avaConfig.toolGroups,

@@ -6,14 +6,14 @@
  */
 
 import path from 'path';
+import { existsSync } from 'node:fs';
+import * as Automerge from '@automerge/automerge';
 import type {
   Project,
   Feature,
   Milestone,
   CreateProjectInput,
   UpdateProjectInput,
-  CreateFeaturesFromProjectOptions,
-  CreateFeaturesResult,
   ProjectLink,
   ProjectStatusUpdate,
   ProjectDocument,
@@ -26,8 +26,6 @@ import {
   generateProjectMarkdown,
   generateMilestoneMarkdown,
   generatePhaseMarkdown,
-  phaseToFeatureDescription,
-  phaseToBranchName,
   slugify,
 } from '@protolabsai/utils';
 import { secureFs } from '@protolabsai/platform';
@@ -46,24 +44,87 @@ import {
 } from '@protolabsai/platform';
 import type { FeatureLoader } from './feature-loader.js';
 import type { CalendarService } from './calendar-service.js';
+import type { EventEmitter } from '../lib/events.js';
 
 const logger = createLogger('ProjectService');
 
+/** Automerge document shape — one per projectPath, keyed by project slug */
+type ProjectsDoc = { projects: Record<string, Project> };
+
 export class ProjectService {
   private calendarService?: CalendarService;
+  private readonly _docs = new Map<string, Automerge.Doc<ProjectsDoc>>();
+  private readonly _initPromises = new Map<string, Promise<void>>();
+  private readonly _crdtEnabled = new Map<string, boolean>();
+  private readonly _crdtEvents: EventEmitter | null;
 
-  constructor(private featureLoader: FeatureLoader) {}
+  constructor(
+    private featureLoader: FeatureLoader,
+    events?: EventEmitter
+  ) {
+    this._crdtEvents = events ?? null;
+  }
 
   setCalendarService(calendarService: CalendarService): void {
     this.calendarService = calendarService;
   }
 
-  /**
-   * List all projects in a project path
-   */
-  async listProjects(projectPath: string): Promise<string[]> {
-    const projectsDir = getProjectsDir(projectPath);
+  // ─── CRDT helpers ──────────────────────────────────────────────────────────
 
+  private _isCrdtEnabled(projectPath: string): boolean {
+    const cached = this._crdtEnabled.get(projectPath);
+    if (cached !== undefined) return cached;
+    const enabled = existsSync(path.join(projectPath, 'proto.config.yaml'));
+    this._crdtEnabled.set(projectPath, enabled);
+    return enabled;
+  }
+
+  private _toAutomergeValue(project: Project): Record<string, unknown> {
+    return JSON.parse(JSON.stringify(project)) as Record<string, unknown>;
+  }
+
+  private async _ensureDoc(projectPath: string): Promise<Automerge.Doc<ProjectsDoc>> {
+    if (this._docs.has(projectPath)) return this._docs.get(projectPath)!;
+    if (!this._initPromises.has(projectPath)) {
+      this._initPromises.set(projectPath, this._initDoc(projectPath));
+    }
+    await this._initPromises.get(projectPath);
+    return this._docs.get(projectPath)!;
+  }
+
+  private async _initDoc(projectPath: string): Promise<void> {
+    const slugs = await this._listSlugsFromDisk(projectPath);
+    let doc = Automerge.from<ProjectsDoc>({ projects: {} });
+    const projects: Project[] = [];
+    for (const slug of slugs) {
+      const p = await this._readFromDisk(projectPath, slug);
+      if (p) projects.push(p);
+    }
+    doc = Automerge.change(doc, (d) => {
+      for (const p of projects) {
+        (d.projects as Record<string, unknown>)[p.slug] = this._toAutomergeValue(p);
+      }
+    });
+    this._docs.set(projectPath, doc);
+    logger.info(
+      `[CRDT] Initialized projects doc for ${projectPath} with ${projects.length} projects`
+    );
+  }
+
+  private async _readFromDisk(projectPath: string, projectSlug: string): Promise<Project | null> {
+    const jsonPath = getProjectJsonPath(projectPath, projectSlug);
+    try {
+      const rawContent = await secureFs.readFile(jsonPath, 'utf-8');
+      const content = typeof rawContent === 'string' ? rawContent : rawContent.toString('utf-8');
+      return JSON.parse(content) as Project;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+      throw error;
+    }
+  }
+
+  private async _listSlugsFromDisk(projectPath: string): Promise<string[]> {
+    const projectsDir = getProjectsDir(projectPath);
     try {
       const entries = await secureFs.readdir(projectsDir, { withFileTypes: true });
       return entries
@@ -71,31 +132,132 @@ export class ProjectService {
         .map((entry) => entry.name)
         .sort();
     } catch (error) {
-      // Directory doesn't exist yet
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        return [];
-      }
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
       throw error;
     }
+  }
+
+  /**
+   * Apply Automerge binary changes received from a remote peer.
+   * Merges the changes into the local doc and emits project events for any
+   * projects that changed. Called by the wiring layer on 'crdt:remote-changes'.
+   */
+  applyRemoteChanges(projectPath: string, changes: Uint8Array[]): void {
+    let doc = this._docs.get(projectPath);
+    const isNew = !doc;
+    if (!doc) {
+      doc = Automerge.init<ProjectsDoc>();
+      this._initPromises.set(projectPath, Promise.resolve());
+    }
+    const oldProjects = doc.projects || {};
+    const [newDoc] = Automerge.applyChanges<ProjectsDoc>(doc, changes);
+    this._docs.set(projectPath, newDoc);
+    const newProjects = newDoc.projects || {};
+    const allSlugs = new Set([...Object.keys(oldProjects), ...Object.keys(newProjects)]);
+    for (const slug of allSlugs) {
+      const oldProject = isNew ? undefined : oldProjects[slug];
+      const newProject = newProjects[slug];
+      const unchanged =
+        !isNew &&
+        oldProject !== undefined &&
+        newProject !== undefined &&
+        JSON.stringify(oldProject) === JSON.stringify(newProject);
+      if (!unchanged) {
+        if (newProject) {
+          const eventType = oldProject ? 'project:updated' : 'project:created';
+          this._crdtEvents?.emit(eventType, {
+            projectSlug: slug,
+            projectPath,
+            project: newProject,
+          });
+        } else {
+          this._crdtEvents?.emit('project:deleted', { projectSlug: slug, projectPath });
+        }
+      }
+    }
+    logger.debug(`[CRDT] Applied ${changes.length} remote change(s) for ${projectPath}`);
+  }
+
+  // ─── Remote sync (called by crdt-sync.module.ts) ─────────────────────────
+
+  /**
+   * Persist a project received from a remote instance.
+   * Writes to disk + updates local Automerge doc WITHOUT emitting events
+   * (the caller re-emits via the local EventBus to prevent loops).
+   */
+  async persistRemoteProject(projectPath: string, project: Project): Promise<void> {
+    const slug = project.slug;
+    if (!slug) {
+      logger.warn('[CRDT] Received remote project without slug, skipping');
+      return;
+    }
+
+    // Ensure directory exists
+    await ensureProjectDir(projectPath, slug);
+
+    // Write project.json
+    const jsonPath = getProjectJsonPath(projectPath, slug);
+    await secureFs.writeFile(jsonPath, JSON.stringify(project, null, 2));
+
+    // Update local Automerge doc (no event emission)
+    if (this._isCrdtEnabled(projectPath)) {
+      const doc = await this._ensureDoc(projectPath);
+      const newDoc = Automerge.change(doc, (d) => {
+        (d.projects as Record<string, unknown>)[slug] = this._toAutomergeValue(project);
+      });
+      this._docs.set(projectPath, newDoc);
+    }
+
+    logger.info(`[CRDT] Persisted remote project: ${slug}`);
+  }
+
+  /**
+   * Delete a project received from a remote instance.
+   * Removes from disk + local Automerge doc WITHOUT emitting events.
+   */
+  async persistRemoteDelete(projectPath: string, projectSlug: string): Promise<void> {
+    const projectDir = getProjectDir(projectPath, projectSlug);
+    try {
+      await secureFs.rm(projectDir, { recursive: true, force: true });
+    } catch {
+      // Directory may not exist locally — that's fine
+    }
+
+    // Update local Automerge doc (no event emission)
+    if (this._isCrdtEnabled(projectPath)) {
+      const doc = await this._ensureDoc(projectPath);
+      const newDoc = Automerge.change(doc, (d) => {
+        delete (d.projects as Record<string, Project | undefined>)[projectSlug];
+      });
+      this._docs.set(projectPath, newDoc);
+    }
+
+    logger.info(`[CRDT] Persisted remote project delete: ${projectSlug}`);
+  }
+
+  // ─── Public API ────────────────────────────────────────────────────────────
+
+  /**
+   * List all projects in a project path
+   */
+  async listProjects(projectPath: string): Promise<string[]> {
+    if (this._isCrdtEnabled(projectPath)) {
+      const doc = await this._ensureDoc(projectPath);
+      return Object.keys(doc.projects || {}).sort();
+    }
+    return this._listSlugsFromDisk(projectPath);
   }
 
   /**
    * Get a project by slug
    */
   async getProject(projectPath: string, projectSlug: string): Promise<Project | null> {
-    const jsonPath = getProjectJsonPath(projectPath, projectSlug);
-
-    try {
-      const rawContent = await secureFs.readFile(jsonPath, 'utf-8');
-      // Ensure we have a string for JSON.parse (handle Buffer case)
-      const content = typeof rawContent === 'string' ? rawContent : rawContent.toString('utf-8');
-      return JSON.parse(content) as Project;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        return null;
-      }
-      throw error;
+    if (this._isCrdtEnabled(projectPath)) {
+      const doc = await this._ensureDoc(projectPath);
+      const raw = (doc.projects || {})[projectSlug];
+      return raw ? (raw as Project) : null;
     }
+    return this._readFromDisk(projectPath, projectSlug);
   }
 
   /**
@@ -150,6 +312,20 @@ export class ProjectService {
       }
     }
 
+    // Update CRDT doc and emit event
+    if (this._isCrdtEnabled(projectPath)) {
+      const doc = await this._ensureDoc(projectPath);
+      const newDoc = Automerge.change(doc, (d) => {
+        (d.projects as Record<string, unknown>)[project.slug] = this._toAutomergeValue(project);
+      });
+      this._docs.set(projectPath, newDoc);
+      this._crdtEvents?.emit('project:created', {
+        projectSlug: project.slug,
+        projectPath,
+        project,
+      });
+    }
+
     logger.info(`Created project: ${project.slug}`);
     return project;
   }
@@ -168,6 +344,20 @@ export class ProjectService {
       ongoing: true,
       priority: 'high',
       color: '#ef4444',
+    });
+  }
+
+  async ensureSystemImprovementsProject(projectPath: string): Promise<Project> {
+    const existing = await this.getProject(projectPath, 'system-improvements');
+    if (existing) return existing;
+
+    return this.createProject(projectPath, {
+      slug: 'system-improvements',
+      title: 'System Improvements',
+      goal: 'Continuous system improvement tickets filed by Ava instances from observed friction patterns.',
+      ongoing: true,
+      priority: 'medium',
+      color: '#8b5cf6',
     });
   }
 
@@ -247,6 +437,53 @@ export class ProjectService {
   }
 
   /**
+   * Update a single phase's claim fields on the shared project doc.
+   * Used by WorkIntakeService for phase claiming and completion reporting.
+   */
+  async updatePhaseClaim(
+    projectPath: string,
+    projectSlug: string,
+    milestoneSlug: string,
+    phaseName: string,
+    update: Partial<import('@protolabsai/types').Phase>
+  ): Promise<void> {
+    const project = await this.getProject(projectPath, projectSlug);
+    if (!project) throw new Error(`Project "${projectSlug}" not found`);
+
+    const milestone = project.milestones.find((m) => m.slug === milestoneSlug);
+    if (!milestone)
+      throw new Error(`Milestone "${milestoneSlug}" not found in project "${projectSlug}"`);
+
+    const phase = milestone.phases.find((p) => p.name === phaseName);
+    if (!phase) throw new Error(`Phase "${phaseName}" not found in milestone "${milestoneSlug}"`);
+
+    Object.assign(phase, update);
+    project.updatedAt = new Date().toISOString();
+
+    const jsonPath = getProjectJsonPath(projectPath, projectSlug);
+    await secureFs.writeFile(jsonPath, JSON.stringify(project, null, 2));
+  }
+
+  /**
+   * Read the latest state of a single phase.
+   * Used by WorkIntakeService to verify claims survived Automerge merge.
+   */
+  async getPhase(
+    projectPath: string,
+    projectSlug: string,
+    milestoneSlug: string,
+    phaseName: string
+  ): Promise<import('@protolabsai/types').Phase | null> {
+    const project = await this.getProject(projectPath, projectSlug);
+    if (!project) return null;
+
+    const milestone = project.milestones.find((m) => m.slug === milestoneSlug);
+    if (!milestone) return null;
+
+    return milestone.phases.find((p) => p.name === phaseName) ?? null;
+  }
+
+  /**
    * Update an existing project
    */
   async updateProject(
@@ -290,6 +527,20 @@ export class ProjectService {
           });
         }
       }
+    }
+
+    // Update CRDT doc and emit event
+    if (this._isCrdtEnabled(projectPath)) {
+      const doc = await this._ensureDoc(projectPath);
+      const newDoc = Automerge.change(doc, (d) => {
+        (d.projects as Record<string, unknown>)[projectSlug] = this._toAutomergeValue(updated);
+      });
+      this._docs.set(projectPath, newDoc);
+      this._crdtEvents?.emit('project:updated', {
+        projectSlug,
+        projectPath,
+        project: updated,
+      });
     }
 
     logger.info(`Updated project: ${projectSlug}`);
@@ -360,6 +611,17 @@ export class ProjectService {
     try {
       await secureFs.rm(projectDir, { recursive: true, force: true });
       logger.info(`Deleted project: ${projectSlug} (stats preserved)`);
+
+      // Update CRDT doc and emit event
+      if (this._isCrdtEnabled(projectPath)) {
+        const doc = await this._ensureDoc(projectPath);
+        const newDoc = Automerge.change(doc, (d) => {
+          delete (d.projects as Record<string, Project | undefined>)[projectSlug];
+        });
+        this._docs.set(projectPath, newDoc);
+        this._crdtEvents?.emit('project:deleted', { projectSlug, projectPath });
+      }
+
       return true;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -388,101 +650,6 @@ export class ProjectService {
     const existing = await this.getDeletedProjectStats(projectPath);
     existing.push(stats);
     await secureFs.writeFile(statsPath, JSON.stringify(existing, null, 2));
-  }
-
-  /**
-   * Create features from a project's phases
-   */
-  async createFeaturesFromProject(
-    projectPath: string,
-    projectSlug: string,
-    options?: CreateFeaturesFromProjectOptions
-  ): Promise<CreateFeaturesResult> {
-    const project = await this.getProject(projectPath, projectSlug);
-    if (!project) {
-      throw new Error(`Project "${projectSlug}" not found`);
-    }
-
-    const createEpics = options?.createEpics ?? true;
-    const initialStatus = options?.initialStatus ?? 'backlog';
-    const setupDependencies = options?.setupDependencies ?? true;
-
-    const featureIds: string[] = [];
-    const epicIds: string[] = [];
-
-    // Map to track phase IDs to feature IDs for dependencies
-    const phaseToFeatureMap = new Map<string, string>();
-
-    for (const milestone of project.milestones) {
-      let epicId: string | undefined;
-
-      // Create epic for milestone if enabled
-      if (createEpics) {
-        const epicFeature = await this.featureLoader.create(projectPath, {
-          title: milestone.title,
-          category: 'Epic',
-          description: milestone.description,
-          status: initialStatus,
-          isEpic: true,
-          branchName: `epic/${slugify(milestone.title, 30)}`,
-          projectSlug,
-          milestoneSlug: milestone.slug,
-        });
-        epicId = epicFeature.id;
-        epicIds.push(epicId);
-        milestone.epicId = epicId;
-      }
-
-      // Create features for each phase
-      for (const phase of milestone.phases) {
-        const branchName = phaseToBranchName(projectSlug, milestone.slug, phase.title);
-        const description = phaseToFeatureDescription(phase, milestone);
-
-        // Get dependencies from phase (convert phase IDs to feature IDs)
-        const dependencies = setupDependencies
-          ? (phase.dependencies ?? [])
-              .map((depId) => phaseToFeatureMap.get(depId))
-              .filter((id): id is string => id !== undefined)
-          : undefined;
-
-        const feature = await this.featureLoader.create(projectPath, {
-          title: phase.title,
-          category: milestone.title,
-          description,
-          status: initialStatus,
-          branchName,
-          epicId,
-          dependencies,
-          projectSlug,
-          milestoneSlug: milestone.slug,
-          phaseSlug: phase.name,
-        });
-
-        featureIds.push(feature.id);
-        phaseToFeatureMap.set(phase.name, feature.id);
-        phase.featureId = feature.id;
-      }
-    }
-
-    // Update project with feature/epic IDs
-    await this.updateProject(projectPath, projectSlug, {
-      status: 'active',
-    });
-
-    // Re-save project.json with updated featureIds
-    const jsonPath = getProjectJsonPath(projectPath, projectSlug);
-    await secureFs.writeFile(jsonPath, JSON.stringify(project, null, 2));
-
-    logger.info(
-      `Created ${featureIds.length} features and ${epicIds.length} epics from project ${projectSlug}`
-    );
-
-    return {
-      featuresCreated: featureIds.length,
-      epicsCreated: epicIds.length,
-      featureIds,
-      epicIds,
-    };
   }
 
   // ---------------------------------------------------------------------------

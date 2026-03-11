@@ -7,20 +7,23 @@ import {
   FlaskConical,
   Activity,
   Archive,
+  Milestone,
 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@protolabsai/ui/atoms';
 import { Spinner } from '@protolabsai/ui/atoms';
 import { toast } from 'sonner';
 import { ProjectHeader } from './components/project-header';
 import { ProjectSidebar } from './components/project-sidebar';
-import { PmChatPanel } from './components/pm-chat-panel';
 import { useProject, useProjectDelete } from './hooks/use-project';
 import { useAppStore } from '@/store/app-store';
+import { useAvaChannelStore } from '@/store/ava-channel-store';
+import { useChatStore } from '@/store/chat-store';
 import { PrdTab } from './tabs/prd-tab';
 import { FeaturesTab } from './tabs/features-tab';
 import { ResourcesTab } from './tabs/resources-tab';
 import { UpdatesTab } from './tabs/updates-tab';
 import { ResearchTab } from './tabs/research-tab';
+import { MilestonesTab } from './tabs/milestones-tab';
 import { ProjectTimeline } from '@/components/views/projects/project-timeline';
 import { ProjectArtifactViewer } from '@/components/views/projects/project-artifact-viewer';
 import type { Project, ArtifactIndexEntry } from '@protolabsai/types';
@@ -36,7 +39,15 @@ export function ProjectDetail({
   const { data: project, isLoading } = useProject(projectSlug);
   const deleteMutation = useProjectDelete();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [pmChatOpen, setPmChatOpen] = useState(false);
+  const setPendingProjectSlug = useAvaChannelStore((s) => s.setPendingProjectSlug);
+  const setLastActiveTab = useAvaChannelStore((s) => s.setLastActiveTab);
+  const setChatModalOpen = useChatStore((s) => s.setChatModalOpen);
+
+  const handleOpenPmChat = () => {
+    setPendingProjectSlug(projectSlug);
+    setLastActiveTab('projects');
+    setChatModalOpen(true);
+  };
 
   const handleDelete = () => {
     deleteMutation.mutate(projectSlug, {
@@ -78,8 +89,7 @@ export function ProjectDetail({
         onDelete={handleDelete}
         onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
         sidebarOpen={sidebarOpen}
-        onTogglePmChat={() => setPmChatOpen((v) => !v)}
-        pmChatOpen={pmChatOpen}
+        onOpenPmChat={handleOpenPmChat}
       />
 
       <div className="flex-1 flex min-h-0">
@@ -92,6 +102,12 @@ export function ProjectDetail({
                 <FileText />
                 <span className="hidden sm:inline">PRD</span>
               </TabsTrigger>
+              {project.milestones && project.milestones.length > 0 && (
+                <TabsTrigger value="milestones">
+                  <Milestone />
+                  <span className="hidden sm:inline">Milestones</span>
+                </TabsTrigger>
+              )}
               <TabsTrigger value="features">
                 <Layers />
                 <span className="hidden sm:inline">Features</span>
@@ -123,6 +139,12 @@ export function ProjectDetail({
             <TabsContent value="prd">
               <PrdTab project={project as Project} projectSlug={projectSlug} />
             </TabsContent>
+
+            {project.milestones && project.milestones.length > 0 && (
+              <TabsContent value="milestones">
+                <MilestonesTab project={project as Project} />
+              </TabsContent>
+            )}
 
             <TabsContent value="features">
               <FeaturesTab projectSlug={projectSlug} />
@@ -160,13 +182,6 @@ export function ProjectDetail({
           </Tabs>
         </div>
       </div>
-
-      <PmChatPanel
-        open={pmChatOpen}
-        onClose={() => setPmChatOpen(false)}
-        project={project as Project}
-        projectPath={projectPath}
-      />
     </div>
   );
 }

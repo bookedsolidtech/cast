@@ -209,6 +209,12 @@ export interface FeatureFlags {
    * Reports readings to POST /api/sensors/report. Off by default.
    */
   userPresenceDetection: boolean;
+  /**
+   * Ava Channel Reactor — enables the reactive orchestrator that monitors the
+   * CRDT-backed Ava Channel and auto-responds to incoming messages.
+   * Requires hivemind to be enabled in proto.config.yaml. Off by default.
+   */
+  reactorEnabled: boolean;
 }
 
 /** Default feature flags — all off by default, opt-in per environment */
@@ -219,11 +225,57 @@ export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   specEditor: false,
   systemView: false,
   userPresenceDetection: false,
+  reactorEnabled: false,
 };
 
 // ============================================================================
 // Scheduler Settings
 // ============================================================================
+
+// ============================================================================
+// Ava Channel Reactor Settings
+// ============================================================================
+
+/**
+ * AvaChannelReactorSettings — Configuration for the Ava Channel reactor.
+ *
+ * The reactor listens for incoming messages on the Ava Channel and decides
+ * whether/how to respond. These settings live in WorkflowSettings so they
+ * can be toggled per-instance alongside other workflow automation flags.
+ */
+export interface AvaChannelReactorSettings {
+  /** Whether the Ava Channel reactor is enabled (default: false) */
+  enabled: boolean;
+  /**
+   * Maximum conversation depth before the reactor stops auto-responding.
+   * Prevents runaway conversation loops. (default: 5)
+   */
+  maxConversationDepth: number;
+  /**
+   * Minimum milliseconds between reactor responses to the same conversation.
+   * Prevents flooding the channel with rapid-fire replies. (default: 30000)
+   */
+  cooldownMs: number;
+  /**
+   * Model alias or ID to use for reactor response generation.
+   * Defaults to 'haiku' for cost efficiency on broadcast monitoring.
+   */
+  reactorModel: string;
+  /**
+   * Messages older than this many milliseconds are considered stale and
+   * will not trigger a reactor response. (default: 300000 = 5 minutes)
+   */
+  staleMessageThresholdMs: number;
+}
+
+/** Default Ava Channel reactor settings — disabled by default */
+export const DEFAULT_AVA_CHANNEL_REACTOR_SETTINGS: AvaChannelReactorSettings = {
+  enabled: false,
+  maxConversationDepth: 5,
+  cooldownMs: 30_000,
+  reactorModel: 'haiku',
+  staleMessageThresholdMs: 300_000,
+};
 
 /**
  * Scheduler settings for persisting task state across server restarts.
@@ -297,6 +349,12 @@ export interface GlobalSettings {
   enableDependencyBlocking: boolean;
   /** Skip verification requirement in auto-mode (treat 'completed' same as 'verified') */
   skipVerificationInAutoMode: boolean;
+  /**
+   * Cooldown period (in milliseconds) after feature creation before auto-mode may pick it up.
+   * Gives creators time to set dependencies, adjust properties, or batch-create related features.
+   * Default: 30000 (30 seconds). Set to 0 to disable.
+   */
+  autoModePickupCooldownMs?: number;
   /** Default: use git worktrees for feature branches */
   useWorktrees: boolean;
   /** Default: planning approach (skip/lite/spec/full) */
@@ -604,6 +662,16 @@ export interface GlobalSettings {
    */
   gtmEnabled?: boolean;
 
+  /**
+   * Enable portfolio gate evaluation before feature creation in signal intake.
+   * When enabled, evaluates ideas against capacity (backlog size < 50),
+   * duplication (Jaccard similarity > 0.6), and error budget (blocks architectural
+   * features when error rate is high). Rejected ideas are blocked with reason.
+   * Deferred ideas enter a queue for batch review.
+   * @default false
+   */
+  portfolioGate?: boolean;
+
   // Hivemind Configuration
   /**
    * Unique identifier for this Automaker instance in a hivemind mesh.
@@ -660,6 +728,14 @@ export interface GlobalSettings {
    * @see SchedulerSettings
    */
   schedulerSettings?: SchedulerSettings;
+
+  /**
+   * Ava Channel reactor settings.
+   * Controls whether this instance auto-responds to incoming Ava Channel messages
+   * and at what depth/cadence.
+   * @see AvaChannelReactorSettings
+   */
+  avaChannelReactor?: AvaChannelReactorSettings;
 }
 
 /** Default global settings used when no settings file exists */

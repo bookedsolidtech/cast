@@ -174,7 +174,8 @@ export const projectTools: Tool[] = [
   },
   {
     name: 'delete_project',
-    description: 'Delete a project plan and all its files.',
+    description:
+      'Delete a project plan and all its files. This is a destructive action — requires sufficient trust tier. If trust is insufficient, an approval request is created instead.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -185,6 +186,11 @@ export const projectTools: Tool[] = [
         projectSlug: {
           type: 'string',
           description: 'The project slug to delete',
+        },
+        requestingAgentId: {
+          type: 'string',
+          description:
+            'Optional agent ID for trust tier enforcement. If the agent lacks sufficient trust, an approval request is created instead of executing.',
         },
       },
       required: ['projectPath', 'projectSlug'],
@@ -425,6 +431,83 @@ export const projectTools: Tool[] = [
         },
       },
       required: ['projectPath', 'projectSlug'],
+    },
+  },
+
+  // Project Assignment
+  {
+    name: 'assign_project',
+    description:
+      'Assign a project to an instance. Writes assignedTo, assignedAt, and assignedBy fields to the project.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectPath: {
+          type: 'string',
+          description: 'Absolute path to the project directory',
+        },
+        projectSlug: {
+          type: 'string',
+          description: 'The project slug to assign',
+        },
+        assignedTo: {
+          type: 'string',
+          description: 'Instance ID to assign the project to',
+        },
+        assignedBy: {
+          type: 'string',
+          description: 'Instance ID or user performing the assignment',
+        },
+      },
+      required: ['projectPath', 'projectSlug', 'assignedTo', 'assignedBy'],
+    },
+  },
+  {
+    name: 'unassign_project',
+    description: 'Clear the assignment fields on a project.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectPath: {
+          type: 'string',
+          description: 'Absolute path to the project directory',
+        },
+        projectSlug: {
+          type: 'string',
+          description: 'The project slug to unassign',
+        },
+      },
+      required: ['projectPath', 'projectSlug'],
+    },
+  },
+  {
+    name: 'list_project_assignments',
+    description:
+      'List all project assignments for a projectPath. Returns every project that has an assignedTo field set.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectPath: {
+          type: 'string',
+          description: 'Absolute path to the project directory',
+        },
+      },
+      required: ['projectPath'],
+    },
+  },
+  {
+    name: 'reassign_orphaned_projects',
+    description:
+      'Detect projects assigned to peers with stale heartbeats (>120s) and reassign them to this instance.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectPath: {
+          type: 'string',
+          description: 'Absolute path to the project directory',
+        },
+      },
+      required: ['projectPath'],
     },
   },
 ];

@@ -33,6 +33,8 @@ export type EventType =
   | 'feature:verify-pending'
   | 'feature:blocked'
   | 'feature:unblocked'
+  | 'cost:exceeded'
+  | 'runtime:exceeded'
   | 'project:analysis-started'
   | 'project:analysis-progress'
   | 'project:analysis-completed'
@@ -108,6 +110,8 @@ export type EventType =
   | 'integration:unregistered'
   | 'integration:toggled'
   // Project orchestration events
+  | 'project:created'
+  | 'project:updated'
   | 'project:scaffolded'
   | 'project:deleted'
   | 'project:status-changed'
@@ -203,11 +207,15 @@ export type EventType =
   | 'ceremony:project-retro'
   | 'ceremony:triggered'
   | 'ceremony:fired'
+  | 'ceremony:trigger-requested'
   | 'ceremony:post-project-docs'
   | 'ceremony:post-project-docs:complete'
   | 'ceremony:post-project-docs:failed'
+  | 'ceremony:retro-completed'
   // Retro improvement events (reflection loop: REFLECT → REPEAT)
   | 'retro:improvements:created'
+  // Gate tuning signals (from retro unresolved challenges → Lead Engineer rules)
+  | 'gate:tuning-signal'
   // Bug triage workflow events (channel workflow → investigation → board feature)
   | 'bug:reported'
   | 'bug:reaction-triggered'
@@ -313,11 +321,31 @@ export type EventType =
   | 'job:failed'
   // Chat tool progress events (real-time sideband for Ava tool execution)
   | 'chat:tool-progress'
+  // Chat user input request events (inline form rendered in the chat UI)
+  | 'chat:user-input-request'
   // Subagent tool approval events (gated trust model)
   | 'subagent:tool-approval-request'
   | 'subagent:tool-approval-response'
   // Server lifecycle events
-  | 'server:shutdown';
+  | 'server:shutdown'
+  // CRDT sync events (multi-instance feature store sync via Automerge)
+  | 'crdt:remote-changes'
+  // Sync mesh partition and peer health events
+  | 'sync:partition-recovered'
+  | 'sync:peer-unreachable'
+  // Work-stealing handshake events (cross-instance feature assignment)
+  | 'work_stealing:request'
+  | 'work_stealing:offer'
+  | 'work_stealing:accept'
+  | 'agent:completed'
+  | 'pr:merged'
+  | 'pr:review-requested'
+  | 'ava-channel:message'
+  // Error budget events (burn rate threshold enforcement)
+  | 'error_budget:exhausted'
+  | 'error_budget:recovered'
+  // Project failover events (auto-claim of orphaned projects)
+  | 'project:failover';
 
 export type EventCallback = (type: EventType, payload: unknown) => void;
 
@@ -513,6 +541,32 @@ export interface EventPayloadMap {
     featureId: string;
     projectPath: string;
   };
+  'cost:exceeded': {
+    featureId: string;
+    projectPath: string;
+    costUsd: number;
+    capUsd: number;
+  };
+  'runtime:exceeded': {
+    featureId: string;
+    projectPath: string;
+    elapsedMinutes: number;
+    capMinutes: number;
+  };
+  'error_budget:exhausted': {
+    projectPath: string;
+    failRate: number;
+    threshold: number;
+    totalMerges: number;
+    failedMerges: number;
+  };
+  'error_budget:recovered': {
+    projectPath: string;
+    failRate: number;
+    threshold: number;
+    totalMerges: number;
+    failedMerges: number;
+  };
   'feature:status-changed': {
     featureId: string;
     oldStatus?: string;
@@ -526,6 +580,8 @@ export interface EventPayloadMap {
     newTitle?: string;
     previousDescription?: string;
     newDescription?: string;
+    /** Full feature object — included when emitted by FeatureLoader after a write */
+    feature?: unknown;
   };
 
   // Auto-mode events
@@ -540,11 +596,26 @@ export interface EventPayloadMap {
 
   // Milestone/project lifecycle
   'milestone:completed': { milestone?: string; projectPath?: string };
+  'project:created': { projectSlug: string; projectPath: string; project?: unknown };
+  'project:updated': { projectSlug: string; projectPath: string; project?: unknown };
+  'project:deleted': { projectSlug: string; projectPath: string };
   'project:completed': { project?: string; projectPath?: string };
   'project:prd:changes-requested': {
     projectSlug: string;
     projectPath: string;
     feedback: string;
+  };
+  // Project failover event (auto-claim of orphaned project)
+  'project:failover': {
+    projectSlug: string;
+    projectPath: string;
+    /** Instance ID that previously owned the project (now stale) */
+    previousOwner: string;
+    /** Instance ID that claimed the project */
+    newOwner: string;
+    /** Milliseconds since the previous owner's last heartbeat */
+    stalenessMs: number;
+    timestamp: string;
   };
 
   // Lead Engineer events
@@ -717,6 +788,25 @@ export interface EventPayloadMap {
     timestamp: string;
   };
 
+  // Chat user input request events (inline form rendered in the chat UI)
+  'chat:user-input-request': {
+    /** Unique form ID used to correlate the response */
+    formId: string;
+    /** Form dialog title */
+    title: string;
+    /** Optional description shown below the title */
+    description?: string;
+    /** One or more form steps (multi-step renders as a wizard) */
+    steps: Array<{
+      schema: Record<string, unknown>;
+      uiSchema?: Record<string, unknown>;
+      title?: string;
+      description?: string;
+    }>;
+    /** ISO timestamp */
+    timestamp: string;
+  };
+
   // Sensor framework events
   'sensor:registered': { sensorId: string; name: string; registeredAt: string };
   'sensor:data-received': {
@@ -736,6 +826,19 @@ export interface EventPayloadMap {
     approvalId: string;
     approved: boolean;
     message?: string;
+  };
+
+  // CRDT sync events (multi-instance feature store sync via Automerge)
+  'crdt:remote-changes': {
+    /** Absolute path to the project whose CRDT doc received remote changes */
+    projectPath: string;
+    /** Automerge binary change payloads received from a peer */
+    changes: Uint8Array[];
+  };
+
+  // Ava Channel events (private multi-instance coordination channel)
+  'ava-channel:message': {
+    message: import('./ava-channel.js').AvaChatMessage;
   };
 }
 

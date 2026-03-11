@@ -29,7 +29,7 @@ export function createDeleteHandler(featureLoader: FeatureLoader, events?: Event
       const success = await featureLoader.delete(projectPath, featureId);
 
       if (success && feature && events) {
-        events.emit('feature:deleted', {
+        events.broadcast('feature:deleted', {
           projectPath,
           featureId: feature.id,
           feature,

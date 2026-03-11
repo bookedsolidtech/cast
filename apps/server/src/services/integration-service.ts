@@ -35,8 +35,16 @@ export interface DiscordMessagePayload {
   channelId?: string;
   webhookId?: string;
   webhookToken?: string;
-  action: 'send_message' | 'create_thread' | 'add_reaction';
+  action: 'send_message' | 'send_embed' | 'create_thread' | 'add_reaction';
   content?: string;
+  embed?: {
+    title: string;
+    description?: string;
+    color?: number;
+    fields?: Array<{ name: string; value: string; inline?: boolean }>;
+    footer?: { text: string };
+    timestamp?: string;
+  };
   mention?: string;
 }
 
@@ -245,6 +253,10 @@ export class IntegrationService {
 
   /**
    * Handle feature:completed event
+   *
+   * Skips individual feature notifications for features that belong to a project
+   * (have a projectSlug). Those are covered by milestone:completed and
+   * project:completed events instead, reducing Discord noise.
    */
   private async handleFeatureCompleted(payload: FeatureEventPayload): Promise<void> {
     const { projectPath, featureId } = payload;
@@ -255,7 +267,11 @@ export class IntegrationService {
     const feature = await this.loadFeature(projectPath, featureId);
     if (!feature) return;
 
-    // Discord: Send completion notification
+    // Skip per-feature notifications for project-scoped features.
+    // Milestone and project completion events handle the roll-up.
+    if (feature.projectSlug) return;
+
+    // Discord: Send completion notification (standalone features only)
     if (integrations.discord?.enabled && integrations.discord.notifyOnCompletion) {
       await this.emitDiscordEvent({
         projectPath,
@@ -283,9 +299,12 @@ export class IntegrationService {
     const feature = await this.loadFeature(projectPath, featureId);
     if (!feature) return;
 
-    // Discord: Send error notification with optional mention
+    // Discord: Send error notification as embed with optional mention
     if (integrations.discord?.enabled && integrations.discord.notifyOnError) {
       const mention = integrations.discord.mentionOnError || '';
+      const errorText = error || 'Unknown error';
+      // Truncate error to Discord embed description limit (4096 chars)
+      const description = errorText.length > 4000 ? errorText.slice(0, 4000) + '...' : errorText;
       await this.emitDiscordEvent({
         projectPath,
         featureId,
@@ -294,8 +313,18 @@ export class IntegrationService {
         channelId: integrations.discord.channelId,
         webhookId: integrations.discord.webhookId,
         webhookToken: integrations.discord.webhookToken,
-        action: 'send_message',
-        content: `Feature failed: **${feature.title}**\nError: ${error || 'Unknown error'}`,
+        action: 'send_embed',
+        embed: {
+          title: `Feature Failed: ${feature.title}`,
+          description,
+          color: 0xed4245, // Discord red
+          fields: [
+            { name: 'Feature', value: feature.id, inline: true },
+            { name: 'Status', value: 'blocked', inline: true },
+          ],
+          footer: { text: 'protoLabs Studio' },
+          timestamp: new Date().toISOString(),
+        },
         mention,
       });
     }
@@ -361,38 +390,18 @@ export class IntegrationService {
 
   /**
    * Handle milestone:completed event
+   *
+   * Suppressed — ChangelogService posts a rich embed with feature breakdown
+   * for the same event, which is strictly better than a plain-text message.
    */
-  private async handleMilestoneCompleted(payload: {
+  private async handleMilestoneCompleted(_payload: {
     projectPath: string;
     projectTitle: string;
     projectSlug: string;
     milestoneTitle: string;
     milestoneNumber: number;
   }): Promise<void> {
-    const { projectPath, projectTitle, milestoneTitle, milestoneNumber } = payload;
-
-    const integrations = await this.getProjectIntegrations(projectPath);
-    if (!integrations) return;
-
-    // Discord: Send milestone completion notification
-    if (integrations.discord?.enabled) {
-      const placeholderFeature = {
-        id: 'milestone-completed',
-        title: `Milestone ${milestoneNumber}: ${milestoneTitle}`,
-      } as Feature;
-
-      await this.emitDiscordEvent({
-        projectPath,
-        featureId: 'milestone-completed',
-        feature: placeholderFeature,
-        serverId: integrations.discord.serverId,
-        channelId: integrations.discord.channelId,
-        webhookId: integrations.discord.webhookId,
-        webhookToken: integrations.discord.webhookToken,
-        action: 'send_message',
-        content: `**${projectTitle}** - Milestone ${milestoneNumber} completed: ${milestoneTitle}`,
-      });
-    }
+    // No-op: ChangelogService handles milestone completion with rich embeds.
   }
 
   /**
@@ -470,36 +479,16 @@ export class IntegrationService {
 
   /**
    * Handle project:completed event
+   *
+   * Suppressed — ChangelogService posts a rich embed with full feature
+   * breakdown for the same event.
    */
-  private async handleProjectCompleted(payload: {
+  private async handleProjectCompleted(_payload: {
     projectPath: string;
     projectTitle: string;
     projectSlug: string;
   }): Promise<void> {
-    const { projectPath, projectTitle } = payload;
-
-    const integrations = await this.getProjectIntegrations(projectPath);
-    if (!integrations) return;
-
-    // Discord: Send project completion notification
-    if (integrations.discord?.enabled) {
-      const placeholderFeature = {
-        id: 'project-completed',
-        title: projectTitle,
-      } as Feature;
-
-      await this.emitDiscordEvent({
-        projectPath,
-        featureId: 'project-completed',
-        feature: placeholderFeature,
-        serverId: integrations.discord.serverId,
-        channelId: integrations.discord.channelId,
-        webhookId: integrations.discord.webhookId,
-        webhookToken: integrations.discord.webhookToken,
-        action: 'send_message',
-        content: `**Project completed: ${projectTitle}** -- All milestones done!`,
-      });
-    }
+    // No-op: ChangelogService handles project completion with rich embeds.
   }
 
   /**

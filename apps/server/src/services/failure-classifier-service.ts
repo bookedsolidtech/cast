@@ -161,7 +161,8 @@ const FAILURE_PATTERNS: FailurePattern[] = [
     maxRetries: 2,
     createRecoveryStrategy: () => ({
       type: 'retry_with_context',
-      context: 'Build failed - review compiler output and fix errors',
+      context:
+        'Build failed - run `npm run build:packages` first (shared types), then `npm run build:server`. Read the FULL compiler output and fix ALL errors before retrying. Use `npm run typecheck` to find all type errors at once.',
       delay: 1000,
     }),
     contextToPreserve: ['buildOutput', 'errorFiles', 'lastChanges'],
@@ -187,7 +188,8 @@ const FAILURE_PATTERNS: FailurePattern[] = [
     maxRetries: 2,
     createRecoveryStrategy: () => ({
       type: 'retry_with_context',
-      context: 'Type error detected - review and fix type definitions',
+      context:
+        'TypeScript type error - run `npm run typecheck` to see ALL errors at once. Fix each one: update type definitions, correct interface shapes, and update all consumers. Never use `as any` or `// @ts-ignore`.',
       delay: 1000,
     }),
     contextToPreserve: ['typeErrors', 'affectedFiles'],
@@ -284,6 +286,61 @@ const FAILURE_PATTERNS: FailurePattern[] = [
     contextToPreserve: ['validationErrors', 'input'],
     explanation: 'Input validation failed - needs human review of inputs',
     confidence: 0.8,
+  },
+
+  // Git hook / pre-commit / lint failures
+  {
+    patterns: [
+      /git.*hook.*fail/i,
+      /pre-commit.*fail/i,
+      /commit.*hook.*fail/i,
+      /lint-staged.*fail/i,
+      /prettier.*fail/i,
+      /eslint.*fail/i,
+      /hook.*exit.*code/i,
+      /husky.*fail/i,
+      /commit.*attempt/i,
+    ],
+    category: 'tool_error',
+    isRetryable: true,
+    suggestedDelay: 2000,
+    maxRetries: 2,
+    createRecoveryStrategy: () => ({
+      type: 'retry_with_context',
+      context:
+        'Git hook / lint failure - run `npm run format` to auto-fix Prettier, then `npm run lint` for ESLint errors. Stage the formatted files and retry the commit. If hooks are missing, run `npm install` in the worktree first.',
+      delay: 2000,
+    }),
+    contextToPreserve: ['hookOutput', 'lastChanges', 'affectedFiles'],
+    explanation: 'Git hook or pre-commit check failed - fix linting/formatting issues',
+    confidence: 0.9,
+  },
+
+  // Agent escalation — needs human input / clarification
+  {
+    patterns: [
+      /could not determine/i,
+      /needs? (human|user|manual) (input|review|intervention|clarification)/i,
+      /waiting for.*(input|clarification|design|decision|approval)/i,
+      /blocked.*pending/i,
+      /requires? clarification/i,
+      /unclear requirements?/i,
+      /ambiguous/i,
+      /no (clear )?next step/i,
+      /cannot proceed without/i,
+      /insufficient (context|information|details?)/i,
+    ],
+    category: 'validation',
+    isRetryable: false,
+    suggestedDelay: 0,
+    maxRetries: 0,
+    createRecoveryStrategy: (reason) => ({
+      type: 'escalate_to_user',
+      reason: `Agent needs human input to proceed: ${reason.slice(0, 200)}`,
+    }),
+    contextToPreserve: ['agentOutput', 'lastQuestion', 'blockedOn'],
+    explanation: 'Agent escalation — needs human input or clarification to proceed',
+    confidence: 0.75,
   },
 
   // Network/transient errors (catch-all for network issues)
@@ -389,7 +446,11 @@ export class FailureClassifierService {
     }
 
     // No pattern matched - return unknown
-    logger.debug('No pattern matched, classifying as unknown');
+    // Warn so unclassified failure reasons are visible in production logs.
+    // If this pattern is common, add a new entry to FAILURE_PATTERNS above.
+    logger.warn('No pattern matched, classifying as unknown', {
+      reasonSnippet: reason.slice(0, 200),
+    });
     return {
       ...createUnknownAnalysis(reason),
       confidence: 0.5, // Low confidence for unknown
@@ -424,6 +485,7 @@ export class FailureClassifierService {
       merge_conflict: 0,
       dependency: 3000,
       authentication: 0,
+      retry_exhausted: 0,
       unknown: 0,
     };
 
@@ -455,6 +517,7 @@ export class FailureClassifierService {
       merge_conflict: 0,
       dependency: 0,
       authentication: 0,
+      retry_exhausted: 0,
       unknown: 0,
     };
 

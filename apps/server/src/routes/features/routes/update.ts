@@ -187,13 +187,14 @@ export function createUpdateHandler(
         const descriptionChanged =
           updates.description !== undefined && currentFeature?.description !== updated.description;
         if (titleChanged || descriptionChanged) {
-          events.emit('feature:updated', {
+          events.broadcast('feature:updated', {
             featureId,
             projectPath,
             previousTitle: currentFeature?.title,
             newTitle: updated.title,
             previousDescription: currentFeature?.description,
             newDescription: updated.description,
+            feature: updated,
           });
         }
       }

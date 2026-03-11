@@ -1,4 +1,3 @@
-// @ts-nocheck -- Feature index signature causes property access type errors
 import { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -58,7 +57,7 @@ interface EditFeatureDialogProps {
       imagePaths: DescriptionImagePath[];
       textFilePaths: DescriptionTextFilePath[];
       branchName: string; // Can be empty string to use current branch
-      priority: number;
+      priority: 0 | 1 | 2 | 3 | 4;
       planningMode: PlanningMode;
       requirePlanApproval: boolean;
       dependencies?: string[];
@@ -233,7 +232,7 @@ export function EditFeatureDialog({
     // Determine if description changed and what source to use
     const descriptionChanged = editingFeature.description !== originalDescription;
     let historySource: 'enhance' | 'edit' | undefined;
-    let historyEnhancementMode: 'improve' | 'technical' | 'simplify' | 'acceptance' | undefined;
+    let historyEnhancementMode: EnhancementMode | undefined;
 
     if (descriptionChanged && descriptionChangeSource) {
       if (descriptionChangeSource === 'edit') {
@@ -553,7 +552,7 @@ export function EditFeatureDialog({
                   onPrioritySelect={(priority) =>
                     setEditingFeature({
                       ...editingFeature,
-                      priority,
+                      priority: priority as 0 | 1 | 2 | 3 | 4,
                     })
                   }
                   testIdPrefix="edit-priority"
@@ -611,6 +610,27 @@ export function EditFeatureDialog({
                     placeholder="Select features that depend on this..."
                     data-testid="edit-feature-child-deps"
                   />
+                </div>
+              </div>
+            )}
+
+            {/* Cross-instance assignment info (read-only) */}
+            {(editingFeature.assignedInstance || editingFeature.claimedBy) && (
+              <div className="pt-2 space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Instance Assignment</Label>
+                <div className="flex flex-col gap-1 rounded-md border border-border/40 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                  {editingFeature.assignedInstance && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-foreground font-medium">Assigned to:</span>
+                      <span className="font-mono">{editingFeature.assignedInstance}</span>
+                    </div>
+                  )}
+                  {editingFeature.claimedBy && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-foreground font-medium">Claimed by:</span>
+                      <span className="font-mono">{editingFeature.claimedBy}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

@@ -78,6 +78,93 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// ---------------------------------------------------------------------------
+// Trust tier enforcement for destructive tools
+// ---------------------------------------------------------------------------
+
+/** Minimum trust level (0-3) required for each destructive tool */
+const DESTRUCTIVE_TOOL_TRUST_REQUIREMENTS: Record<string, number> = {
+  delete_feature: 2,
+  delete_project: 2,
+  clear_queue: 2,
+  promote_to_main: 3,
+};
+
+/**
+ * Check if the calling agent/user has sufficient trust for a destructive action.
+ *
+ * If a `requestingAgentId` is provided, we submit a proposal to the authority
+ * service (`/authority/propose`) and return the policy decision.
+ *
+ * If no agent context is provided, we default to trust level 0 (most restrictive)
+ * and create an approval request via the authority propose endpoint.
+ *
+ * Returns { allowed: true } when the action can proceed, or
+ * { allowed: false, verdict, reason, requestId? } when blocked/pending approval.
+ */
+async function checkDestructiveTrustTier(
+  toolName: string,
+  projectPath: string | undefined,
+  requestingAgentId?: string
+): Promise<{ allowed: boolean; verdict?: string; reason?: string; requestId?: string }> {
+  const requiredTrust = DESTRUCTIVE_TOOL_TRUST_REQUIREMENTS[toolName];
+  if (requiredTrust === undefined) {
+    // Not a guarded destructive tool — allow
+    return { allowed: true };
+  }
+
+  // Map tool names to risk levels for the authority proposal
+  const toolRiskLevel: Record<string, string> = {
+    delete_feature: 'medium',
+    delete_project: 'high',
+    clear_queue: 'medium',
+    promote_to_main: 'high',
+  };
+
+  const actionRisk = toolRiskLevel[toolName] ?? 'high';
+  const resolvedProjectPath = projectPath ?? process.env.AUTOMAKER_ROOT ?? '';
+
+  if (!resolvedProjectPath) {
+    // No project context — cannot check authority, allow with warning
+    return { allowed: true };
+  }
+
+  const agentId = requestingAgentId ?? 'mcp-caller';
+
+  try {
+    const result = (await apiCall('/authority/propose', {
+      projectPath: resolvedProjectPath,
+      proposal: {
+        who: agentId,
+        what: 'modify_architecture',
+        target: toolName,
+        justification: `Executing destructive MCP tool: ${toolName}`,
+        risk: actionRisk,
+      },
+    })) as { decision?: { verdict?: string; reason?: string; approver?: string } };
+
+    const decision = result.decision;
+    if (!decision) {
+      // Authority service unavailable or returned unexpected shape — allow
+      return { allowed: true };
+    }
+
+    if (decision.verdict === 'allow') {
+      return { allowed: true };
+    }
+
+    return {
+      allowed: false,
+      verdict: decision.verdict,
+      reason: decision.reason,
+      requestId: decision.approver,
+    };
+  } catch {
+    // Authority service not available — allow and log
+    return { allowed: true };
+  }
+}
+
 // Helper for API calls with retry logic
 async function apiCall(
   endpoint: string,
@@ -181,6 +268,8 @@ import { gitOpsTools } from './tools/git-ops-tools.js';
 import { worktreeGitTools } from './tools/worktree-git-tools.js';
 import { promotionTools } from './tools/promotion-tools.js';
 import { leadEngineerTools } from './tools/lead-engineer-tools.js';
+import { avaChannelTools } from './tools/ava-channel-tools.js';
+import { knowledgeTools } from './tools/knowledge-tools.js';
 
 // Aggregate all tools
 const tools: Tool[] = [
@@ -205,6 +294,8 @@ const tools: Tool[] = [
   ...worktreeGitTools,
   ...promotionTools,
   ...leadEngineerTools,
+  ...avaChannelTools,
+  ...knowledgeTools,
 ];
 
 // Tool implementations
@@ -282,17 +373,39 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
       });
     }
 
-    case 'delete_feature':
+    case 'delete_feature': {
+      const deleteFeatureTrust = await checkDestructiveTrustTier(
+        'delete_feature',
+        args.projectPath as string | undefined,
+        args.requestingAgentId as string | undefined
+      );
+      if (!deleteFeatureTrust.allowed) {
+        return {
+          success: false,
+          blocked: true,
+          verdict: deleteFeatureTrust.verdict,
+          reason: deleteFeatureTrust.reason,
+          requestId: deleteFeatureTrust.requestId,
+          message: `delete_feature blocked: insufficient trust tier. ${deleteFeatureTrust.reason ?? ''}${deleteFeatureTrust.requestId ? ` Approval request created: ${deleteFeatureTrust.requestId}` : ''}`,
+        };
+      }
       return apiCall('/features/delete', {
         projectPath: args.projectPath,
         featureId: args.featureId,
       });
+    }
 
     case 'move_feature':
       return apiCall('/features/update', {
         projectPath: args.projectPath,
         featureId: args.featureId,
         updates: { status: args.status },
+      });
+
+    case 'rollback_feature':
+      return apiCall('/features/rollback', {
+        projectPath: args.projectPath,
+        featureId: args.featureId,
       });
 
     case 'update_feature_git_settings': {
@@ -365,8 +478,24 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
     case 'list_queue':
       return apiCall('/agent/queue/list', {});
 
-    case 'clear_queue':
+    case 'clear_queue': {
+      const clearQueueTrust = await checkDestructiveTrustTier(
+        'clear_queue',
+        args.projectPath as string | undefined,
+        args.requestingAgentId as string | undefined
+      );
+      if (!clearQueueTrust.allowed) {
+        return {
+          success: false,
+          blocked: true,
+          verdict: clearQueueTrust.verdict,
+          reason: clearQueueTrust.reason,
+          requestId: clearQueueTrust.requestId,
+          message: `clear_queue blocked: insufficient trust tier. ${clearQueueTrust.reason ?? ''}${clearQueueTrust.requestId ? ` Approval request created: ${clearQueueTrust.requestId}` : ''}`,
+        };
+      }
       return apiCall('/agent/queue/clear', {});
+    }
 
     // Context Files
     case 'list_context_files':
@@ -568,11 +697,27 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
       });
     }
 
-    case 'delete_project':
+    case 'delete_project': {
+      const deleteProjectTrust = await checkDestructiveTrustTier(
+        'delete_project',
+        args.projectPath as string | undefined,
+        args.requestingAgentId as string | undefined
+      );
+      if (!deleteProjectTrust.allowed) {
+        return {
+          success: false,
+          blocked: true,
+          verdict: deleteProjectTrust.verdict,
+          reason: deleteProjectTrust.reason,
+          requestId: deleteProjectTrust.requestId,
+          message: `delete_project blocked: insufficient trust tier. ${deleteProjectTrust.reason ?? ''}${deleteProjectTrust.requestId ? ` Approval request created: ${deleteProjectTrust.requestId}` : ''}`,
+        };
+      }
       return apiCall('/projects/delete', {
         projectPath: args.projectPath,
         projectSlug: args.projectSlug,
       });
+    }
 
     case 'archive_project':
       return apiCall('/projects/archive', {
@@ -928,6 +1073,20 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
         limit: args.limit || 10,
       });
 
+    // Discord Channel Messages
+    case 'send_discord_channel_message':
+      return apiCall('/discord/send-channel-message', {
+        channelId: args.channelId,
+        content: args.content,
+        embed: args.embed,
+      });
+
+    case 'read_discord_channel_messages':
+      return apiCall('/discord/read-channel-messages', {
+        channelId: args.channelId,
+        limit: args.limit || 10,
+      });
+
     // Agent Management
     case 'list_agent_templates':
       return apiCall('/agents/templates/list', {
@@ -1202,6 +1361,31 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
       return apiCall('/projects/lifecycle/status', {
         projectPath: args.projectPath,
         projectSlug: args.projectSlug,
+      });
+
+    // Project Assignment
+    case 'assign_project':
+      return apiCall('/projects/assignment/assign', {
+        projectPath: args.projectPath,
+        projectSlug: args.projectSlug,
+        assignedTo: args.assignedTo,
+        assignedBy: args.assignedBy,
+      });
+
+    case 'unassign_project':
+      return apiCall('/projects/assignment/unassign', {
+        projectPath: args.projectPath,
+        projectSlug: args.projectSlug,
+      });
+
+    case 'list_project_assignments':
+      return apiCall('/projects/assignment/list-assignments', {
+        projectPath: args.projectPath,
+      });
+
+    case 'reassign_orphaned_projects':
+      return apiCall('/projects/assignment/reassign-orphaned', {
+        projectPath: args.projectPath,
       });
 
     // Lead Engineer (Production Phase)
@@ -1735,11 +1919,27 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
         batchId: args.batchId,
       });
 
-    case 'promote_to_main':
+    case 'promote_to_main': {
+      const promoteToMainTrust = await checkDestructiveTrustTier(
+        'promote_to_main',
+        args.projectPath as string | undefined,
+        args.requestingAgentId as string | undefined
+      );
+      if (!promoteToMainTrust.allowed) {
+        return {
+          success: false,
+          blocked: true,
+          verdict: promoteToMainTrust.verdict,
+          reason: promoteToMainTrust.reason,
+          requestId: promoteToMainTrust.requestId,
+          message: `promote_to_main blocked: insufficient trust tier. ${promoteToMainTrust.reason ?? ''}${promoteToMainTrust.requestId ? ` Approval request created: ${promoteToMainTrust.requestId}` : ''}`,
+        };
+      }
       return apiCall('/promotions/promote-to-main', {
         projectPath: args.projectPath,
         batchId: args.batchId,
       });
+    }
 
     case 'list_promotion_batches':
       return apiCall('/promotions/batches', {}, 'GET');
@@ -1784,6 +1984,71 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
 
       return { success: true, handoff: latest };
     }
+
+    // Ava Channel (private coordination channel)
+    case 'send_channel_message':
+      return apiCall('/ava-channel/send', {
+        projectPath: args.projectPath,
+        message: args.message,
+        context: args.context,
+        instanceId: args.instanceId,
+        intent: args.intent,
+        expectsResponse: args.expectsResponse,
+      });
+
+    case 'read_channel_messages':
+      return apiCall(
+        '/ava-channel/messages',
+        {
+          projectPath: args.projectPath,
+          limit: args.limit,
+          since: args.since,
+          until: args.until,
+          instanceId: args.instanceId,
+        },
+        'GET'
+      );
+
+    case 'file_system_improvement':
+      return apiCall('/ava-channel/file-improvement', {
+        projectPath: args.projectPath,
+        title: args.title,
+        description: args.description,
+        frictionSummary: args.frictionSummary,
+        discussionContext: args.discussionContext,
+        complexity: args.complexity,
+        priority: args.priority,
+        instanceId: args.instanceId,
+        discussantCount: args.discussantCount,
+      });
+
+    // Knowledge Store
+    case 'knowledge_search':
+      return apiCall('/knowledge/search', {
+        projectPath: args.projectPath,
+        query: args.query,
+        domain: args.domain,
+        maxResults: args.maxResults,
+        maxTokens: args.maxTokens,
+      });
+
+    case 'knowledge_ingest':
+      return apiCall('/knowledge/ingest', {
+        projectPath: args.projectPath,
+        content: args.content,
+        domain: args.domain,
+        heading: args.heading,
+      });
+
+    case 'knowledge_rebuild':
+      return apiCall('/knowledge/rebuild', {
+        projectPath: args.projectPath,
+      });
+
+    case 'knowledge_stats':
+      return apiCall('/knowledge/stats', {
+        projectPath: args.projectPath,
+      });
 
     default:
       throw new Error(`Unknown tool: ${name}`);

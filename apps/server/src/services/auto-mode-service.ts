@@ -9,7 +9,9 @@
  * - Verification and merge workflows
  */
 
+import fs from 'node:fs';
 import * as v8 from 'node:v8';
+import { freemem, totalmem, cpus, loadavg } from 'node:os';
 import { ProviderFactory } from '../providers/provider-factory.js';
 import { simpleQuery } from '../providers/simple-query-service.js';
 import { StreamObserver } from './stream-observer-service.js';
@@ -75,7 +77,7 @@ import {
   getExecutionStatePath,
   ensureAutomakerDir,
 } from '@protolabsai/platform';
-import { rebaseWorktreeOnMain } from '@protolabsai/git-utils';
+import { rebaseWorktreeOnMain, extractTitleFromDescription } from '@protolabsai/git-utils';
 import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
 import { randomUUID } from 'crypto';
@@ -128,6 +130,7 @@ import {
   type LoopState,
   type AutoModeLoopConfig,
 } from './auto-mode/auto-loop-coordinator.js';
+import { AutoModeCoordinator } from './auto-mode/auto-mode-coordinator.js';
 import { FeatureStateManager } from './auto-mode/feature-state-manager.js';
 import { ExecutionService } from './auto-mode/execution-service.js';
 import type {
@@ -174,32 +177,6 @@ interface AutoModeConfig {
   branchName: string | null; // null = main worktree
 }
 
-/**
- * Generate a unique key for worktree-scoped auto loop state
- * @param projectPath - The project path
- * @param branchName - The branch name, or null for main worktree
- */
-function getWorktreeAutoLoopKey(projectPath: string, branchName: string | null): string {
-  const normalizedBranch = branchName === 'main' ? null : branchName;
-  return `${projectPath}::${normalizedBranch ?? '__main__'}`;
-}
-
-/**
- * Per-worktree autoloop state for multi-project/worktree support
- */
-interface ProjectAutoLoopState {
-  abortController: AbortController;
-  config: AutoModeConfig;
-  isRunning: boolean;
-  consecutiveFailures: { timestamp: number; error: string }[];
-  pausedDueToFailures: boolean;
-  hasEmittedIdleEvent: boolean;
-  branchName: string | null; // null = main worktree
-  cooldownTimer: NodeJS.Timeout | null; // Timer for auto-resume after cooldown
-  startingFeatures: Set<string>; // Track features being started to prevent race conditions
-  humanBlockedCount: number; // Count of features blocked by human-assigned dependencies
-}
-
 // ExecutionState is defined in libs/types/src/auto-mode.ts and imported from @protolabsai/types.
 
 // Default empty execution state
@@ -215,9 +192,6 @@ const DEFAULT_EXECUTION_STATE: ExecutionState = {
 
 // Duration before auto-resuming a paused loop after circuit-breaker activation
 const COOLDOWN_PERIOD_MS = 300_000; // 5 minutes
-// Legacy constants for global failure tracking (used by legacy methods only)
-const CONSECUTIVE_FAILURE_THRESHOLD = 2; // Pause after 2 consecutive failures (circuit breaker)
-const FAILURE_WINDOW_MS = 60000; // Failures within 1 minute count as consecutive
 
 export class AutoModeService {
   private events: EventEmitter;
@@ -225,20 +199,17 @@ export class AutoModeService {
   private concurrencyManager: ConcurrencyManager;
   private runningFeatures = new Map<string, RunningFeature>();
   private readonly coordinator = new AutoLoopCoordinator();
+  private autoModeCoordinator!: AutoModeCoordinator;
   /** Guards against TOCTOU race in startAutoLoopForProject: keys claimed synchronously before any await */
   private readonly pendingLoopStarts = new Set<string>();
   private featureLoader = new FeatureLoader();
   // Legacy single-project properties (kept for backward compatibility during transition)
   private autoLoopRunning = false;
   private autoLoopAbortController: AbortController | null = null;
-  private config: AutoModeConfig | null = null;
   private pendingApprovals = new Map<string, PendingApproval>();
   // Track retry timers so they can be cancelled on shutdown
   private retryTimers = new Map<string, NodeJS.Timeout>();
   private settingsService: SettingsService | null = null;
-  // Track consecutive failures to detect quota/API issues (legacy global)
-  private consecutiveFailures: { timestamp: number; error: string }[] = [];
-  private pausedDueToFailures = false;
   // Track if idle event has been emitted (legacy global)
   private hasEmittedIdleEvent = false;
   // Recovery service for automatic failure recovery
@@ -262,6 +233,8 @@ export class AutoModeService {
   // Track which projects have already been checked for interrupted features this server lifecycle.
   // Prevents the UI from re-triggering resumeInterruptedFeatures on every board mount.
   private resumeCheckedProjects = new Set<string>();
+  // Cached backlog count refreshed asynchronously on each capacity read.
+  private _backlogCountCache = 0;
   // Memory management thresholds (configurable via env vars)
   private readonly HEAP_USAGE_STOP_NEW_AGENTS_THRESHOLD = parseFloat(
     process.env.HEAP_STOP_THRESHOLD || '0.8'
@@ -277,6 +250,7 @@ export class AutoModeService {
     this.settingsService = settingsService ?? null;
     this.recoveryService = getRecoveryService(events);
     this.featureStateManager = new FeatureStateManager(this.events, this.featureLoader);
+    this.autoModeCoordinator = new AutoModeCoordinator(events, this.settingsService);
 
     // Initialize ExecutionService with all dependencies and callbacks
     const callbacks: IAutoModeCallbacks = {
@@ -342,6 +316,7 @@ export class AutoModeService {
       sleep: this.sleep.bind(this),
       HEAP_USAGE_STOP_NEW_AGENTS_THRESHOLD: this.HEAP_USAGE_STOP_NEW_AGENTS_THRESHOLD,
       HEAP_USAGE_ABORT_AGENTS_THRESHOLD: this.HEAP_USAGE_ABORT_AGENTS_THRESHOLD,
+      isPickupFrozen: () => this.autoModeCoordinator.isPickupFrozen(),
     };
     this.scheduler = new FeatureScheduler({
       featureLoader: this.featureLoader,
@@ -408,6 +383,58 @@ export class AutoModeService {
    */
   setPipelineCheckpointService(service: PipelineCheckpointService): void {
     this.pipelineCheckpointService = service;
+  }
+
+  // Work Intake service for pull-based phase claiming (optional, set by work-intake.module)
+  private workIntakeService: import('./work-intake-service.js').WorkIntakeService | null = null;
+
+  setWorkIntakeService(service: import('./work-intake-service.js').WorkIntakeService): void {
+    this.workIntakeService = service;
+  }
+
+  /**
+   * Wire up project-affinity filtering for multi-instance deployments.
+   *
+   * When set, the scheduler will filter pending features by project ownership and sort them
+   * (assigned projects first, then own unassigned, then overflow). The featureLoader will
+   * also stamp createdByInstance on newly created features.
+   *
+   * Not required for single-instance setups — omitting this call preserves the existing
+   * behavior (all eligible features are candidates, sorted only by priority).
+   *
+   * @param instanceId - This instance's identity string (from CrdtSyncService.getInstanceId())
+   * @param projectAssignmentService - Service that tracks project-to-instance assignments
+   * @param overflowEnabled - Whether this instance accepts features from non-assigned projects
+   */
+  setProjectAssignmentService(
+    instanceId: string,
+    projectAssignmentService: import('./project-assignment-service.js').ProjectAssignmentService,
+    overflowEnabled = true
+  ): void {
+    // Stamp instance ID on newly created features
+    this.featureLoader.setInstanceId(instanceId);
+
+    // Wire project affinity into the scheduler
+    const getAssignedProjectSlugs = async (projectPath: string): Promise<Set<string>> => {
+      const projects = await projectAssignmentService.getMyAssignedProjects(projectPath);
+      return new Set(projects.map((p) => p.slug));
+    };
+    this.scheduler.setProjectAffinity(instanceId, getAssignedProjectSlugs, overflowEnabled);
+  }
+
+  /** Total number of currently running agent features across all projects. */
+  getRunningAgentCount(): number {
+    return this.runningFeatures.size;
+  }
+
+  /** Maximum concurrency from the first active auto-loop, or default. */
+  getMaxConcurrency(): number {
+    for (const [, state] of this.coordinator.loops) {
+      if (state.isRunning) {
+        return state.config.maxConcurrency;
+      }
+    }
+    return DEFAULT_MAX_CONCURRENCY;
   }
 
   /**
@@ -499,8 +526,7 @@ export class AutoModeService {
     const worktreeKey = this.coordinator.makeKey(projectPath, branchName);
     const hasState = this.coordinator.getState(worktreeKey) !== undefined;
     if (!hasState) {
-      // Fall back to legacy global tracking
-      return this.trackFailureAndCheckPause(errorInfo);
+      return false;
     }
 
     // Immediately pause for critical errors that should trigger circuit breaker
@@ -513,37 +539,6 @@ export class AutoModeService {
     }
 
     return this.coordinator.trackFailure(worktreeKey, errorInfo.message);
-  }
-
-  /**
-   * Track a failure and check if we should pause due to consecutive failures (legacy global).
-   */
-  private trackFailureAndCheckPause(errorInfo: { type: string; message: string }): boolean {
-    const now = Date.now();
-
-    // Add this failure
-    this.consecutiveFailures.push({ timestamp: now, error: errorInfo.message });
-
-    // Remove old failures outside the window
-    this.consecutiveFailures = this.consecutiveFailures.filter(
-      (f) => now - f.timestamp < FAILURE_WINDOW_MS
-    );
-
-    // Check if we've hit the threshold
-    if (this.consecutiveFailures.length >= CONSECUTIVE_FAILURE_THRESHOLD) {
-      return true; // Should pause
-    }
-
-    // Immediately pause for critical errors that should trigger circuit breaker
-    if (
-      errorInfo.type === 'quota_exhausted' ||
-      errorInfo.type === 'rate_limit' ||
-      errorInfo.type === 'network'
-    ) {
-      return true;
-    }
-
-    return false;
   }
 
   /**
@@ -560,8 +555,6 @@ export class AutoModeService {
     const worktreeKey = this.coordinator.makeKey(projectPath, branchName);
     const projectState = this.coordinator.getState(worktreeKey);
     if (!projectState) {
-      // Fall back to legacy global pause
-      this.signalShouldPause(errorInfo);
       return;
     }
 
@@ -579,7 +572,7 @@ export class AutoModeService {
     const cooldownMinutes = Math.floor(COOLDOWN_PERIOD_MS / 60000);
     this.emitAutoModeEvent('auto_mode_paused_failures', {
       message:
-        failureCount >= CONSECUTIVE_FAILURE_THRESHOLD
+        failureCount >= 2
           ? `Auto Mode paused: ${failureCount} consecutive failures detected. Circuit breaker activated. Auto-resume in ${cooldownMinutes} minutes.`
           : `Auto Mode paused: Critical error detected (${errorInfo.type}). Circuit breaker activated. Auto-resume in ${cooldownMinutes} minutes.`,
       errorType: errorInfo.type,
@@ -676,36 +669,6 @@ export class AutoModeService {
   }
 
   /**
-   * Signal that we should pause due to repeated failures or quota exhaustion (legacy global).
-   */
-  private signalShouldPause(errorInfo: { type: string; message: string }): void {
-    if (this.pausedDueToFailures) {
-      return; // Already paused
-    }
-
-    this.pausedDueToFailures = true;
-    const failureCount = this.consecutiveFailures.length;
-    logger.info(
-      `Pausing auto loop after ${failureCount} consecutive failures. Last error: ${errorInfo.type}`
-    );
-
-    // Emit event to notify UI
-    this.emitAutoModeEvent('auto_mode_paused_failures', {
-      message:
-        failureCount >= CONSECUTIVE_FAILURE_THRESHOLD
-          ? `Auto Mode paused: ${failureCount} consecutive failures detected. This may indicate a quota limit or API issue. Please check your usage and try again.`
-          : 'Auto Mode paused: Usage limit or API error detected. Please wait for your quota to reset or check your API configuration.',
-      errorType: errorInfo.type,
-      originalError: errorInfo.message,
-      failureCount,
-      projectPath: this.config?.projectPath,
-    });
-
-    // Stop the auto loop
-    this.stopAutoLoop();
-  }
-
-  /**
    * Reset failure tracking for a specific project
    * @param projectPath - The project to reset failure tracking for
    * @param branchName - The branch name, or null for main worktree
@@ -720,10 +683,10 @@ export class AutoModeService {
 
   /**
    * Reset failure tracking (called when user manually restarts auto mode) - legacy global
+   * @deprecated Fields removed; no-op kept for call-site compatibility during transition
    */
   private resetFailureTracking(): void {
-    this.consecutiveFailures = [];
-    this.pausedDueToFailures = false;
+    // no-op: legacy global failure tracking fields removed
   }
 
   /**
@@ -738,9 +701,10 @@ export class AutoModeService {
 
   /**
    * Record a successful feature completion to reset consecutive failure count - legacy global
+   * @deprecated Field removed; no-op kept for call-site compatibility during transition
    */
   private recordSuccess(): void {
-    this.consecutiveFailures = [];
+    // no-op: legacy global consecutiveFailures field removed
   }
 
   /**
@@ -897,6 +861,9 @@ export class AutoModeService {
         this.scheduler.runLoop(worktreeKey, state)
       );
 
+      // Start work intake tick loop (pull-based phase claiming from shared projects)
+      this.workIntakeService?.start(projectPath);
+
       return resolvedMaxConcurrency;
     } catch (error) {
       // If initialization fails, clean up the state we just set
@@ -988,6 +955,9 @@ export class AutoModeService {
         logger.info(`Cancelled retry timer for feature ${featureId} during auto-loop stop`);
       }
     }
+
+    // Stop work intake tick loop
+    this.workIntakeService?.stop();
 
     // Clear execution state when auto-loop is explicitly stopped
     await this.clearExecutionState(projectPath, branchName);
@@ -1138,12 +1108,6 @@ export class AutoModeService {
 
     this.autoLoopRunning = true;
     this.autoLoopAbortController = new AbortController();
-    this.config = {
-      maxConcurrency,
-      useWorktrees: true,
-      projectPath,
-      branchName: null,
-    };
 
     this.emitAutoModeEvent('auto_mode_started', {
       message: `Auto mode started with max ${maxConcurrency} concurrent features`,
@@ -1156,7 +1120,7 @@ export class AutoModeService {
     // Note: Memory folder initialization is now handled by loadContextFiles
 
     // Run the loop in the background
-    this.runAutoLoop().catch((error) => {
+    this.runAutoLoop(projectPath, maxConcurrency).catch((error) => {
       logger.error('Loop error:', error);
       const errorInfo = classifyError(error);
       this.emitAutoModeEvent('auto_mode_error', {
@@ -1170,7 +1134,10 @@ export class AutoModeService {
   /**
    * @deprecated Use runAutoLoopForProject instead
    */
-  private async runAutoLoop(): Promise<void> {
+  private async runAutoLoop(
+    projectPath: string,
+    maxConcurrency: number = DEFAULT_MAX_CONCURRENCY
+  ): Promise<void> {
     while (
       this.autoLoopRunning &&
       this.autoLoopAbortController &&
@@ -1178,13 +1145,13 @@ export class AutoModeService {
     ) {
       try {
         // Check if we have capacity
-        if (this.runningFeatures.size >= (this.config?.maxConcurrency || DEFAULT_MAX_CONCURRENCY)) {
+        if (this.runningFeatures.size >= maxConcurrency) {
           await this.sleep(5000);
           continue;
         }
 
         // Load pending features
-        const pendingFeatures = await this.scheduler.loadPendingFeatures(this.config!.projectPath);
+        const pendingFeatures = await this.scheduler.loadPendingFeatures(projectPath);
 
         if (pendingFeatures.length === 0) {
           // Emit idle event only once when backlog is empty AND no features are running
@@ -1192,7 +1159,7 @@ export class AutoModeService {
           if (runningCount === 0 && !this.hasEmittedIdleEvent) {
             this.emitAutoModeEvent('auto_mode_idle', {
               message: 'No pending features - auto mode idle',
-              projectPath: this.config!.projectPath,
+              projectPath,
             });
             this.hasEmittedIdleEvent = true;
             logger.info(`[AutoLoop] Backlog complete, auto mode now idle`);
@@ -1234,9 +1201,9 @@ export class AutoModeService {
 
           // Start feature execution in background
           this.executeFeature(
-            this.config!.projectPath,
+            projectPath,
             nextFeature.id,
-            this.config!.useWorktrees,
+            true, // useWorktrees
             true
           ).catch((error) => {
             logger.error(`Feature ${nextFeature.id} error:`, error);
@@ -1259,7 +1226,7 @@ export class AutoModeService {
    */
   async stopAutoLoop(): Promise<number> {
     const wasRunning = this.autoLoopRunning;
-    const projectPath = this.config?.projectPath;
+    const projectPath = undefined;
     this.autoLoopRunning = false;
     if (this.autoLoopAbortController) {
       this.autoLoopAbortController.abort();
@@ -1635,17 +1602,13 @@ export class AutoModeService {
     }
 
     // Normal resume flow for non-pipeline features
-    // Check if context exists in .automaker directory
+    // Use contextExists() which includes stale-session detection: if agent-output.md
+    // is older than STALE_SESSION_THRESHOLD_MS (default 5 min), it's renamed to .stale
+    // and we start fresh without incrementing failureCount.
     const featureDir = getFeatureDir(projectPath, featureId);
     const contextPath = path.join(featureDir, 'agent-output.md');
 
-    let hasContext = false;
-    try {
-      await secureFs.access(contextPath);
-      hasContext = true;
-    } catch {
-      // No context
-    }
+    const hasContext = await this.contextExists(projectPath, featureId);
 
     if (hasContext) {
       // Load previous context and continue
@@ -1653,7 +1616,8 @@ export class AutoModeService {
       return this.executeFeatureWithContext(projectPath, featureId, context, useWorktrees);
     }
 
-    // No context, start fresh - executeFeature will handle adding to runningFeatures
+    // No context (or stale context was renamed to .stale) — start fresh.
+    // executeFeature will handle adding to runningFeatures.
     return this.executeFeature(projectPath, featureId, useWorktrees, false);
   }
 
@@ -1681,19 +1645,15 @@ export class AutoModeService {
     const featureId = feature.id;
     logger.info(`Resuming feature ${featureId} from pipeline step ${pipelineInfo.stepId}`);
 
-    // Check for context file
+    // Check for context file — use contextExists() for stale-session detection.
+    // If agent-output.md is older than STALE_SESSION_THRESHOLD_MS (default 5 min),
+    // contextExists() renames it to .stale and returns false, triggering a fresh start.
     const featureDir = getFeatureDir(projectPath, featureId);
     const contextPath = path.join(featureDir, 'agent-output.md');
 
-    let hasContext = false;
-    try {
-      await secureFs.access(contextPath);
-      hasContext = true;
-    } catch {
-      // No context
-    }
+    const hasContext = await this.contextExists(projectPath, featureId);
 
-    // Edge Case 1: No context file - restart entire pipeline from beginning
+    // Edge Case 1: No context file (or stale context renamed to .stale) — restart pipeline
     if (!hasContext) {
       logger.warn(`No context found for pipeline feature ${featureId}, restarting from beginning`);
 
@@ -1899,12 +1859,40 @@ export class AutoModeService {
           if (worktreePath) {
             logger.info(`Created worktree for branch "${branchName}": ${worktreePath}`);
           } else {
-            logger.warn(`Failed to create worktree for branch "${branchName}", using project path`);
+            const reason = `Pipeline worktree creation failed for branch "${branchName}" (feature ${featureId}). Blocking feature to prevent main working tree corruption.`;
+            logger.error(reason);
+            await this.featureLoader.update(projectPath, featureId, {
+              status: 'blocked',
+              statusChangeReason: reason,
+            });
+            this.events.emit('feature:error', { projectPath, featureId, error: reason });
+            return;
           }
         }
+      } else if (useWorktrees && !branchName) {
+        const reason = `Feature ${featureId} has no branchName but useWorktrees is enabled (pipeline resume). Blocking feature — assign a branch name first.`;
+        logger.error(reason);
+        await this.featureLoader.update(projectPath, featureId, {
+          status: 'blocked',
+          statusChangeReason: reason,
+        });
+        this.events.emit('feature:error', { projectPath, featureId, error: reason });
+        return;
       }
 
       const workDir = worktreePath ? path.resolve(worktreePath) : path.resolve(projectPath);
+
+      // Defense-in-depth: if worktrees are enabled, workDir must NOT be the project path
+      if (useWorktrees && path.resolve(workDir) === path.resolve(projectPath)) {
+        const reason = `Pipeline worktree safety check failed for feature ${featureId}: workDir resolved to projectPath ("${projectPath}"). Blocking feature to prevent main working tree corruption.`;
+        logger.error(reason);
+        await this.featureLoader.update(projectPath, featureId, {
+          status: 'blocked',
+          statusChangeReason: reason,
+        });
+        this.events.emit('feature:error', { projectPath, featureId, error: reason });
+        return;
+      }
 
       // CRITICAL: Rebase worktree onto latest origin/main before pipeline execution
       if (worktreePath) {
@@ -2186,11 +2174,28 @@ export class AutoModeService {
           workDir = worktreePath;
           logger.info(`Follow-up created worktree for branch "${branchName}": ${workDir}`);
         } else {
-          logger.warn(
-            `Follow-up failed to create worktree for branch "${branchName}", using project path`
-          );
+          const reason = `Follow-up worktree creation failed for branch "${branchName}" (feature ${featureId}). Refusing to fall back to main working tree.`;
+          logger.error(reason);
+          await this.featureLoader.update(projectPath, featureId, {
+            status: 'blocked',
+            statusChangeReason: reason,
+          });
+          this.events.emit('feature:error', { projectPath, featureId, error: reason });
+          throw new Error(reason);
         }
       }
+    }
+
+    // Defense-in-depth: if worktrees are enabled, workDir must NOT be the project path
+    if (useWorktrees && path.resolve(workDir) === path.resolve(projectPath)) {
+      const reason = `Follow-up worktree safety check failed for feature ${featureId}: workDir resolved to projectPath ("${projectPath}"). Blocking feature to prevent main working tree corruption.`;
+      logger.error(reason);
+      await this.featureLoader.update(projectPath, featureId, {
+        status: 'blocked',
+        statusChangeReason: reason,
+      });
+      this.events.emit('feature:error', { projectPath, featureId, error: reason });
+      throw new Error(reason);
     }
 
     // CRITICAL: Rebase worktree onto latest origin/main before follow-up execution
@@ -2683,7 +2688,7 @@ Address the follow-up instructions above. Review the previous work and make the 
       // Load feature for commit message
       const feature = await this.loadFeature(projectPath, featureId);
       const commitMessage = feature
-        ? `feat: ${this.extractTitleFromDescription(
+        ? `feat: ${extractTitleFromDescription(
             feature.description
           )}\n\nImplemented by Automaker auto-mode`
         : `feat: Feature ${featureId}`;
@@ -2719,23 +2724,30 @@ Address the follow-up instructions above. Review the previous work and make the 
    * Check if context exists for a feature.
    *
    * Guards against the stale context trap: if agent-output.md exists but
-   * hasn't been written to in over 2 hours, the session that created it is
+   * hasn't been written to in over 5 minutes, the session that created it is
    * gone. Rename it to .stale so the next run starts fresh instead of trying
    * to resume a dead Claude session (which handshakes, fails silently, and
-   * exits immediately).
+   * exits immediately — and would otherwise count as a failure).
+   *
+   * A live session writes to agent-output.md continuously, so a file older
+   * than STALE_SESSION_THRESHOLD_MS indicates no live session exists.
    */
   async contextExists(projectPath: string, featureId: string): Promise<boolean> {
     const featureDir = getFeatureDir(projectPath, featureId);
     const contextPath = path.join(featureDir, 'agent-output.md');
+
+    // Sessions that haven't written output in this window are considered dead.
+    // Configurable via AUTOMAKER_STALE_SESSION_THRESHOLD_MS env var (default: 5 minutes).
+    const STALE_SESSION_THRESHOLD_MS =
+      parseInt(process.env.AUTOMAKER_STALE_SESSION_THRESHOLD_MS ?? '', 10) || 5 * 60 * 1000;
 
     try {
       await secureFs.access(contextPath);
 
       const stats = await secureFs.stat(contextPath);
       const ageMs = Date.now() - stats.mtime.getTime();
-      const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 
-      if (ageMs > TWO_HOURS_MS) {
+      if (ageMs > STALE_SESSION_THRESHOLD_MS) {
         logger.warn(
           `[contextExists] agent-output.md for ${featureId} is ${Math.round(ageMs / 60000)}m old — stale session, renaming to .stale`
         );
@@ -2891,6 +2903,77 @@ Format your response as a structured markdown document.`;
       runningFeatures: Array.from(this.runningFeatures.keys()),
       runningCount: this.runningFeatures.size,
     };
+  }
+
+  /**
+   * Returns a synchronous snapshot of this instance's capacity metrics for
+   * publication via CRDT heartbeat. OS metrics (CPU, RAM) are computed fresh
+   * on each call. Backlog count is served from a cache that is refreshed
+   * asynchronously on each call (non-blocking — first call returns 0).
+   */
+  getCapacityMetrics(): import('@protolabsai/types').InstanceCapacity {
+    const totalMem = totalmem();
+    const usedMem = totalMem - freemem();
+    const ramUsagePercent = Math.round((usedMem / totalMem) * 100);
+
+    const coreCount = cpus().length || 1;
+    const cpuPercent = Math.min(Math.round((loadavg()[0] / coreCount) * 100), 100);
+
+    // Resolve global max concurrency across all active loops (use first active or default).
+    let maxAgents = DEFAULT_MAX_CONCURRENCY;
+    for (const [, state] of this.coordinator.loops) {
+      if (state.isRunning) {
+        maxAgents = state.config.maxConcurrency;
+        break;
+      }
+    }
+
+    // Refresh backlog cache async (fire-and-forget, non-blocking).
+    void this._refreshBacklogCount();
+
+    return {
+      cores: coreCount,
+      ramMb: Math.round(totalMem / (1024 * 1024)),
+      runningAgents: this.runningFeatures.size,
+      maxAgents,
+      backlogCount: this._backlogCountCache,
+      ramUsagePercent,
+      cpuPercent,
+    };
+  }
+
+  /** Async refresh of the backlog count cache from all active project paths. */
+  private async _refreshBacklogCount(): Promise<void> {
+    try {
+      // Collect unique project paths from running features and active loops.
+      const projectPaths = new Set<string>();
+      for (const rf of this.runningFeatures.values()) {
+        projectPaths.add(rf.projectPath);
+      }
+      for (const [, state] of this.coordinator.loops) {
+        projectPaths.add(state.config.projectPath);
+      }
+
+      if (projectPaths.size === 0) {
+        this._backlogCountCache = 0;
+        return;
+      }
+
+      let total = 0;
+      await Promise.all(
+        [...projectPaths].map(async (projectPath) => {
+          try {
+            const features = await this.featureLoader.getAll(projectPath);
+            total += features.filter((f) => f.status === 'backlog').length;
+          } catch {
+            // Best effort — skip project paths that fail to load.
+          }
+        })
+      );
+      this._backlogCountCache = total;
+    } catch {
+      // Best effort — keep last cached value on error.
+    }
   }
 
   /**
@@ -3238,6 +3321,8 @@ Format your response as a structured markdown document.`;
       let currentPath: string | null = null;
       let currentBranch: string | null = null;
 
+      const resolvedProjectPath = path.resolve(projectPath);
+
       for (const line of lines) {
         if (line.startsWith('worktree ')) {
           currentPath = line.slice(9);
@@ -3246,12 +3331,19 @@ Format your response as a structured markdown document.`;
         } else if (line === '' && currentPath && currentBranch) {
           // End of a worktree entry
           if (currentBranch === branchName) {
-            // Resolve to absolute path - git may return relative paths
-            // On Windows, this is critical for cwd to work correctly
-            // On all platforms, absolute paths ensure consistent behavior
             const resolvedPath = path.isAbsolute(currentPath)
               ? path.resolve(currentPath)
               : path.resolve(projectPath, currentPath);
+            // Skip the main worktree — returning the project root would cause
+            // agents to write directly into the main working tree
+            if (resolvedPath === resolvedProjectPath) {
+              logger.warn(
+                `findExistingWorktreeForBranch: skipping main worktree match for branch "${branchName}" (path matches projectPath)`
+              );
+              currentPath = null;
+              currentBranch = null;
+              continue;
+            }
             return resolvedPath;
           }
           currentPath = null;
@@ -3261,10 +3353,16 @@ Format your response as a structured markdown document.`;
 
       // Check the last entry (if file doesn't end with newline)
       if (currentPath && currentBranch && currentBranch === branchName) {
-        // Resolve to absolute path for cross-platform compatibility
         const resolvedPath = path.isAbsolute(currentPath)
           ? path.resolve(currentPath)
           : path.resolve(projectPath, currentPath);
+        // Skip the main worktree
+        if (resolvedPath === resolvedProjectPath) {
+          logger.warn(
+            `findExistingWorktreeForBranch: skipping main worktree match for branch "${branchName}" (path matches projectPath)`
+          );
+          return null;
+        }
         return resolvedPath;
       }
 
@@ -3351,6 +3449,30 @@ Format your response as a structured markdown document.`;
       }
 
       logger.info(`Created worktree for branch "${branchName}" at: ${worktreePath}`);
+
+      // Exclude .automaker/features/ from worktree git status to prevent
+      // board state files from blocking rebases and polluting diffs
+      try {
+        const resolvedPath = path.resolve(worktreePath);
+        const gitDirResult = await execAsync('git rev-parse --git-dir', { cwd: resolvedPath });
+        const gitDir = gitDirResult.stdout.trim();
+        const excludePath = path.resolve(resolvedPath, gitDir, 'info', 'exclude');
+        const excludeDir = path.dirname(excludePath);
+        await fs.promises.mkdir(excludeDir, { recursive: true });
+        const excludeEntry = '.automaker/features/\n';
+        let existing = '';
+        try {
+          existing = await fs.promises.readFile(excludePath, 'utf-8');
+        } catch {
+          // file doesn't exist yet
+        }
+        if (!existing.includes('.automaker/features/')) {
+          await fs.promises.appendFile(excludePath, excludeEntry, 'utf-8');
+          logger.debug(`Added .automaker/features/ to worktree git exclude: ${excludePath}`);
+        }
+      } catch (err) {
+        logger.debug('Failed to update worktree git exclude (non-fatal):', err);
+      }
 
       return path.resolve(worktreePath);
     } catch (error) {
@@ -3455,24 +3577,6 @@ Format your response as a structured markdown document.`;
     }
   }
 
-  /**
-   * Extract a title from feature description (first line or truncated)
-   */
-  private extractTitleFromDescription(description: string): string {
-    if (!description || !description.trim()) {
-      return 'Untitled Feature';
-    }
-
-    // Get first line, or first 60 characters if no newline
-    const firstLine = description.split('\n')[0].trim();
-    if (firstLine.length <= 60) {
-      return firstLine;
-    }
-
-    // Truncate to 60 characters and add ellipsis
-    return firstLine.substring(0, 57) + '...';
-  }
-
   private buildFeaturePrompt(
     feature: Feature,
     taskExecutionPrompts: {
@@ -3480,7 +3584,7 @@ Format your response as a structured markdown document.`;
       playwrightVerificationInstructions: string;
     }
   ): string {
-    const title = this.extractTitleFromDescription(feature.description);
+    const title = extractTitleFromDescription(feature.description);
 
     let prompt = `## Feature Implementation Task
 
@@ -3808,7 +3912,7 @@ You can use the Read tool to view these images at any time during implementation
       const state: ExecutionState = {
         version: 1,
         autoLoopWasRunning: this.autoLoopRunning,
-        maxConcurrency: this.config?.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY,
+        maxConcurrency: DEFAULT_MAX_CONCURRENCY,
         projectPath,
         branchName: null, // Legacy global auto mode uses main worktree
         runningFeatureIds: Array.from(this.runningFeatures.keys()),

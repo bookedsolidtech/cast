@@ -200,6 +200,8 @@ Agent proposes action
      ALLOW
 ```
 
+When a proposal results in `REQUIRE_APPROVAL`, `AuthorityService.queueApprovalRequest()` queues the request and, if an `ActionableItemService` is wired in, directly creates an `approval` actionable item so it immediately appears in the inbox. `ActionableItemService` is set post-construction via `setActionableItemService()` to avoid a circular dependency between the two services.
+
 ## Delegation Rules
 
 Agents can delegate work to others based on direction:
@@ -302,9 +304,12 @@ The authority system emits these events via WebSocket:
 
 Per-project authority data stored in `.automaker/authority/`:
 
-| File                  | Contents                       |
-| --------------------- | ------------------------------ |
-| `agents.json`         | Registered authority agents    |
-| `trust-profiles.json` | Trust profiles with stats      |
-| `approval-queue.json` | Pending and resolved approvals |
-| `audit.jsonl`         | Append-only audit trail        |
+| File                  | Contents                                    |
+| --------------------- | ------------------------------------------- |
+| `agents.json`         | Registered authority agents                 |
+| `trust-profiles.json` | Trust profiles with stats                   |
+| `approval-queue.json` | Pending and resolved approvals              |
+| `audit-log.json`      | Append-only audit trail (JSONL)             |
+| `decisions.json`      | Append-only policy decision records (JSONL) |
+
+`audit-log.json` records all authority events (proposals, approvals, rejections, trust changes). `decisions.json` records the per-proposal policy check outcome — the action requested, risk classification, and whether it was auto-approved or queued. Both files use newline-delimited JSON (JSONL) for append-only writes.

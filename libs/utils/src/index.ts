@@ -79,12 +79,15 @@ export {
   loadContextFiles,
   getContextFilesSummary,
   type ContextMetadata,
+  type ContextDomain,
+  type ContextRole,
   type ContextFileInfo,
   type ContextFilesResult,
   type ContextFsModule,
   type LoadContextFilesOptions,
   type MemoryFileInfo,
   type TaskContext,
+  shouldIncludeContextFile,
 } from './context-loader.js';
 
 // Memory loading
@@ -175,6 +178,18 @@ export {
 // Memory chunking
 export { chunkMarkdownFile, type MemoryChunk } from './memory-chunker.js';
 
+// Work intake (pull-based phase claiming pure functions)
+export {
+  roleMatchesPhase,
+  phaseDepsAreSatisfied,
+  getClaimablePhases,
+  holdsClaim,
+  isReclaimable,
+  materializeFeature,
+  phasePriority,
+  type MaterializedFeature,
+} from './work-intake.js';
+
 // Sanitization utilities
 export {
   normalizeUnicode,
@@ -185,3 +200,6 @@ export {
   type SanitizationResult,
   type SanitizationSeverity,
 } from './sanitize.js';
+
+// Time formatting utilities
+export { formatDuration, formatTimestamp, formatElapsed } from './format-time.js';

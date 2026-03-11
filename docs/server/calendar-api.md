@@ -183,11 +183,24 @@ The calendar assistant agent (`/calendar-assistant`) has exclusive write access 
 
 ## Storage
 
-Custom events are persisted in `.automaker/calendar.json`:
+### CRDT mode (multi-instance)
+
+When a `CRDTStore` is registered (hivemind active), all custom event writes route through the CRDT layer so events sync across all instances automatically. The shared document is:
+
+```
+domain: 'calendar'
+id: 'shared'
+shape: { events: Record<string, CalendarEvent>, updatedAt: string }
+```
+
+`crdt-store.module.ts` calls `calendarService.setCrdtStore(store)` during startup to enable CRDT mode.
+
+### Filesystem mode (single-instance)
+
+When no CRDT store is registered, custom events are persisted in `.automaker/calendar.json`:
 
 ```json
 {
-  "version": 1,
   "events": [
     {
       "id": "uuid",
@@ -201,13 +214,43 @@ Custom events are persisted in `.automaker/calendar.json`:
 }
 ```
 
-Writes use `atomicWriteJson` with automatic recovery from corrupted files.
+Writes use `atomicWriteJson` with 3-backup rotation and automatic recovery from corrupted files.
+
+### Storage routing summary
+
+| Mode       | When                     | Read                      | Write                            |
+| ---------- | ------------------------ | ------------------------- | -------------------------------- |
+| CRDT       | `setCrdtStore()` called  | `CRDTStore.getOrCreate()` | `CRDTStore.change()`             |
+| Filesystem | No CRDT store registered | `readJsonWithRecovery()`  | `atomicWriteJson` with 3 backups |
+
+## Reminder events
+
+`CalendarService` exposes a programmatic reminder API used by the job execution layer to trigger reactive agent spawning when a calendar event is due.
+
+### CalendarReminderPayload
+
+```typescript
+interface CalendarReminderPayload {
+  title: string;
+  description: string;
+  event: CalendarEvent;
+}
+```
+
+### Methods
+
+| Method                  | Description                                                                                                 |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `onReminder(callback)`  | Subscribe to `calendar:reminder` events. Backed by a Node.js `EventEmitter`.                                |
+| `emitReminder(payload)` | Fire a `calendar:reminder` event for a due calendar event. Called by `JobExecutorService` when a job fires. |
+
+The wiring in `services.ts` connects these events to `ReactiveSpawnerService.spawnForCron()`, so calendar-based reminders benefit from the same rate-limiting and circuit-breaking budget controls as recurring cron tasks. See [ReactiveSpawnerService](./reactive-spawner) for details.
 
 ## Architecture
 
 ```
 CalendarService (singleton)
-  ├── Custom events     ← .automaker/calendar.json
+  ├── Custom events     ← CRDTStore ('calendar','shared') or .automaker/calendar.json
   ├── Feature due dates ← FeatureLoader
   └── Google events     ← GoogleCalendarSyncService
 ```

@@ -34,10 +34,12 @@ docs/.vitepress/cache/
 .automaker/worktree-init.sh
 .automaker/prd-output.json
 
-# Feature board state — shared across instances (runtime artifacts excluded above)
-!.automaker/features/
+# Feature board state — per-instance, synced via CRDT mesh (not git)
+.automaker/features/
+.automaker/archive/
 
 # Runtime data — never git-track
+.automaker/crdt/
 .automaker/trajectory/
 .automaker/ledger/
 .automaker/recovery/
@@ -45,9 +47,9 @@ docs/.vitepress/cache/
 .automaker/actionable-items.json
 .automaker/hitl-forms.json
 .automaker/content/
-.automaker/knowledge.db
-.automaker/knowledge.db-shm
-.automaker/knowledge.db-wal
+**/.automaker/knowledge.db
+**/.automaker/knowledge.db-shm
+**/.automaker/knowledge.db-wal
 .automaker/knowledge-eval.jsonl
 .automaker/ceremony-log.jsonl
 .automaker/quarantine/
@@ -119,6 +121,10 @@ blob-report/
 !.env.example
 !.env.local.example
 
+# Instance-specific CRDT sync config (each instance has its own role/peers)
+proto.config.yaml
+!proto.config.example.yaml
+
 # Codex config (contains API keys)
 .codex/config.toml
 
@@ -165,3 +171,7 @@ gource.mp4
 
 # Test fixture runtime artifacts
 test/fixtures/**/.automaker/categories.json
+test/fixtures/**/.automaker/projects/
+test/fixtures/**/.automaker/knowledge.db
+test/fixtures/**/.automaker/knowledge.db-shm
+test/fixtures/**/.automaker/knowledge.db-wal

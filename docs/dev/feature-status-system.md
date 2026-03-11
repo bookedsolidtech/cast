@@ -140,6 +140,67 @@ Additionally, tests verify telemetry callback invocation for metrics.
 5. **Telemetry** - Track legacy usage for monitoring
 6. **Authority Integration** - WorkItemState preserved for future integration
 
+## Feature Lifecycle Tracking
+
+Three history arrays on the `Feature` type capture an audit trail of how a feature evolved over time.
+
+### ExecutionRecord
+
+Each time an agent runs against a feature, an `ExecutionRecord` is appended to `feature.executionHistory`:
+
+```typescript
+interface ExecutionRecord {
+  id: string; // Unique execution ID
+  startedAt: string; // ISO 8601 start time
+  completedAt?: string; // ISO 8601 end time
+  durationMs?: number; // Total wall-clock duration
+  costUsd?: number; // Total cost in USD (from SDK total_cost_usd)
+  inputTokens?: number;
+  outputTokens?: number;
+  model: string; // Model used (e.g. "claude-sonnet-4-5")
+  success: boolean;
+  error?: string; // Error message on failure
+  turnCount?: number; // Number of turns the agent took
+  trigger: 'auto' | 'manual' | 'retry';
+}
+```
+
+`feature.costUsd` is the **total** cost across all executions. The history array lets you see per-run cost attribution, model choices, and failure reasons.
+
+### StatusTransition
+
+Each status change appends a `StatusTransition` to `feature.statusHistory`:
+
+```typescript
+interface StatusTransition {
+  from: FeatureStatus | null; // null on initial assignment
+  to: FeatureStatus;
+  timestamp: string; // ISO 8601
+  reason?: string; // e.g. "PR merged", "dependency unblocked"
+}
+```
+
+The history array is append-only and provides a complete audit trail of the feature's lifecycle.
+
+### DescriptionHistoryEntry
+
+Each time a feature's description changes, a `DescriptionHistoryEntry` is appended to `feature.descriptionHistory`:
+
+```typescript
+interface DescriptionHistoryEntry {
+  description: string;
+  timestamp: string;
+  source: 'initial' | 'enhance' | 'edit';
+  enhancementMode?: 'improve' | 'technical' | 'simplify' | 'acceptance' | 'ux-reviewer';
+}
+```
+
+- `initial` — the description as first created
+- `enhance` — AI-enhanced via the enhancement pipeline; `enhancementMode` identifies which prompt variant was used
+- `edit` — manually edited by the user
+
+---
+
 ## Git Workflow Error Field
 
 Features carry an optional `gitWorkflowError` field that captures git operation failures without changing the feature status:
@@ -200,6 +261,139 @@ The Lead Engineer's fast-path rules evaluate on every event and catch drift that
 | Auto-mode running, PR merges            | Seconds (next poll cycle) |
 | Webhook configured + GitHub sends event | < 5 seconds               |
 | Webhook not configured, auto-mode idle  | 5 minutes (drift scan)    |
+
+## Lead Engineer World State
+
+The Lead Engineer service maintains a `LeadWorldState` snapshot for each active project. This world state is the source of truth for fast-path rule evaluation — rules receive the world state as a pure input and return `LeadRuleAction[]` without side effects.
+
+### LeadWorldState
+
+```typescript
+interface LeadWorldState {
+  projectPath: string;
+  projectSlug: string;
+  updatedAt: string;
+  boardCounts: Record<string, number>; // Counts per FeatureStatus
+  features: Record<string, LeadFeatureSnapshot>; // featureId → snapshot
+  agents: LeadAgentSnapshot[]; // Currently running agents
+  openPRs: LeadPRSnapshot[]; // Open PR tracking
+  milestones: LeadMilestoneSnapshot[]; // Milestone progress
+  metrics: {
+    totalFeatures: number;
+    completedFeatures: number;
+    totalCostUsd: number;
+    avgCycleTimeMs?: number;
+  };
+  autoModeRunning: boolean;
+  maxConcurrency: number;
+}
+```
+
+### Snapshot Types
+
+| Type                    | Key Fields                                                                                        |
+| ----------------------- | ------------------------------------------------------------------------------------------------- |
+| `LeadFeatureSnapshot`   | `id`, `status`, `branchName`, `prNumber`, `costUsd`, `failureCount`, `complexity`, `isFoundation` |
+| `LeadAgentSnapshot`     | `featureId`, `startTime`, `branch`                                                                |
+| `LeadPRSnapshot`        | `featureId`, `prNumber`, `reviewState`, `ciStatus`, `isRemediating`, `remediationCount`           |
+| `LeadMilestoneSnapshot` | `slug`, `title`, `totalPhases`, `completedPhases`                                                 |
+
+### FeatureState Enum
+
+The Lead Engineer tracks a richer internal state machine than the 6-status board. `FeatureState` is the full pipeline:
+
+```
+INTAKE → PLAN → EXECUTE → REVIEW → MERGE → DEPLOY → VERIFY → DONE
+                                                                  ↑
+                                                             ESCALATE ←── any state
+```
+
+| State      | Description                                       |
+| ---------- | ------------------------------------------------- |
+| `INTAKE`   | Feature created, awaiting triage                  |
+| `PLAN`     | Requirements analysis and spec generation         |
+| `EXECUTE`  | Implementation in progress                        |
+| `REVIEW`   | PR open, awaiting reviewer approval               |
+| `MERGE`    | PR approved and CI passing, ready to merge        |
+| `DEPLOY`   | Merged to main, deployment in progress            |
+| `VERIFY`   | Post-deploy health checks and criteria validation |
+| `DONE`     | Fully deployed and verified                       |
+| `ESCALATE` | Blocked; needs human intervention                 |
+
+### Fast-Path Rules
+
+Fast-path rules are pure functions evaluated on every inbound event:
+
+```typescript
+interface LeadFastPathRule {
+  name: string;
+  description: string;
+  triggers: string[]; // Event types that activate this rule
+  evaluate: (
+    worldState: LeadWorldState,
+    eventType: string,
+    eventPayload: unknown
+  ) => LeadRuleAction[];
+}
+```
+
+Rules return `LeadRuleAction[]` — a discriminated union of side-effectful actions the executor applies:
+
+```typescript
+type LeadRuleAction =
+  | { type: 'move_feature'; featureId: string; toStatus: FeatureStatus }
+  | { type: 'reset_feature'; featureId: string; reason: string }
+  | { type: 'unblock_feature'; featureId: string }
+  | { type: 'enable_auto_merge'; featureId: string; prNumber: number }
+  | { type: 'restart_auto_mode'; projectPath: string; maxConcurrency?: number }
+  | { type: 'stop_agent'; featureId: string }
+  | { type: 'send_agent_message'; featureId: string; message: string }
+  | { type: 'abort_and_resume'; featureId: string; resumePrompt: string }
+  | { type: 'post_discord'; channelId: string; message: string }
+  | { type: 'escalate_llm'; reason: string; context: Record<string, unknown> }
+  | { type: 'rollback_feature'; featureId: string; projectPath: string; reason: string };
+// ... (log, update_feature, project_completing)
+```
+
+### Phase Handoffs
+
+At the end of each Lead Engineer phase, a `PhaseHandoff` document is persisted to `.automaker/features/{featureId}/handoff-{phase}.json`:
+
+```typescript
+interface PhaseHandoff {
+  phase: string;
+  summary: string;
+  discoveries: string[];
+  modifiedFiles: string[];
+  outstandingQuestions: string[];
+  scopeLimits: string[];
+  testCoverage: string;
+  verdict: 'APPROVE' | 'WARN' | 'BLOCK';
+  createdAt: string;
+}
+```
+
+A `BLOCK` verdict prevents the pipeline from advancing to the next phase. `WARN` advances but surfaces the concern. `APPROVE` signals the phase is clean.
+
+### Lead Engineer Session
+
+The Lead Engineer maintains one `LeadEngineerSession` per managed project:
+
+```typescript
+interface LeadEngineerSession {
+  projectPath: string;
+  projectSlug: string;
+  flowState: 'idle' | 'running' | 'completing' | 'stopped';
+  worldState: LeadWorldState;
+  startedAt: string;
+  ruleLog: LeadRuleLogEntry[]; // Rolling 200-entry log of rule evaluations
+  actionsTaken: number;
+}
+```
+
+**File location:** `libs/types/src/lead-engineer.ts`
+
+---
 
 ## Future Work
 

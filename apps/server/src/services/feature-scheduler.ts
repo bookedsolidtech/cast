@@ -96,6 +96,11 @@ export interface SchedulerCallbacks {
   /** Memory thresholds */
   HEAP_USAGE_STOP_NEW_AGENTS_THRESHOLD: number;
   HEAP_USAGE_ABORT_AGENTS_THRESHOLD: number;
+  /**
+   * Optional hook: returns true when new feature pickup should be paused
+   * due to an error budget freeze. Running agents are NOT affected.
+   */
+  isPickupFrozen?(): boolean;
 }
 
 /** Interface for the feature health auditor (optional). */
@@ -112,6 +117,22 @@ export class FeatureScheduler {
   private runner: PipelineRunner;
   private callbacks: SchedulerCallbacks;
   private featureHealthAuditor: FeatureHealthAuditor | null = null;
+  /**
+   * Instance identity for project-affinity filtering.
+   * When null, no affinity filtering is applied (single-instance backward compat).
+   */
+  private instanceId: string | null = null;
+  /**
+   * Async callback that returns the set of project slugs currently assigned to this instance.
+   * Injected from AutoModeService to avoid a hard dependency on ProjectAssignmentService.
+   * When null, affinity filtering is bypassed.
+   */
+  private getAssignedProjectSlugs: ((projectPath: string) => Promise<Set<string>>) | null = null;
+  /**
+   * Whether this instance accepts overflow work from projects not explicitly assigned to it.
+   * Read from proto.config.yaml projectPreferences.overflowEnabled (default: true).
+   */
+  private overflowEnabled = true;
 
   constructor(deps: {
     featureLoader: FeatureLoader;
@@ -129,6 +150,25 @@ export class FeatureScheduler {
 
   setFeatureHealthAuditor(auditor: FeatureHealthAuditor): void {
     this.featureHealthAuditor = auditor;
+  }
+
+  /**
+   * Configure project-affinity filtering for multi-instance deployments.
+   * When set, loadPendingFeatures() will filter and sort features by project ownership.
+   * Leave unset for single-instance deployments (backward compatible).
+   *
+   * @param instanceId - This instance's identity string
+   * @param getAssignedProjectSlugs - Async fn returning slugs of projects assigned to this instance
+   * @param overflowEnabled - Whether to accept features from non-assigned projects (default: true)
+   */
+  setProjectAffinity(
+    instanceId: string,
+    getAssignedProjectSlugs: (projectPath: string) => Promise<Set<string>>,
+    overflowEnabled = true
+  ): void {
+    this.instanceId = instanceId;
+    this.getAssignedProjectSlugs = getAssignedProjectSlugs;
+    this.overflowEnabled = overflowEnabled;
   }
 
   // ── Loop ─────────────────────────────────────────────────────────────────
@@ -312,6 +352,32 @@ export class FeatureScheduler {
               `[AutoLoop] High heap usage (${Math.round(heapUsage * 100)}%), deferring new agent start`
             );
             await this.callbacks.sleep(5000);
+            continue;
+          }
+
+          // Error budget freeze: pause pickup when budget is exhausted
+          if (this.callbacks.isPickupFrozen?.()) {
+            logger.warn(
+              `[AutoLoop] Error budget frozen — pausing new feature pickup for ${worktreeDesc}`
+            );
+            await this.callbacks.sleep(
+              SLEEP_INTERVAL_CAPACITY_MS,
+              projectState.abortController.signal
+            );
+            continue;
+          }
+
+          // Review queue WIP limit: pause pickup when too many PRs are in review
+          const reviewDepth = await this.getReviewQueueDepth(projectPath);
+          const maxPendingReviews = await this.getMaxPendingReviews(projectPath);
+          if (reviewDepth >= maxPendingReviews) {
+            logger.warn(
+              `[AutoLoop] Review queue saturated (${reviewDepth}/${maxPendingReviews} PRs in review) — pausing feature pickup for ${worktreeDesc}`
+            );
+            await this.callbacks.sleep(
+              SLEEP_INTERVAL_CAPACITY_MS,
+              projectState.abortController.signal
+            );
             continue;
           }
 
@@ -761,6 +827,22 @@ export class FeatureScheduler {
             continue;
           }
 
+          // Creation cooldown: skip features created too recently to allow the creator time
+          // to set dependencies, adjust properties, or batch-create related features.
+          if (feature.createdAt) {
+            const cooldownMs = await this.getPickupCooldownMs();
+            if (cooldownMs > 0) {
+              const ageMs = Date.now() - new Date(feature.createdAt).getTime();
+              if (ageMs < cooldownMs) {
+                const remainingSec = Math.ceil((cooldownMs - ageMs) / 1000);
+                logger.info(
+                  `[loadPendingFeatures] Skipping feature ${feature.id} - within creation cooldown (${remainingSec}s remaining)`
+                );
+                continue;
+              }
+            }
+          }
+
           // Guard: if feature already has an open PR, sync it to 'review' and skip execution.
           const existingPrByBranchFilter = feature.branchName
             ? openPrBranches.get(feature.branchName)
@@ -1083,11 +1165,63 @@ export class FeatureScheduler {
       const priorityOrder = (p?: number | null): number => (p === 0 || p == null ? 3 : p);
       readyFeatures.sort((a, b) => priorityOrder(a.priority) - priorityOrder(b.priority));
 
+      // ── Project affinity filtering and sorting ──
+      // Only applied when instance identity is configured (multi-instance deployments).
+      // Single-instance setups with no proto.config.yaml identity pass through unmodified.
+      let affinityFilteredFeatures = readyFeatures;
+      if (this.instanceId && this.getAssignedProjectSlugs) {
+        try {
+          const assignedSlugs = await this.getAssignedProjectSlugs(projectPath);
+
+          // Categorise each feature by affinity tier:
+          //   0 = assigned project    (projectSlug explicitly assigned to this instance)
+          //   1 = own unassigned      (no projectSlug but createdByInstance matches this instance)
+          //   2 = overflow            (all other features — eligible only when overflowEnabled)
+          const affinityTier = (f: Feature): 0 | 1 | 2 => {
+            if (f.projectSlug && assignedSlugs.has(f.projectSlug)) return 0;
+            if (!f.projectSlug && f.createdByInstance === this.instanceId) return 1;
+            return 2;
+          };
+
+          const beforeCount = readyFeatures.length;
+          affinityFilteredFeatures = readyFeatures.filter((f) => {
+            const tier = affinityTier(f);
+            if (tier === 2 && !this.overflowEnabled) {
+              logger.debug(
+                `[loadPendingFeatures] Affinity: skipping overflow feature ${f.id} (overflowEnabled=false)`
+              );
+              return false;
+            }
+            return true;
+          });
+
+          // Sort: assigned (0) > own unassigned (1) > overflow (2)
+          // Within the same tier, preserve the existing priority order.
+          affinityFilteredFeatures.sort((a, b) => {
+            const tierDiff = affinityTier(a) - affinityTier(b);
+            if (tierDiff !== 0) return tierDiff;
+            return priorityOrder(a.priority) - priorityOrder(b.priority);
+          });
+
+          logger.info(
+            `[loadPendingFeatures] Affinity filter (instanceId=${this.instanceId}): ${beforeCount} → ${affinityFilteredFeatures.length} features ` +
+              `(assigned=${assignedSlugs.size} projects, overflow=${this.overflowEnabled})`
+          );
+        } catch (err) {
+          // On error, fall back to the unfiltered list (safe degradation)
+          logger.warn(
+            '[loadPendingFeatures] Affinity filtering failed, using unfiltered list:',
+            err
+          );
+          affinityFilteredFeatures = readyFeatures;
+        }
+      }
+
       logger.info(
-        `[loadPendingFeatures] After dependency filtering: ${readyFeatures.length} ready features (skipVerification=${skipVerification})`
+        `[loadPendingFeatures] After dependency filtering: ${affinityFilteredFeatures.length} ready features (skipVerification=${skipVerification})`
       );
 
-      return readyFeatures;
+      return affinityFilteredFeatures;
     } catch (error) {
       logger.error(`[loadPendingFeatures] Error loading features:`, error);
       return [];
@@ -1095,6 +1229,65 @@ export class FeatureScheduler {
   }
 
   // ── Private helpers ──────────────────────────────────────────────────────
+
+  /**
+   * Read the auto-mode pickup cooldown from workflow settings.
+   * Default: 30000ms (30s). Set to 0 to disable.
+   */
+  private async getPickupCooldownMs(): Promise<number> {
+    const DEFAULT_COOLDOWN_MS = 30_000;
+    try {
+      const settings = await this.settingsService?.getGlobalSettings();
+      return settings?.autoModePickupCooldownMs ?? DEFAULT_COOLDOWN_MS;
+    } catch {
+      return DEFAULT_COOLDOWN_MS;
+    }
+  }
+
+  /**
+   * Read the maxPendingReviews threshold from project workflow settings.
+   * Default: 5. When the review queue depth meets or exceeds this value,
+   * auto-mode feature pickup is paused.
+   */
+  private async getMaxPendingReviews(projectPath: string): Promise<number> {
+    const DEFAULT_MAX = 5;
+    try {
+      if (!this.settingsService) return DEFAULT_MAX;
+      const projectSettings = await this.settingsService.getProjectSettings(projectPath);
+      const workflow = projectSettings.workflow as typeof projectSettings.workflow & {
+        maxPendingReviews?: number;
+      };
+      return workflow?.maxPendingReviews ?? DEFAULT_MAX;
+    } catch {
+      return DEFAULT_MAX;
+    }
+  }
+
+  /**
+   * Count the number of features currently in 'review' state for a project.
+   * Used to enforce the review queue WIP limit.
+   */
+  private async getReviewQueueDepth(projectPath: string): Promise<number> {
+    const featuresDir = getFeaturesDir(projectPath);
+    try {
+      const entries = await secureFs.readdir(featuresDir, { withFileTypes: true });
+      let reviewCount = 0;
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const featurePath = path.join(featuresDir, entry.name, 'feature.json');
+        const result = await readJsonWithRecovery<{ status?: string } | null>(featurePath, null, {
+          maxBackups: DEFAULT_BACKUP_COUNT,
+          autoRestore: false,
+        });
+        if (result.data?.status === 'review') {
+          reviewCount++;
+        }
+      }
+      return reviewCount;
+    } catch {
+      return 0;
+    }
+  }
 
   private async getCurrentBranch(projectPath: string): Promise<string | null> {
     try {

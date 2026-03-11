@@ -60,12 +60,111 @@ export interface LeadMilestoneSnapshot {
   completedPhases: number;
 }
 
-// ────────────────────────── World State ──────────────────────────
+// ────────────────────────── World State Domains ──────────────────────────
 
-/** Comprehensive state of a managed project */
-export interface LeadWorldState {
+/**
+ * Domain classification for world state types.
+ * Each domain owns a distinct slice of operational knowledge.
+ */
+export enum WorldStateDomain {
+  /** Ava's domain: strategic context, cross-project rollups, team health */
+  Strategic = 'strategic',
+  /** Project Manager's domain: projects, milestones, ceremonies, timelines */
+  Project = 'project',
+  /** Lead Engineer's domain: features, agents, PR status, build state */
+  Engineering = 'engineering',
+}
+
+/**
+ * Ava's world state — strategic context, cross-project rollups, team health.
+ */
+export interface AvaWorldState {
+  /** Domain tag */
+  domain: WorldStateDomain.Strategic;
+
+  /** ISO timestamp of last update */
+  updatedAt: string;
+
+  /** High-level project health rollup (projectSlug → health summary) */
+  projectRollups: Record<
+    string,
+    {
+      status: string;
+      openFeatures: number;
+      blockers: number;
+      lastActivityAt?: string;
+    }
+  >;
+
+  /** Team health signals */
+  teamHealth: {
+    activeAgents: number;
+    escalations: number;
+    errorBudgetExhausted: boolean;
+  };
+
+  /** Strategic notes or directives from the CoS layer */
+  strategicContext?: string;
+}
+
+/**
+ * Project Manager's world state — projects, milestones, ceremonies, timelines.
+ */
+export interface PMWorldState {
+  /** Domain tag */
+  domain: WorldStateDomain.Project;
+
+  /** ISO timestamp of last update */
+  updatedAt: string;
+
+  /** Active projects (projectSlug → summary) */
+  projects: Record<
+    string,
+    {
+      status: string;
+      phase: string;
+      milestoneCount: number;
+      completedMilestones: number;
+    }
+  >;
+
+  /** Milestone progress (milestoneSlug → snapshot) */
+  milestones: Record<
+    string,
+    {
+      title: string;
+      totalPhases: number;
+      completedPhases: number;
+      dueAt?: string;
+    }
+  >;
+
+  /** Upcoming ceremony dates (ceremonyType → ISO datetime) */
+  ceremonies: Record<string, string>;
+
+  /** Timeline entries for active projects */
+  upcomingDeadlines: Array<{
+    projectSlug: string;
+    label: string;
+    dueAt: string;
+  }>;
+}
+
+/**
+ * Lead Engineer's world state — features, agents, PR status, build state.
+ * LeadWorldState extends this for backward compatibility during migration.
+ */
+export interface LEWorldState {
+  /** Domain tag */
+  domain: WorldStateDomain.Engineering;
+
+  /** Project path on disk */
   projectPath: string;
+
+  /** Short project identifier */
   projectSlug: string;
+
+  /** ISO timestamp of last update */
   updatedAt: string;
 
   /** Board counts by status */
@@ -96,7 +195,21 @@ export interface LeadWorldState {
 
   /** Max concurrency for auto-mode */
   maxConcurrency: number;
+
+  /**
+   * Whether the error budget is currently exhausted.
+   * When true, auto-mode should only pick up features tagged as bug-fix.
+   */
+  errorBudgetExhausted?: boolean;
 }
+
+// ────────────────────────── World State ──────────────────────────
+
+/**
+ * Comprehensive state of a managed project.
+ * Extends LEWorldState for backward compatibility during migration to domain-typed world states.
+ */
+export interface LeadWorldState extends Omit<LEWorldState, 'domain'> {}
 
 // ────────────────────────── Rule Actions ──────────────────────────
 
@@ -125,7 +238,8 @@ export type LeadRuleAction =
         failureCount?: number;
         awaitingGatePhase?: null;
       };
-    };
+    }
+  | { type: 'rollback_feature'; featureId: string; projectPath: string; reason: string };
 
 // ────────────────────────── Fast-Path Rules ──────────────────────────
 
@@ -180,11 +294,12 @@ export interface LeadRuleLogEntry {
  * Feature lifecycle states managed by the Lead Engineer
  *
  * Flow:
- * INTAKE → PLAN → EXECUTE → REVIEW → MERGE → DEPLOY → DONE
+ * INTAKE → PLAN → EXECUTE → REVIEW → MERGE → DEPLOY → VERIFY → DONE
  *
  * Short-circuits:
  * - Any state can → ESCALATE (on critical errors or max retries)
  * - ESCALATE → [appropriate state] (after human intervention)
+ * - VERIFY → ESCALATE (on verification failure)
  */
 export enum FeatureState {
   /** Initial state: feature created, awaiting intake */
@@ -199,6 +314,8 @@ export enum FeatureState {
   MERGE = 'MERGE',
   /** Deploy phase: merged to main, deployment in progress */
   DEPLOY = 'DEPLOY',
+  /** Verification phase: post-deploy health checks and criteria validation */
+  VERIFY = 'VERIFY',
   /** Terminal state: feature fully deployed and verified */
   DONE = 'DONE',
   /** Escalation state: blocked, needs human intervention */
