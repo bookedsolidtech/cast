@@ -1,5 +1,15 @@
 # @protolabsai/prompts
 
+## 0.41.1
+
+### Patch Changes
+
+- ### Bug Fixes
+  - resolve AgentDefinition model aliases via SDK-native alias pattern (#2213)
+- Updated dependencies
+  - @protolabsai/types@0.41.1
+  - @protolabsai/utils@0.41.1
+
 ## 0.41.0
 
 ### Minor Changes
