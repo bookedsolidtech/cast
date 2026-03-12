@@ -389,17 +389,25 @@ export async function recoverNestedWorktreeWork(
 
           try {
             // Skip files that no longer exist in the nested worktree (e.g. deletions)
+            let srcStat;
             try {
-              await fs.access(srcPath);
+              srcStat = await fs.stat(srcPath);
             } catch {
               logger.debug(`[WorktreeRecovery] Skipping absent file (likely deleted): ${relPath}`);
               continue;
             }
 
-            await fs.mkdir(path.dirname(destPath), { recursive: true });
-            await fs.copyFile(srcPath, destPath);
-            result.copiedFiles.push(relPath);
-            logger.info(`[WorktreeRecovery] Copied ${relPath} -> main worktree`);
+            if (srcStat.isDirectory()) {
+              // git status shows untracked directories as "?? dir/" — copy recursively
+              await fs.cp(srcPath, destPath, { recursive: true });
+              result.copiedFiles.push(relPath);
+              logger.info(`[WorktreeRecovery] Copied directory ${relPath} -> main worktree`);
+            } else {
+              await fs.mkdir(path.dirname(destPath), { recursive: true });
+              await fs.copyFile(srcPath, destPath);
+              result.copiedFiles.push(relPath);
+              logger.info(`[WorktreeRecovery] Copied ${relPath} -> main worktree`);
+            }
           } catch (copyError) {
             const msg = copyError instanceof Error ? copyError.message : String(copyError);
             logger.error(`[WorktreeRecovery] Failed to copy ${relPath}: ${msg}`);
