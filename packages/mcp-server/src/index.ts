@@ -349,6 +349,7 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
       if (args.dueDate !== undefined) featureData.dueDate = args.dueDate;
       if (args.priority !== undefined) featureData.priority = args.priority;
       if (args.isFoundation !== undefined) featureData.isFoundation = args.isFoundation;
+      if (args.category) featureData.category = args.category;
       return apiCall('/features/create', {
         projectPath: args.projectPath,
         feature: featureData,
@@ -366,6 +367,7 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
       if (args.priority !== undefined) updates.priority = args.priority;
       if (args.isFoundation !== undefined) updates.isFoundation = args.isFoundation;
       if (args.statusChangeReason) updates.statusChangeReason = args.statusChangeReason;
+      if (args.category) updates.category = args.category;
       return apiCall('/features/update', {
         projectPath: args.projectPath,
         featureId: args.featureId,
