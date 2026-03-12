@@ -1,5 +1,35 @@
 # @protolabsai/observability
 
+## 0.49.0
+
+### Minor Changes
+
+- ### Features
+  - add discord reaction endpoint and conditional discord loading (#2362)
+  - add discord reaction endpoint and conditional discord loading (#2362)
+  - add discord reaction endpoint and conditional discord loading (#2362)
+  - add recentEscalations and recentLogErrors to sitrep
+  - add recentEscalations and recentLogErrors to sitrep
+
+  ### Bug Fixes
+  - null phase model value crashes settings endpoint (#2358)
+  - reset stale feature state on staging deploy restart (#2353)
+  - null phase model value crashes settings endpoint (#2358)
+  - reset stale feature state on staging deploy restart (#2353)
+  - null phase model value crashes settings endpoint (#2358)
+  - reset stale feature state on staging deploy restart (#2353)
+
+  ### Refactors
+  - Remove twitch integration
+  - Remove twitch integration
+  - Remove twitch integration
+
+### Patch Changes
+
+- Updated dependencies
+  - @protolabsai/types@0.49.0
+  - @protolabsai/utils@0.49.0
+
 ## 0.48.0
 
 ### Minor Changes
