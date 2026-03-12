@@ -5,9 +5,9 @@ relevantTo: [gotchas]
 importance: 0.7
 relatedFiles: []
 usageStats:
-  loaded: 1390
-  referenced: 321
-  successfulFeatures: 321
+  loaded: 1391
+  referenced: 322
+  successfulFeatures: 322
 ---
 <!-- domain: Gotchas & Pitfalls | Known traps, anti-patterns, and hard-won lessons across all domains -->
 
@@ -869,3 +869,8 @@ usageStats:
 - **Situation:** Configuration file removal can't be enforced via CI; users must self-serve local cleanup
 - **Root cause:** Local config files contain secrets/state; committing removal signals breaking change but doesn't enforce it
 - **How to avoid:** PR description documents removal, but enforcement is manual; consider migration guide or deprecation warning in code
+
+#### [Gotcha] SPARCPrd wrapping strategy: legacy plain-string prd is mapped to SPARCPrd.approach only, with situation/problem/results/constraints left empty. Original content structure is irretrievable. (2026-03-12)
+- **Situation:** Converting from prd: string to prd: SPARCPrd object during normalization
+- **Root cause:** String doesn't indicate which SPARC field it belongs to; safer to put it in approach (closest to 'explanation') than guess; allows document to normalize without data loss
+- **How to avoid:** No data loss (string is preserved) but structure is lost (can't tell if string was a situation, problem analysis, or results summary); downstream tools must assume approach-only SPARCPrd from legacy docs
