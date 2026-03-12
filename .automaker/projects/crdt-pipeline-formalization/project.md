@@ -4,7 +4,7 @@ Formalize the instance-local feature model, eliminate dead code from the abandon
 
 **Status:** active
 **Created:** 2026-03-12T16:48:26.033Z
-**Updated:** 2026-03-12T17:02:26.111Z
+**Updated:** 2026-03-12T18:25:53.953Z
 
 ## PRD
 
@@ -46,7 +46,7 @@ Eliminate all remnants of the abandoned feature-sync model. Remove dead methods,
 
 Two small additions that close real sync gaps without introducing new full CRDT domains: categories via the existing event bridge, and memory usage stats folded into the existing Metrics domain.
 
-**Status:** pending
+**Status:** completed
 
 #### Phases
 

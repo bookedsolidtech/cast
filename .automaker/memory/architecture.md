@@ -5,9 +5,9 @@ relevantTo: [architecture]
 importance: 0.9
 relatedFiles: []
 usageStats:
-  loaded: 433
-  referenced: 67
-  successfulFeatures: 67
+  loaded: 434
+  referenced: 68
+  successfulFeatures: 68
 ---
 <!-- domain: Architecture Decisions | System-wide structural decisions that have breaking consequences if changed -->
 
@@ -430,3 +430,25 @@ usageStats:
 - **Situation:** Route module created with POST endpoints but no HTTP server actually serves it
 - **Root cause:** Intentional scope discipline: 'files to modify' list didn't include routes.ts, preventing scope creep from route->routes registration
 - **How to avoid:** Clear task boundaries and prevented scope expansion; feature incomplete without separate routes.ts registration step
+
+### Made memoryStats a required field in MetricsDocument schema despite having a schema-on-read normalizer with defaults. This forces all getOrCreate call sites with initialData to provide the field explicitly. (2026-03-12)
+- **Context:** Schema evolution in distributed CRDT document. Could have made field optional (memoryStats?) since normalizer provides default.
+- **Why:** Compile-time safety over avoiding collateral updates. Discovered dora.ts bug at typecheck time rather than runtime.
+- **Rejected:** Optional field would avoid the dora.ts fix, but would allow silent bugs where initialData omits the field and relies on runtime normalizer.
+- **Trade-offs:** Required field: compile-time catch of issues vs requires updating all call sites. Optional field: faster migration vs runtime reliance on normalizer.
+- **Breaking if changed:** If field made optional, code can construct MetricsDocument without memoryStats, shifting safety to runtime. If made required post-hoc, MUST grep all getOrCreate<MetricsDocument> call sites.
+
+#### [Pattern] Fire-and-forget pattern for non-critical CRDT writes: crdtWriter(...).catch(...) does not block caller. Disk YAML remains primary store, CRDT is secondary distributed signal. (2026-03-12)
+- **Problem solved:** Memory usage stats need to be tracked across hivemind instances (CRDT) but cannot block individual agent work if CRDT is slow/unavailable.
+- **Why this works:** Separation of concerns: primary store (disk) guarantees availability for single instance. CRDT eventual consistency is additive. Agent work continues even if distributed write fails.
+- **Trade-offs:** Non-blocking: fast, resilient to CRDT failures vs eventual consistency (brief window where CRDT lags disk). Best for non-critical telemetry.
+
+#### [Gotcha] Adding required field to CRDT document schema requires finding and updating ALL getOrCreate<MetricsDocument> call sites that provide initialData. TypeCheck caught one (dora.ts), but this is a class of invisible bugs in monorepos. (2026-03-12)
+- **Situation:** dora.ts was constructing MetricsDocument initial value without memoryStats field. Only discovered at typecheck, not at design time.
+- **Root cause:** Required field enforcement means initialData objects are now type-invalid if memoryStats is missing. TypeScript catches it, but requires knowledge of all call sites.
+- **How to avoid:** Required field: safety, caught early vs requires discipline/tooling to find all sites. Optional field: easier migration vs silent bugs if normalizer isn't applied.
+
+#### [Pattern] Dual-write backwards compatibility: update disk (YAML frontmatter) first, then CRDT second (fire-and-forget). Single-instance deployments continue working if CRDT write fails. (2026-03-12)
+- **Problem solved:** Migrating to CRDT-based memory tracking while maintaining single-instance safety. Existing code reads from disk; new code reads from CRDT.
+- **Why this works:** Primary store (disk) guarantees single-instance correctness. CRDT is new, optional, might fail/lag. Disk-first means system survives CRDT failures.
+- **Trade-offs:** Dual-write: simple (update both, caller gets best-effort) vs temporary inconsistency if CRDT lags disk. Data duplication across stores.
