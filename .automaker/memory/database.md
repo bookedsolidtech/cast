@@ -188,3 +188,8 @@ usageStats:
 - **Rejected:** Could implement CRDT-style merge with vector clocks; would handle concurrent writes perfectly but massive overkill
 - **Trade-offs:** Gained simplicity and readability; traded away ability to recover from concurrent category additions across instances (last write wins)
 - **Breaking if changed:** If requirements change to preserve concurrent category additions across instances, entire synchronization strategy fails and needs CRDT rewrite
+
+#### [Pattern] Schema-on-read migration: normalizeNotesWorkspace() applies defaults for all missing fields (tabs, tabOrder, activeTabId) (2026-03-12)
+- **Problem solved:** Disk workspace.json may exist in older format from before NoteTab/NotesWorkspaceDocument schema was formalized
+- **Why this works:** Allows gradual schema evolution without hard migrations. Old disk files are automatically uplifted to new format on read. No script-based data transformation needed.
+- **Trade-offs:** Easier evolution vs. schema divergence: old disk files may differ from current schema, hidden behind normalizer. Bugs in normalization logic silently corrupt data.

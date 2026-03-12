@@ -5,9 +5,9 @@ relevantTo: [gotchas]
 importance: 0.7
 relatedFiles: []
 usageStats:
-  loaded: 1397
-  referenced: 326
-  successfulFeatures: 326
+  loaded: 1398
+  referenced: 327
+  successfulFeatures: 327
 ---
 <!-- domain: Gotchas & Pitfalls | Known traps, anti-patterns, and hard-won lessons across all domains -->
 
@@ -879,3 +879,8 @@ usageStats:
 - **Situation:** Tests calling normalizeProjectDocument() from stale dist received old schema (no milestones array property)
 - **Root cause:** Turbo caches based on package fingerprints. If a package's source changes but no other workspace references change, Turbo may skip rebuilding dependent packages' dist.
 - **How to avoid:** Workspace-specific builds force rebuild but require knowing which package to rebuild. Aggregate builds are faster but can miss stale dist.
+
+#### [Gotcha] Timestamp conversion assumes disk format uses milliseconds (createdAtMs) but converts to ISO strings. Assumption is implicit in variable naming. (2026-03-12)
+- **Situation:** diskTab.metadata?.createdAt is numeric; mapped to Date constructor which expects milliseconds, then .toISOString()
+- **Root cause:** Likely historical: disk format designed separately, ISO strings are standard in CRDT/JSON contexts
+- **How to avoid:** Human-readable ISO strings in logs vs. precision loss if disk format ever changes to seconds or different epoch

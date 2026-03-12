@@ -5,9 +5,9 @@ relevantTo: [architecture]
 importance: 0.9
 relatedFiles: []
 usageStats:
-  loaded: 434
-  referenced: 68
-  successfulFeatures: 68
+  loaded: 435
+  referenced: 69
+  successfulFeatures: 69
 ---
 <!-- domain: Architecture Decisions | System-wide structural decisions that have breaking consequences if changed -->
 
@@ -452,3 +452,22 @@ usageStats:
 - **Problem solved:** Migrating to CRDT-based memory tracking while maintaining single-instance safety. Existing code reads from disk; new code reads from CRDT.
 - **Why this works:** Primary store (disk) guarantees single-instance correctness. CRDT is new, optional, might fail/lag. Disk-first means system survives CRDT failures.
 - **Trade-offs:** Dual-write: simple (update both, caller gets best-effort) vs temporary inconsistency if CRDT lags disk. Data duplication across stores.
+
+### Idempotency check uses in-memory registry (store.getRegistry()) rather than filesystem state or mtime comparison (2026-03-12)
+- **Context:** hydrateNotesWorkspace() needs to avoid re-seeding the CRDT document on repeated server starts
+- **Why:** Registry is already loaded during store initialization; checking it is O(1) and doesn't require I/O. Treats registry as source of truth post-startup.
+- **Rejected:** Alternative: check if .automaker/notes/workspace.json exists on disk, or compare mtime. Rejected because adds I/O latency and mtime can be unreliable across deployments.
+- **Trade-offs:** Faster startup vs. creates coupling to registry population logic. If registry initialization fails silently, idempotency breaks and hydration could re-run.
+- **Breaking if changed:** If registry key 'notes:workspace' is cleared or registry is reset without document deletion, hydration will re-run and potentially overwrite CRDT state.
+
+### Separate DiskNoteTab and DiskNotesWorkspace interfaces decoupled from CRDT NoteTab and NotesWorkspaceDocument (2026-03-12)
+- **Context:** Disk format (numeric timestamps, optional permissions/metadata) differs from CRDT runtime format (ISO strings, strict typing)
+- **Why:** Decouples persistence layer from domain model. Allows evolution of CRDT schema (add fields, change types) without changing disk format, or vice versa.
+- **Rejected:** Alternative: use NotesWorkspaceDocument directly for disk serialization. Rejected because couples schema evolution—any CRDT change requires migration.
+- **Trade-offs:** Flexibility vs. maintenance burden: two interfaces to keep in sync, explicit mapping code in hydration function.
+- **Breaking if changed:** If disk format needs to change in future, mapping logic in hydrateNotesWorkspace() must be updated and made backward-compatible.
+
+#### [Pattern] Namespace prefix pattern: uses 'notes:workspace' as registry key (domain:documentId) to allow multiple documents under same domain (2026-03-12)
+- **Problem solved:** Store registry holds documents from multiple domains (calendar, todos, avaChannel); needs to disambiguate notes documents
+- **Why this works:** Enables future documents under 'notes' domain (e.g., 'notes:trash', 'notes:archived') without key collisions. Scalable design.
+- **Trade-offs:** Clear namespacing vs. hardcoded separator logic; adding new document types requires updating hydration and registry lookup
