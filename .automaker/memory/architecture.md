@@ -5,9 +5,9 @@ relevantTo: [architecture]
 importance: 0.9
 relatedFiles: []
 usageStats:
-  loaded: 431
-  referenced: 65
-  successfulFeatures: 65
+  loaded: 432
+  referenced: 66
+  successfulFeatures: 66
 ---
 <!-- domain: Architecture Decisions | System-wide structural decisions that have breaking consequences if changed -->
 
@@ -401,3 +401,15 @@ usageStats:
 - **Problem solved:** Adding GET /api/health/log-path meant old fallback path (AUTOMAKER_ROOT/data/server.log) was still used when server down; had to decide whether to fix fallback or keep it for 'compatibility'
 - **Why this works:** Partial fixes create maintenance debt and confusion; when server is down, tool should still work correctly; fallback path serves the same purpose (reading logs) so it must have same fix
 - **Trade-offs:** Fixing fallback requires understanding root cause deeply (more work upfront), but prevents cascading bugs and ensures consistent behavior in all modes (server up/down)
+
+### Services (updatePhaseClaim, saveProjectMilestones) write to disk but do NOT auto-emit CRDT events. Callers (route handlers, WorkIntakeService) must manually emit project:updated or call syncProjectToCrdt. (2026-03-12)
+- **Context:** Tests revealed that disk writes don't propagate to instances until events are explicitly fired
+- **Why:** Separation of concerns: persistence is orthogonal to event propagation. Different callers (HTTP, CLI, scheduled jobs) may need different event handling.
+- **Rejected:** Could have services auto-emit on every write, but this couples persistence to event logic and prevents batch operations
+- **Trade-offs:** Caller responsibility is more error-prone (easy to forget emit) but enables flexibility (batch writes without per-write events)
+- **Breaking if changed:** If a new caller (e.g., bulk import) doesn't emit events, those changes won't sync to other instances
+
+#### [Pattern] Tests simulate event-driven sync (EventBus → persistRemoteProject) without real WebSockets. crdt-sync.module.ts wiring is tested indirectly through event flow, not transport layer. (2026-03-12)
+- **Problem solved:** Full WebSocket transport testing would require multi-instance setup and async coordination
+- **Why this works:** Decouples sync logic from transport. EventBus mocks are faster and deterministic. Real transport is tested in e2e/staging.
+- **Trade-offs:** Unit-level sync logic confidence vs. transport-layer coverage. Transport bugs won't be caught here; rely on e2e tests.

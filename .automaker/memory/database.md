@@ -176,3 +176,8 @@ usageStats:
 - **Situation:** Persisting merge metrics: both prMergedAt and prReviewDurationMs set synchronously after merge confirmation
 - **Root cause:** Works currently due to colocation, but creates hidden dependency. Better design: calculate duration from deserialized prMergedAt to ensure values are verifiably consistent.
 - **How to avoid:** Simple synchronous approach works when collocated; explicit dependency would require parsing prMergedAt post-persistence
+
+#### [Pattern] normalizeProjectDocument() fills missing fields with safe defaults: status→'researching', milestones→[], prd (string)→SPARCPrd{approach}, _meta.instanceId→'unknown', timestamps derived from _meta. Phases missing executionStatus default to 'unclaimed'. (2026-03-12)
+- **Problem solved:** Legacy documents have different schemas (plain-string PRD instead of structured SPARCPrd, missing status/milestones)
+- **Why this works:** Enables forward compatibility: old documents work with new code without explicit migrations. Normalization at read-time is safer than runtime type assertions.
+- **Trade-offs:** Forgiving data handling vs. stricter schema. Normalization hides schema drift; consider logging when defaults are applied.
