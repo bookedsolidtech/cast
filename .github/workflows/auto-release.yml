@@ -127,8 +127,47 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
+      - name: Sync main back to staging
+        if: steps.version.outputs.already_tagged != 'true'
+        run: |
+          # After tagging, merge main back into staging so staging has
+          # the merge commit. Without this, the next staging→main promotion
+          # diverges on package.json versions and creates merge conflicts.
+          echo "Syncing main back to staging..."
+          git fetch origin staging
+          git checkout staging
+          git merge origin/main --no-edit -m "chore: sync main merge commit back to staging"
+          git push origin staging
+          echo "Staging synced with main"
+
+      - name: Sync main back to dev
+        if: steps.version.outputs.already_tagged != 'true'
+        continue-on-error: true
+        run: |
+          # Also sync to dev to keep all three branches aligned
+          echo "Syncing main back to dev..."
+          git fetch origin dev
+          git checkout dev
+          git merge origin/main --no-edit -m "chore: sync main merge commit back to dev"
+          git push origin dev
+          echo "Dev synced with main"
+
+      - name: Alert on skipped release
+        if: steps.version.outputs.already_tagged == 'true'
+        run: |
+          VERSION="v${{ steps.version.outputs.version }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          MSG="Release SKIPPED: ${VERSION} is already tagged. Was prepare-release.yml run before promotion? ${RUN_URL}"
+          echo "::error::${MSG}"
+          if [ -n "${DISCORD_ALERTS_WEBHOOK:-}" ]; then
+            curl -sf -H "Content-Type: application/json" \
+              -d "{\"content\": \"${MSG}\"}" \
+              "$DISCORD_ALERTS_WEBHOOK" || true
+          fi
+          exit 1
+
       - name: Alert on release failure
-        if: failure()
+        if: failure() && steps.version.outputs.already_tagged != 'true'
         run: |
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           MSG="ALERT: Auto-release FAILED. Tag or GitHub Release may be incomplete. ${RUN_URL}"
