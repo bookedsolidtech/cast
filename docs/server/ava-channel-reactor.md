@@ -148,7 +148,7 @@ The reactor connects to `FrictionTrackerService` (optional):
 - On `pattern_resolved` messages — calls `resolvePattern(pattern)` to reset counters
 - On handler failures — calls `recordFailure(pattern)` after 3 occurrences auto-files a System Improvement
 
-See [Friction Tracker](./friction-tracker) for threshold and filing logic.
+See `FrictionTrackerService` for threshold and filing logic.
 
 ## ReactorStatus
 
@@ -206,7 +206,5 @@ Configured in `.automaker/settings.json` under `workflowSettings.avaChannelReact
 ## See Also
 
 - [Ava Channel](./ava-channel) — transport layer, message protocol, HTTP API
-- [Fleet Scheduler](./fleet-scheduler) — feature assignment and fleet execution management
-- [Friction Tracker](./friction-tracker) — pattern detection and System Improvement auto-filing
 - [DORA Metrics](./dora-metrics) — metrics computation and aggregation
 - [Distributed Sync](../dev/distributed-sync.md) — CRDT mesh and leader election

@@ -10,27 +10,25 @@
 
 ## Agent System
 
-| Document                                                   | Description                                               |
-| ---------------------------------------------------------- | --------------------------------------------------------- |
-| [Agent Philosophy](./agents/philosophy.md)                 | Why named personas, model tiers, worktree isolation       |
-| [Architecture Overview](./agents/architecture.md)          | Agent types, execution model, architecture layers         |
-| [Agent Flows](./agents/agent-flows.md)                     | LangGraph agent execution flows and patterns              |
-| [Dynamic Role Registry](./agents/dynamic-role-registry.md) | Template-based agent creation, factory, execution         |
-| [SDK Integration](./agents/sdk-integration.md)             | Claude Agent SDK integration and usage                    |
-| [Context System](./agents/context-system.md)               | Context loading, memory files, smart selection            |
-| [Memory System](./agents/memory-system.md)                 | Agent memory, knowledge hive integration                  |
-| [Prompt Engineering](./agents/prompt-engineering.md)       | Prompt composition, registry, writing effective prompts   |
-| [Prompt Techniques](./agents/prompt-techniques.md)         | Concrete techniques for reliable agent outputs            |
-| [Authoring Templates](./agents/authoring-templates.md)     | How to create agent templates                             |
-| [Authoring Prompts](./agents/authoring-prompts.md)         | How to write agent system prompts                         |
-| [Authoring Skills](./agents/authoring-skills.md)           | How to create skills for the plugin                       |
-| [Reliability & Recovery](./agents/reliability.md)          | Failure handling, escalation, health sweeps               |
-| [Escalation Routing](./agents/escalation-routing.md)       | Escalation channels, dedup, rate limiting, acknowledgment |
-| [Agile Ceremonies](./agents/ceremonies.md)                 | Automated standups, retros, project retrospectives        |
-| [Creating Agent Teams](./agents/creating-agent-teams.md)   | Multi-agent coordination and event-driven systems         |
-| [Adding Teammates](./agents/adding-teammates.md)           | How to create new authority agents (PM, EM, etc.)         |
-| [Adding Team Members](./agents/adding-team-members.md)     | Dynamic and static approaches to adding agents            |
-| [MCP Integration](./agents/mcp-integration.md)             | How MCP tools interact with agents                        |
+| Document                                                 | Description                                               |
+| -------------------------------------------------------- | --------------------------------------------------------- |
+| [Agent Philosophy](./agents/philosophy.md)               | Why named personas, model tiers, worktree isolation       |
+| [Architecture Overview](./agents/architecture.md)        | Agent types, execution model, architecture layers         |
+| [Agent Flows](./agents/agent-flows.md)                   | LangGraph agent execution flows and patterns              |
+| [SDK Integration](./agents/sdk-integration.md)           | Claude Agent SDK integration and usage                    |
+| [Context System](./agents/context-system.md)             | Context loading, memory files, smart selection            |
+| [Memory System](./agents/memory-system.md)               | Agent memory, knowledge hive integration                  |
+| [Prompt Engineering](./agents/prompt-engineering.md)     | Prompt composition, registry, writing effective prompts   |
+| [Prompt Techniques](./agents/prompt-techniques.md)       | Concrete techniques for reliable agent outputs            |
+| [Authoring Prompts](./agents/authoring-prompts.md)       | How to write agent system prompts                         |
+| [Authoring Skills](./agents/authoring-skills.md)         | How to create skills for the plugin                       |
+| [Reliability & Recovery](./agents/reliability.md)        | Failure handling, escalation, health sweeps               |
+| [Escalation Routing](./agents/escalation-routing.md)     | Escalation channels, dedup, rate limiting, acknowledgment |
+| [Agile Ceremonies](./agents/ceremonies.md)               | Automated standups, retros, project retrospectives        |
+| [Creating Agent Teams](./agents/creating-agent-teams.md) | Multi-agent coordination and event-driven systems         |
+| [Adding Teammates](./agents/adding-teammates.md)         | How to create new authority agents (PM, EM, etc.)         |
+| [Adding Team Members](./agents/adding-team-members.md)   | Dynamic and static approaches to adding agents            |
+| [MCP Integration](./agents/mcp-integration.md)           | How MCP tools interact with agents                        |
 
 ## Infrastructure
 
