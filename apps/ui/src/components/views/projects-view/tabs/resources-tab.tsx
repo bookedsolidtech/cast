@@ -15,7 +15,6 @@ import {
   Button,
   Card,
   Input,
-  Textarea,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -34,7 +33,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
-import { marked } from 'marked';
+import { Markdown } from 'tiptap-markdown';
 
 interface DocEntry {
   id: string;
@@ -101,38 +100,58 @@ export function ResourcesTab({ projectSlug, project }: { projectSlug: string; pr
 }
 
 /**
- * Converts a markdown string to HTML using `marked` and renders it
- * inside a read-only TipTap editor so that TipTap extensions (TaskList,
- * Link, etc.) handle interactive elements consistently.
+ * TipTap-based document editor with editable toggle.
+ * Content is stored as markdown — the Markdown extension handles
+ * parsing on load and serialisation on save via `editor.storage.markdown.getMarkdown()`.
  */
-function MarkdownViewer({ content }: { content: string }) {
-  const html = marked.parse(content, { async: false }) as string;
-
+function DocumentEditor({
+  content,
+  editable,
+  onUpdate,
+}: {
+  content: string;
+  editable: boolean;
+  onUpdate: (markdown: string) => void;
+}) {
   const editor = useEditor({
     extensions: [
       StarterKit,
       Link.configure({
-        openOnClick: true,
+        openOnClick: !editable,
         HTMLAttributes: { class: 'text-[var(--status-info)] hover:underline' },
       }),
       TaskList,
       TaskItem.configure({ nested: true }),
+      Markdown,
     ],
-    content: html,
-    editable: false,
+    content,
+    editable,
     editorProps: {
       attributes: {
-        class: 'prose prose-sm max-w-none focus:outline-none px-3 py-2',
+        class: cn(
+          'prose prose-sm max-w-none focus:outline-none px-3 py-2 min-h-[240px]',
+          editable && 'cursor-text'
+        ),
       },
+    },
+    onUpdate: ({ editor: e }) => {
+      onUpdate(e.storage.markdown.getMarkdown());
     },
   });
 
-  // Sync when content changes (doc selection)
+  // Toggle editable when prop changes
   useEffect(() => {
-    if (editor && html !== editor.getHTML()) {
-      editor.commands.setContent(html, false);
+    if (editor) {
+      editor.setEditable(editable);
     }
-  }, [html, editor]);
+  }, [editable, editor]);
+
+  // Sync content when document selection changes (content prop changes externally)
+  useEffect(() => {
+    if (editor && content !== editor.storage.markdown.getMarkdown()) {
+      editor.commands.setContent(content, false);
+    }
+  }, [content, editor]);
 
   return (
     <div className="w-full h-full overflow-y-auto [&_.is-editor-empty]:hidden">
@@ -335,16 +354,11 @@ function DocumentsSection({
                     </Button>
                   </div>
                   <div className="flex-1 overflow-y-auto">
-                    {isEditing ? (
-                      <Textarea
-                        value={editContent}
-                        onChange={(e) => handleContentChange(e.target.value)}
-                        className="w-full h-full min-h-[240px] border-none shadow-none bg-transparent focus-visible:ring-0 resize-none"
-                        placeholder="Start writing markdown..."
-                      />
-                    ) : (
-                      <MarkdownViewer content={editContent} />
-                    )}
+                    <DocumentEditor
+                      content={editContent}
+                      editable={isEditing}
+                      onUpdate={handleContentChange}
+                    />
                   </div>
                 </>
               ) : (
