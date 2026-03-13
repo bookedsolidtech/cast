@@ -5,11 +5,10 @@ relevantTo: [architecture]
 importance: 0.9
 relatedFiles: []
 usageStats:
-  loaded: 436
+  loaded: 439
   referenced: 69
   successfulFeatures: 69
 ---
-
 <!-- domain: Architecture Decisions | System-wide structural decisions that have breaking consequences if changed -->
 
 # architecture
