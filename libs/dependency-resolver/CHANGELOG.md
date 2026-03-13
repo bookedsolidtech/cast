@@ -1,5 +1,17 @@
 # @protolabsai/dependency-resolver
 
+## 0.50.1
+
+### Patch Changes
+
+- ### Bug Fixes
+  - stabilize flaky CRDT two-node sync test
+  - regenerate-site workflow pushes to dev via PR instead of direct main push
+  - stabilize flaky CRDT two-node sync test
+  - regenerate-site workflow pushes to dev via PR instead of direct main push
+- Updated dependencies
+  - @protolabsai/types@0.50.1
+
 ## 0.50.0
 
 ### Minor Changes
