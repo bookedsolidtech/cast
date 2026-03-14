@@ -9,8 +9,10 @@ on:
     paths-ignore:
       - '*.md'
       - 'docs/**'
+      - 'site/**'
       - 'designs/**'
       - '.changeset/**'
+      - '.automaker/**'
   workflow_dispatch:
 
 permissions: read-all
@@ -45,11 +47,33 @@ jobs:
           AVAIL_KB=$(df -k /opt/protomaker | awk 'NR==2 {print $4}')
           AVAIL_GB=$((AVAIL_KB / 1024 / 1024))
           echo "Available disk space: ${AVAIL_GB}GB"
-          if [ "$AVAIL_GB" -lt 5 ]; then
-            echo "ERROR: Only ${AVAIL_GB}GB free — need at least 5GB"
-            docker system prune -f 2>/dev/null || true
-            exit 1
+
+          MIN_GB=5
+          if [ "$AVAIL_GB" -lt "$MIN_GB" ]; then
+            echo "WARN: Only ${AVAIL_GB}GB free — running aggressive Docker cleanup"
+            docker system prune -af --volumes 2>/dev/null || true
+            docker builder prune -af 2>/dev/null || true
+
+            AVAIL_KB=$(df -k /opt/protomaker | awk 'NR==2 {print $4}')
+            AVAIL_GB=$((AVAIL_KB / 1024 / 1024))
+            echo "After cleanup: ${AVAIL_GB}GB free"
+
+            if [ "$AVAIL_GB" -lt "$MIN_GB" ]; then
+              echo "ERROR: Still only ${AVAIL_GB}GB free after cleanup — need at least ${MIN_GB}GB"
+              df -h /opt/protomaker
+              exit 1
+            fi
           fi
+          echo "Disk space OK: ${AVAIL_GB}GB free (minimum ${MIN_GB}GB)"
+
+      - name: Drain running agents
+        run: |
+          AUTOMAKER_API_KEY=$(grep -oP 'AUTOMAKER_API_KEY=\K.*' .env || echo "")
+          echo "::add-mask::$AUTOMAKER_API_KEY"
+          curl -sf -X POST http://localhost:3008/api/deploy/drain \
+            -H "Content-Type: application/json" \
+            -H "X-API-Key: $AUTOMAKER_API_KEY" \
+            --max-time 180 || echo "Drain skipped (server not running or no agents)"
 
       - name: Tag rollback images
         run: |
@@ -63,17 +87,13 @@ jobs:
             fi
           done
 
-      - name: Drain running agents
-        run: |
-          AUTOMAKER_API_KEY=$(grep -oP 'AUTOMAKER_API_KEY=\K.*' .env || echo "")
-          echo "::add-mask::$AUTOMAKER_API_KEY"
-          curl -sf -X POST http://localhost:3008/api/deploy/drain \
-            -H "Content-Type: application/json" \
-            -H "X-API-Key: $AUTOMAKER_API_KEY" \
-            --max-time 180 || echo "Drain skipped (server not running or no agents)"
-
       - name: Rebuild images
+        id: rebuild
         run: docker compose build --no-cache
+        env:
+          GIT_COMMIT_SHA: ${{ github.sha }}
+          DOCKER_BUILDKIT: 1
+          COMPOSE_DOCKER_CLI_BUILD: 1
 
       - name: Restart services
         run: |
@@ -98,6 +118,16 @@ jobs:
           if [ $retries -eq 20 ]; then
             echo "Server health check failed after 60s"
             docker compose logs --tail=50 server
+
+            # Check if server container has exhausted restart attempts
+            SERVER_STATUS=$(docker inspect protomaker-server --format='{{.State.Status}}' 2>/dev/null || echo "unknown")
+            SERVER_RESTART_COUNT=$(docker inspect protomaker-server --format='{{.RestartCount}}' 2>/dev/null || echo "0")
+
+            if [ "$SERVER_STATUS" = "exited" ] && [ "$SERVER_RESTART_COUNT" -ge 5 ]; then
+              echo "ALERT: Server container exhausted restart attempts (count: $SERVER_RESTART_COUNT)"
+              echo "RESTART_EXHAUSTED=true" >> "$GITHUB_ENV"
+            fi
+
             exit 1
           fi
 
@@ -118,10 +148,23 @@ jobs:
           fi
 
       - name: Rollback on failure
-        if: failure() && (steps.verify.outcome == 'failure' || steps.smoke.outcome == 'failure')
+        if: failure() && (steps.rebuild.outcome == 'failure' || steps.verify.outcome == 'failure' || steps.smoke.outcome == 'failure')
         run: |
           echo "Deploy failed — rolling back"
           docker compose down
+
+          has_rollback=false
+          for svc in server ui; do
+            if docker image inspect "protomaker-${svc}:rollback" &>/dev/null; then
+              has_rollback=true
+              break
+            fi
+          done
+
+          if [ "$has_rollback" = "false" ]; then
+            echo "No rollback images available (first deploy?) — cannot rollback"
+            exit 1
+          fi
 
           for svc in server ui; do
             if docker image inspect "protomaker-${svc}:rollback" &>/dev/null; then
@@ -143,6 +186,7 @@ jobs:
           done
           if [ $retries -eq 15 ]; then
             echo "CRITICAL: Rollback also failed. Manual intervention required."
+            docker compose logs --tail=50 server
             exit 1
           fi
 
@@ -162,6 +206,9 @@ jobs:
           COMMIT="${COMMIT:0:8}"
           STATUS="${{ job.status }}"
           ROLLBACK_OUTCOME="${{ steps.rollback.outcome }}"
+          RESTART_EXHAUSTED="${RESTART_EXHAUSTED:-false}"
+
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
           if [ "$STATUS" = "success" ]; then
             MSG="Main deployed: \`${COMMIT}\` (v${VERSION}) — all healthy"
@@ -169,15 +216,19 @@ jobs:
           else
             case "$ROLLBACK_OUTCOME" in
               success)
-                MSG="ALERT: Main deploy FAILED: \`${COMMIT}\` — rolled back to previous version. Check GitHub Actions: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                MSG="ALERT: Main deploy FAILED: \`${COMMIT}\` — rolled back to previous version. ${RUN_URL}"
                 ;;
               failure)
-                MSG="ALERT: Main deploy FAILED: \`${COMMIT}\` — rollback ALSO FAILED. Manual intervention required. Check GitHub Actions: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                MSG="ALERT: Main deploy FAILED: \`${COMMIT}\` — rollback ALSO FAILED. Manual intervention required. ${RUN_URL}"
                 ;;
               *)
-                MSG="ALERT: Main deploy FAILED: \`${COMMIT}\` — no rollback performed. Check GitHub Actions: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                MSG="ALERT: Main deploy FAILED: \`${COMMIT}\` — no rollback performed. ${RUN_URL}"
                 ;;
             esac
+
+            if [ "$RESTART_EXHAUSTED" = "true" ]; then
+              MSG="${MSG}\n**CRITICAL**: Server container exhausted restart attempts (5/5). Manual restart required."
+            fi
             WEBHOOK="${DISCORD_ALERTS_WEBHOOK:-}"
           fi
 
