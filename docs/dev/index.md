@@ -17,12 +17,12 @@ Extend protoLabs. Architecture, packages, code standards, and how to contribute.
 
 ## Distributed Systems
 
-- **[Distributed Sync](./distributed-sync)** — CRDT sync mesh, partition detection, reconnection resilience, compaction diagnostics, and Automerge time-travel debugging
-- **[Notes Sync](./notes-sync)** — Notes CRDT domain: storage model, hydration, conflict semantics (LWW per tab), and deferred TipTap binding
+- **[Distributed Sync](./distributed-sync)** — Peer mesh architecture, partition detection, leader election, and pull-based work intake protocol
+- **[Notes Sync](./notes-sync)** — Notes workspace: disk-based storage model, read/write paths, and MCP tool reference
 
 ## Pipeline & Orchestration
 
-- **[Idea to Production](./idea-to-production)** — The canonical 9-phase pipeline reference
+- **[Idea to Production](./idea-to-production)** — The canonical 8-phase pipeline reference
 - **[Project Lifecycle](./project-lifecycle)** — Board-driven project state machine
 - **[Event Ledger](./event-ledger)** — Append-only lifecycle event persistence and timeline API
 - **[PR Remediation Loop](./pr-remediation-loop)** — Autonomous PR review feedback handling

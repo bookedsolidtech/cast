@@ -5,9 +5,9 @@ relevantTo: [gotchas]
 importance: 0.7
 relatedFiles: []
 usageStats:
-  loaded: 1458
-  referenced: 350
-  successfulFeatures: 350
+  loaded: 1462
+  referenced: 353
+  successfulFeatures: 353
 ---
 <!-- domain: Gotchas & Pitfalls | Known traps, anti-patterns, and hard-won lessons across all domains -->
 
@@ -971,3 +971,8 @@ usageStats:
 - **Situation:** Developer working from feature spec found the wrong directory initially, suggesting inconsistent naming convention in the codebase.
 - **Root cause:** The `projects/` dir contains reusable components (like `ProjectTimeline`), while `projects-view/` contains the view that imports them. Name similarity creates ambiguity.
 - **How to avoid:** Clear separation of concerns (component library vs. views) but naming doesn't signal this intent clearly to developers.
+
+#### [Gotcha] Central config file from PR #2474 was not merged into worktree, forcing fresh creation of apps/server/src/config/timeouts.ts from scratch (2026-03-14)
+- **Situation:** Feature depends on prior work (PR #2474) that should have been available but wasn't
+- **Root cause:** Worktree isolation or branch state didn't include the merged dependency—common when features are split across PRs with dependency ordering issues
+- **How to avoid:** Fresh creation saved time vs merge conflict resolution, but introduced divergence risk. Team had to manually reconcile which constants from PR #2474 to include.

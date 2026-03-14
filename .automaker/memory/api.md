@@ -5,9 +5,9 @@ relevantTo: [api]
 importance: 0.7
 relatedFiles: []
 usageStats:
-  loaded: 516
-  referenced: 129
-  successfulFeatures: 129
+  loaded: 518
+  referenced: 131
+  successfulFeatures: 131
 ---
 <!-- domain: API Design & Integration | GitHub GraphQL, REST endpoints, HTTP client patterns -->
 
@@ -240,3 +240,10 @@ usageStats:
 - **Problem solved:** Feature implementation discovered UI was already structured correctly.
 - **Why this works:** Indicates the original API design was extensible—endpoint accepted parameters for future use. Enables this fallback to work as a pure backend change.
 - **Trade-offs:** Good forward design at cost of carrying unused parameters early. Paid off here.
+
+### Wrap the `git diff --name-only --diff-filter=U` capture in try/catch rather than letting failures propagate. Conflicting file capture is best-effort and non-critical to the happy path. (2026-03-14)
+- **Context:** If git diff fails for any reason during conflict handling, the code should still successfully abort the merge and transition to blocked state.
+- **Why:** Conflict handling is already in an error path. If the operation to capture which files conflicted fails, that shouldn't prevent us from safely aborting and blocking the feature. Best-effort data enrichment shouldn't break the core operation.
+- **Rejected:** Alternative: Let git diff exceptions propagate and crash the feature transition. Rejected: would make the system fragile to unexpected git states.
+- **Trade-offs:** Easier: robust error handling. Harder: developers might not see which files conflicted if git diff fails (though the conflict itself is still blocked).
+- **Breaking if changed:** Removing the try/catch would make a git diff failure during conflict handling crash the entire feature execution, leaving the system in an undefined state.

@@ -1,5 +1,54 @@
 # @protolabsai/tools
 
+## 0.55.0
+
+### Minor Changes
+
+- ### Features
+  - emit specific lifecycle events from FeatureLoader on status changes (#2501)
+  - emit specific lifecycle events from FeatureLoader on status changes (#2501)
+  - remove CRDT types from shared types package (#2494)
+  - remove libs/crdt package and automerge dependencies (#2493)
+  - strip Automerge from ProjectService, replace with plain Map cache (#2488)
+  - remove CRDT types from shared types package (#2494)
+  - remove libs/crdt package and automerge dependencies (#2493)
+  - strip Automerge from ProjectService, replace with plain Map cache (#2488)
+
+  ### Bug Fixes
+  - include remainingMilestones and retroData in ceremony:fired events (#2502)
+  - emit direct auto-mode events from TypedEventBus alongside envelope (#2500)
+  - bridge ErrorBudgetService events to shared app event bus (#2499)
+  - include remainingMilestones and retroData in ceremony:fired events (#2502)
+  - emit direct auto-mode events from TypedEventBus alongside envelope (#2500)
+  - bridge ErrorBudgetService events to shared app event bus (#2499)
+  - remove stale libs/crdt references from Dockerfile and tsconfigs
+  - remove AvaChannelReactorService references from test files
+  - filter CRDT project sync by projectPath to prevent cross-repo leakage
+  - remove stale libs/crdt references from Dockerfile and tsconfigs
+  - remove AvaChannelReactorService references from test files
+  - filter CRDT project sync by projectPath to prevent cross-repo leakage
+
+  ### Refactors
+  - MergeProcessor respects prMergeStrategy and PR merge race guard (#2505)
+  - remove dead rollbackTriggered rule and gate-tuning action type (#2504)
+  - Fix DeployProcessor DONE transition and clean up orphaned states (#2498)
+  - MergeProcessor respects prMergeStrategy and PR merge race guard (#2505)
+  - remove dead rollbackTriggered rule and gate-tuning action type (#2504)
+  - Fix DeployProcessor DONE transition and clean up orphaned states (#2498)
+  - remove human-assignee gate from auto-mode
+  - Remove CRDT module wiring from startup and services container (#2490)
+  - strip CRDT from notes routes, use disk-only reads/writes (#2486)
+  - remove AvaChannelService and backchannel infrastructure (#2485)
+  - remove human-assignee gate from auto-mode
+  - Remove CRDT module wiring from startup and services container (#2490)
+  - strip CRDT from notes routes, use disk-only reads/writes (#2486)
+  - remove AvaChannelService and backchannel infrastructure (#2485)
+
+### Patch Changes
+
+- Updated dependencies
+  - @protolabsai/types@0.55.0
+
 ## 0.54.1
 
 ### Patch Changes

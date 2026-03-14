@@ -5,9 +5,9 @@ relevantTo: [architecture]
 importance: 0.9
 relatedFiles: []
 usageStats:
-  loaded: 490
-  referenced: 88
-  successfulFeatures: 88
+  loaded: 494
+  referenced: 91
+  successfulFeatures: 91
 ---
 <!-- domain: Architecture Decisions | System-wide structural decisions that have breaking consequences if changed -->
 
@@ -811,3 +811,76 @@ usageStats:
 - **Problem solved:** WebSocket subscription needs to be set up when component mounts or project changes, and cleaned up properly.
 - **Why this works:** Minimizes subscription churn. If dependencies included the invalidation function (which changes on every render if defined inline), subscription would be recreated constantly.
 - **Trade-offs:** Requires care: must ensure unsubscribe function is properly returned and called. Fewer subscriptions means better resource efficiency.
+
+### Re-export timeout constants from lead-engineer-types.ts rather than moving all consumer imports to centralized config module (2026-03-14)
+- **Context:** Centralizing timeouts while REVIEW_PENDING_TIMEOUT_MS already had env var support via IIFE in lead-engineer-types.ts, and this file is a public API surface for downstream consumers
+- **Why:** Avoids touching all downstream consumers of lead-engineer-types, preserves existing public API contract, reduces scope of refactor
+- **Rejected:** Complete migration: move all consumers directly to timeouts.ts (would require changes across codebase, higher risk)
+- **Trade-offs:** Adds re-export indirection layer vs cleaner module boundaries; easier adoption vs slightly obfuscated origin
+- **Breaking if changed:** If re-exports removed, all code importing from lead-engineer-types loses access to these constants; if re-export points differ from actual consumer imports, circular references or duplicate definitions
+
+#### [Gotcha] lead-engineer-types.ts functions as de facto public API hub beyond just type definitions (2026-03-14)
+- **Situation:** File named for types but discovered to be re-exporting runtime constants that external services depend on
+- **Root cause:** Evolved module scope not reflected in module name; historical accumulation of exports without architectural refactoring
+- **How to avoid:** Clear naming vs pragmatic public API; architectural purity vs stability
+
+#### [Pattern] Centralized config module where each constant reads from named env var with previous hardcoded value as default (2026-03-14)
+- **Problem solved:** Need to consolidate scattered timeout constants while enabling runtime configuration
+- **Why this works:** Env var with default achieves three goals: backward compatible (no forced env var requirement), enables opt-in override (no config scaffolding needed), auditable (single module to review)
+- **Trade-offs:** More configuration surface vs safer defaults; runtime flexibility vs simpler code; easier to audit vs more indirection to understand actual values
+
+#### [Pattern] Domain-based grouping of constants in central config (execution, polling, networking, cleanup) rather than alphabetical or usage-based (2026-03-14)
+- **Problem solved:** Organizing 10+ timeout constants from disparate services without clear original taxonomy
+- **Why this works:** Domain grouping aids discoverability (find all networking timeouts in one section), enables batch changes (adjust all polling intervals together), mirrors conceptual service responsibilities
+- **Trade-offs:** Better for configuration audits vs harder to find if grouping doesn't match how consumer thinks about them
+
+### Use domain-prefixed exports (EM_POLL_INTERVAL_MS, PROJM_POLL_INTERVAL_MS, PR_FEEDBACK_POLL_INTERVAL_MS) for duplicate constant names rather than consolidating to single POLL_INTERVAL_MS (2026-03-14)
+- **Context:** Multiple services had identically-named constants (POLL_INTERVAL_MS, DRIFT_CHECK_INTERVAL_MS) with different values
+- **Why:** Preserves semantic clarity and prevents accidental coupling—each service's timing policy remains independent and explicit. Prevents bugs if one service's interval accidentally constrains another.
+- **Rejected:** Consolidate to single POLL_INTERVAL_MS with domain-specific overrides or config nesting; merge duplicate timing values
+- **Trade-offs:** More exports in config file (harder to scan) vs clearer intent and safer refactoring. Domain prefix adds verbosity but eliminates ambiguity.
+- **Breaking if changed:** Removing domain prefix requires updating all 11 service import sites; consolidating values would break services with different timing needs
+
+#### [Pattern] Each timeout constant reads from optional env var with previous hardcoded value as default: `process.env.CRDT_HEARTBEAT_MS ?? 5000` (2026-03-14)
+- **Problem solved:** Need runtime configurability for infrastructure timeouts without requiring explicit configuration in every deployment
+- **Why this works:** Provides optional runtime flexibility while maintaining backward compatibility—existing deployments work unchanged, new deployments can tune via env. Single code path, no branching logic.
+- **Trade-offs:** Eliminates need for config schema validation at startup; runtime env var values not validated at compile time. Requires .env.example documentation to surface all available tuning points.
+
+### Establish decision boundary between centralized 'infrastructure timeouts' (CRDT_HEARTBEAT_MS, HEALTH_CHECK_INTERVAL_MS) vs local 'service-private' constants (IDEA_PROCESSING_DELAY_MS, CLAIM_VERIFY_DELAY_MS, NOTIFICATION_RATE_LIMIT_MS) (2026-03-14)
+- **Context:** Feature spec required centralizing timeouts, but not all timing constants are infrastructure policy
+- **Why:** Service-private constants are implementation details (debounces, rate limits within a single service). Centralizing them couples internal logic to global policy and makes service reuse harder. Infrastructure timeouts affect resource consumption and SLAs across the system.
+- **Rejected:** Centralize all timing constants for uniformity; keep everything local for autonomy
+- **Trade-offs:** Hybrid approach adds complexity to the centralization criteria, but better respects separation of concerns. Future contributors must understand which category a new constant belongs to.
+- **Breaking if changed:** Moving service-private constants to central config binds service behavior to global policy; removing centralized infrastructure timeouts reintroduces hardcoded values that are hard to adjust per environment
+
+#### [Pattern] Services keep local constant names but assign from central config: `const HEARTBEAT_MS = timeouts.CRDT_HEARTBEAT_MS` instead of importing directly or renaming all usages (2026-03-14)
+- **Problem solved:** Minimize diff surface and review burden while centralizing source of truth
+- **Why this works:** Local naming (HEARTBEAT_MS) stays unchanged in service files; only import statement changes. Reduces cognitive load during code review—readers see familiar local names. Easier to track which uses depend on central config.
+- **Trade-offs:** Adds one level of indirection (reader must track local const to central source), but minimizes code churn and review complexity. Less explicit that value comes from config.
+
+#### [Gotcha] worktree-lifecycle.module.ts also has DRIFT_CHECK_INTERVAL_MS (5 minutes) but was not included in migration—creates duplicate naming with different value from migrated worktree-lifecycle-service.ts (6 hours) (2026-03-14)
+- **Situation:** Feature spec listed worktree-lifecycle-service.ts but the related .module.ts file had its own constant with same name
+- **Root cause:** Likely conscious scope limitation (feature spec was specific about which files) or oversight. Module-level constants may have been overlooked.
+- **How to avoid:** Avoids scope creep and keeps feature focused, but leaves technical debt. Now two DRIFT_CHECK_INTERVAL_MS exist in same module with different purposes.
+
+#### [Gotcha] Friction tracker only fires on `blocked` status transitions, not `review`. Post-commit rebase conflicts that produced valid PRs silently transitioned to `review`, completely bypassing the friction tracking system and preventing signal accumulation. (2026-03-14)
+- **Situation:** Recurring merge_conflict failures were never being tracked despite happening repeatedly because conflicts resolved to `review` state instead of triggering the block path.
+- **Root cause:** The classifier pattern matching in friction tracker is keyed to specific state transitions. A feature becoming `blocked` invokes the pattern classifier, but `review` transitions skip it entirely. The system assumes all tracked failures flow through the `blocked` state.
+- **How to avoid:** Now requires explicit handling in execution-service to force `blocked` state for post-commit conflicts (more code), but gives accurate signal and prevents noise from legitimate review transitions.
+
+#### [Pattern] Accumulator pattern for failure context with a hard cap (10 entries). Failures are accumulated with full context (feature ID, conflicting files, branch name) before the pattern is resolved and an issue is filed. Context is cleared on resolution to prevent stale data from leaking into re-occurrences. (2026-03-14)
+- **Problem solved:** Needed to capture not just that a failure occurred, but contextual details about what failed and where, across multiple occurrences, to create a rich issue description.
+- **Why this works:** Batching/throttling prevents filing an issue on the first occurrence (noise). Waiting for 10 accumulations ensures signal is strong enough to justify a filed issue. Cap prevents unbounded memory growth. Clearing on resolution prevents old context from polluting new issues.
+- **Trade-offs:** Easier: accurate issue severity based on recurring signal. Harder: delayed feedback (issue only files after 10 occurrences) and extra state management (clearing on resolve).
+
+### Conflicting files are captured at the lowest level (git-utils rebase.ts with `git diff --name-only --diff-filter=U`), then threaded through each layer's return type (RebaseResult → GitWorkflowResult → execution-service) before reaching the friction tracker. (2026-03-14)
+- **Context:** Needed to give developers actionable info about what files caused the conflict, but also needed that data at multiple levels of the call stack.
+- **Why:** Captures data at the source (lowest level where git operations happen), making it available to all callers without duplicating the git call. Each layer that cares about conflicts can access it.
+- **Rejected:** Alternative 1: Capture only at git-utils level, have callers query again if needed. Rejected: duplicates git calls and assumes callers know they need it. Alternative 2: Capture only at execution-service level. Rejected: other callers of git-workflow-service wouldn't have conflict data.
+- **Trade-offs:** Easier: all callers automatically have rich conflict data. Harder: more parameters on intermediate types, coupling between layers.
+- **Breaking if changed:** Removing conflict data from intermediate types (RebaseResult, GitWorkflowResult) means downstream callers lose the information. Friction tracker would only know a conflict happened, not which files caused it.
+
+#### [Gotcha] The `resolvePattern()` method in friction tracker must clear accumulated `failureContexts` for that pattern, otherwise stale context from the resolved failure bleeds into the next occurrence of the same pattern. (2026-03-14)
+- **Situation:** Without clearing, if the same merge_conflict pattern recurs after being resolved, the new issue filed would include context from the old, resolved issue, creating confusion.
+- **Root cause:** The accumulator map persists across pattern occurrences as a class member. If you file an issue and resolve the pattern without clearing the map, the next occurrence adds to the stale data.
+- **How to avoid:** Easier: cleaner issue descriptions. Harder: requires explicit state cleanup logic.

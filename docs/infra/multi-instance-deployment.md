@@ -11,7 +11,7 @@ How to run multiple protoLabs instances in a synchronized hivemind mesh using Ta
 
 ## Architecture
 
-The Studio Mesh uses a primary/worker WebSocket topology. One instance runs the sync server (primary), and all others connect as clients (workers). All CRDT changes propagate through the primary in real time.
+The Studio Mesh uses a primary/worker WebSocket topology. One instance runs the sync server (primary), and all others connect as clients (workers). Feature and project events propagate through the primary in real time.
 
 ```
                           Tailscale mesh
@@ -26,20 +26,18 @@ The Studio Mesh uses a primary/worker WebSocket topology. One instance runs the 
                     └─────────────────────────┘
 ```
 
-### Synced domains
+### Synced data
 
-The mesh synchronizes these CRDT document domains:
+The mesh synchronizes feature and project events via `PeerMeshService`:
 
-| Domain        | Document ID     | Description                               |
-| ------------- | --------------- | ----------------------------------------- |
-| `projects`    | `<projectSlug>` | Project plans, PRD content, phase claims  |
-| `settings`    | `shared`        | Shared workflow settings (no credentials) |
-| `capacity`    | `<instanceId>`  | Per-instance capacity metrics             |
-| `ava-channel` | `YYYY-MM-DD`    | Daily-sharded Ava communication log       |
-| `calendar`    | `shared`        | Shared calendar events                    |
-| `todos`       | `workspace`     | Shared todo lists with permission tiers   |
+| Data type      | Mechanism                             | Description                                      |
+| -------------- | ------------------------------------- | ------------------------------------------------ |
+| Feature events | `CrdtSyncWireMessage` broadcast       | `feature:created/updated/deleted/status-changed` |
+| Project events | `CrdtSyncWireMessage` broadcast       | `project:created/updated/deleted`                |
+| Settings       | `CrdtSettingsEvent` (primary→workers) | Shared workflow settings (no credentials)        |
+| Peer capacity  | Heartbeat `PeerMessage`               | Per-instance capacity metrics                    |
 
-Features are **instance-local** and never synced via the mesh. Each instance creates features locally from claimed project phases.
+Features are **instance-local** and never pushed across the mesh. Each instance creates features locally from claimed project phases. Notes, calendar, and todos are disk-based per-instance with no cross-instance replication.
 
 ### Event types bridged across the mesh
 
@@ -61,11 +59,9 @@ protolab:
 
 ### Instance Attribution
 
-Every CRDT operation and sync message carries `instanceId`. This value is set in `proto.config.yaml` and included in:
+Every sync message carries `instanceId`. This value is set in `proto.config.yaml` and included in:
 
-- All CRDT document mutations (`_meta.instanceId`)
-- All sync wire messages (`heartbeat`, `project_event`, `identity`) — includes `name`, `role`, `tags`
-- Ava Channel messages (`instanceId` and `instanceName` fields)
+- All sync wire messages (`heartbeat`, `feature_event`, `project_event`, `identity`) — includes `name`, `role`, `tags`
 - The `sync:partition-recovered` and `sync:peer-unreachable` events
 
 ### Authority Tiers (Roadmap)
@@ -153,22 +149,22 @@ workIntake:
 
 ### Key fields
 
-| Field                          | Description                                                                             |
-| ------------------------------ | --------------------------------------------------------------------------------------- |
-| `protolab.role`                | `primary` starts a WebSocket server; `worker` connects as a client                      |
-| `protolab.syncPort`            | Port the sync WebSocket server listens on (primary) or the port used in peer URLs       |
-| `protolab.instanceId`          | Unique identifier for this instance (used in CRDT attribution, heartbeats, Ava Channel) |
-| `protolab.instanceUrl`         | This instance's WebSocket URL (how other peers can reach it)                            |
-| `instance.name`                | Human-readable display name for this instance                                           |
-| `instance.role`                | Work focus: `fullstack`, `frontend`, `backend`, `infra`, `docs`, `qa`                   |
-| `instance.tags`                | Additional capability tags beyond the primary role                                      |
-| `hivemind.enabled`             | Enable the sync mesh (default: false for single-instance mode)                          |
-| `hivemind.peers`               | Ordered list of all peer URLs. Index 0 is highest priority for leader election          |
-| `hivemind.heartbeatIntervalMs` | How often heartbeats are sent (default: 30000)                                          |
-| `hivemind.peerTtlMs`           | How long before an unresponsive peer is marked offline (default: 120000)                |
-| `workIntake.enabled`           | Enable pull-based phase claiming from shared projects (default: true)                   |
-| `workIntake.tickIntervalMs`    | How often to check for claimable phases (default: 30000)                                |
-| `workIntake.claimTimeoutMs`    | Timeout before a stale claim becomes reclaimable (default: 1800000 / 30min)             |
+| Field                          | Description                                                                        |
+| ------------------------------ | ---------------------------------------------------------------------------------- |
+| `protolab.role`                | `primary` starts a WebSocket server; `worker` connects as a client                 |
+| `protolab.syncPort`            | Port the sync WebSocket server listens on (primary) or the port used in peer URLs  |
+| `protolab.instanceId`          | Unique identifier for this instance (used in peer mesh attribution and heartbeats) |
+| `protolab.instanceUrl`         | This instance's WebSocket URL (how other peers can reach it)                       |
+| `instance.name`                | Human-readable display name for this instance                                      |
+| `instance.role`                | Work focus: `fullstack`, `frontend`, `backend`, `infra`, `docs`, `qa`              |
+| `instance.tags`                | Additional capability tags beyond the primary role                                 |
+| `hivemind.enabled`             | Enable the sync mesh (default: false for single-instance mode)                     |
+| `hivemind.peers`               | Ordered list of all peer URLs. Index 0 is highest priority for leader election     |
+| `hivemind.heartbeatIntervalMs` | How often heartbeats are sent (default: 30000)                                     |
+| `hivemind.peerTtlMs`           | How long before an unresponsive peer is marked offline (default: 120000)           |
+| `workIntake.enabled`           | Enable pull-based phase claiming from shared projects (default: true)              |
+| `workIntake.tickIntervalMs`    | How often to check for claimable phases (default: 30000)                           |
+| `workIntake.claimTimeoutMs`    | Timeout before a stale claim becomes reclaimable (default: 1800000 / 30min)        |
 
 ### Docker deployment
 
@@ -180,7 +176,7 @@ services:
     image: automaker-server
     ports:
       - '${API_PORT:-3008}:3008'
-      - '${SYNC_PORT:-4444}:4444' # CRDT sync WebSocket
+      - '${SYNC_PORT:-4444}:4444' # Peer mesh sync WebSocket
     volumes:
       - ./proto.config.yaml:/app/proto.config.yaml:ro
       - ./data:/data
@@ -285,7 +281,7 @@ When taking an instance out of the mesh for maintenance or upgrade:
 
 ## Path Remapping
 
-Each instance may have its project at a different filesystem path (e.g. `/Users/dev/project` on macOS vs `/home/deploy/project` in Docker). When a remote project event arrives, `crdt-sync.module.ts` remaps the `projectPath` in the payload to the local `repoRoot` before persisting. This ensures project data is written to the correct local directory regardless of the originating instance's path layout.
+Each instance may have its project at a different filesystem path (e.g. `/Users/dev/project` on macOS vs `/home/deploy/project` in Docker). When a remote project event arrives, the peer mesh module remaps the `projectPath` in the payload to the local `repoRoot` before persisting. This ensures project data is written to the correct local directory regardless of the originating instance's path layout.
 
 ## Work Intake Protocol
 
@@ -293,13 +289,13 @@ Work distribution uses a **pull-based intake model**. Each instance independentl
 
 The `WorkIntakeService` runs on a configurable tick when auto-mode is active. Each tick:
 
-1. Reads shared project docs (local Automerge replica)
+1. Reads shared project docs (synced via peer mesh)
 2. Finds claimable phases (unclaimed, deps satisfied, role affinity matches)
 3. Claims phases by writing to the shared project doc
 4. Creates **local** features from claimed phases
 5. On completion, updates phase `executionStatus` in the shared doc
 
-Phase claims use Automerge LWW for conflict resolution. If two instances race to claim the same phase, the loser detects `claimedBy !== myId` on verification read and backs off.
+Phase claims use a claim-and-verify protocol for conflict resolution. If two instances race to claim the same phase, the loser detects `claimedBy !== myId` on verification read and backs off.
 
 See [distributed-sync.md](../dev/distributed-sync.md) for the full protocol details, pure functions, and instance role descriptions.
 
@@ -322,7 +318,7 @@ done
 
 1. Identify the intended primary (check `proto.config.yaml` on each host -- index 0 in `peers` is canonical primary).
 2. Restart the instance that incorrectly promoted to primary. It will reconnect as a worker.
-3. CRDT state will automatically reconcile on reconnect -- Automerge CRDTs are merge-safe.
+3. Peer mesh state will automatically reconcile on reconnect -- events are replayed from the reconnecting peer.
 
 ### Stuck Peers
 
