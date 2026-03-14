@@ -24,6 +24,15 @@ export async function register(container: ServiceContainer): Promise<void> {
     if (!payload.projectPath) return;
     const projectPath = container.repoRoot;
 
+    // Only persist projects that originated from the same repo root.
+    // Projects from other repos in the mesh are irrelevant to this instance.
+    if (payload.projectPath !== projectPath) {
+      logger.debug(
+        `[CRDT] Dropping remote ${eventType} — projectPath mismatch (remote: ${payload.projectPath}, local: ${projectPath})`
+      );
+      return;
+    }
+
     switch (eventType) {
       case 'project:created':
       case 'project:updated': {
