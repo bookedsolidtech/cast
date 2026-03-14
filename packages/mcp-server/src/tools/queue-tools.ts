@@ -34,19 +34,13 @@ export const queueTools: Tool[] = [
   },
   {
     name: 'clear_queue',
-    description:
-      'Clear all features from the agent queue. This is a destructive action — requires sufficient trust tier. If trust is insufficient, an approval request is created instead.',
+    description: 'Clear all features from the agent queue. This is a destructive action.',
     inputSchema: {
       type: 'object',
       properties: {
         projectPath: {
           type: 'string',
-          description: 'Optional project path for trust tier enforcement',
-        },
-        requestingAgentId: {
-          type: 'string',
-          description:
-            'Optional agent ID for trust tier enforcement. If the agent lacks sufficient trust, an approval request is created instead of executing.',
+          description: 'Optional project path',
         },
       },
     },

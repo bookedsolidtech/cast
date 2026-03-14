@@ -281,7 +281,7 @@ export const workspaceTools: Tool[] = [
   {
     name: 'process_idea',
     description:
-      'Process an idea through the PM Agent pipeline. Creates a feature with idea state and triggers the PM Agent for research, PRD generation, and feature decomposition.',
+      'Process an idea by creating a feature on the board with idea category in backlog status.',
     inputSchema: {
       type: 'object',
       properties: {

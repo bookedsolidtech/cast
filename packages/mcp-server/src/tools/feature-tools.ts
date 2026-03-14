@@ -210,8 +210,7 @@ export const featureTools: Tool[] = [
   },
   {
     name: 'delete_feature',
-    description:
-      'Delete a feature from the board. This is a destructive action — requires sufficient trust tier. If trust is insufficient, an approval request is created instead.',
+    description: 'Delete a feature from the board. This is a destructive action.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -222,11 +221,6 @@ export const featureTools: Tool[] = [
         featureId: {
           type: 'string',
           description: 'The feature ID (UUID)',
-        },
-        requestingAgentId: {
-          type: 'string',
-          description:
-            'Optional agent ID for trust tier enforcement. If the agent lacks sufficient trust, an approval request is created instead of executing.',
         },
       },
       required: ['projectPath', 'featureId'],

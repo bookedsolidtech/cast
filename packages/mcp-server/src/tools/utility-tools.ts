@@ -131,7 +131,7 @@ export const utilityTools: Tool[] = [
   {
     name: 'submit_prd',
     description:
-      'Submit a SPARC PRD from the Chief of Staff to the Project Manager for decomposition and execution. Creates a feature that enters the authority pipeline.',
+      'Submit a SPARC PRD from the Chief of Staff to the Project Manager for decomposition and execution. Creates a feature on the board.',
     inputSchema: {
       type: 'object',
       properties: {

@@ -174,8 +174,7 @@ export const projectTools: Tool[] = [
   },
   {
     name: 'delete_project',
-    description:
-      'Delete a project plan and all its files. This is a destructive action — requires sufficient trust tier. If trust is insufficient, an approval request is created instead.',
+    description: 'Delete a project plan and all its files. This is a destructive action.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -186,11 +185,6 @@ export const projectTools: Tool[] = [
         projectSlug: {
           type: 'string',
           description: 'The project slug to delete',
-        },
-        requestingAgentId: {
-          type: 'string',
-          description:
-            'Optional agent ID for trust tier enforcement. If the agent lacks sufficient trust, an approval request is created instead of executing.',
         },
       },
       required: ['projectPath', 'projectSlug'],
