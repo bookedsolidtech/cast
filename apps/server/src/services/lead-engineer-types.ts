@@ -4,7 +4,7 @@
  * All types shared across the lead-engineer subsystem files.
  */
 
-import type { Feature, AgentRole } from '@protolabsai/types';
+import type { ContextMetrics, Feature, AgentRole, StructuredPlan } from '@protolabsai/types';
 import type { EventEmitter } from '../lib/events.js';
 import type { FeatureLoader } from './feature-loader.js';
 import type { AutoModeService } from './auto-mode-service.js';
@@ -17,6 +17,7 @@ import type { FactStoreService } from './fact-store-service.js';
 import type { LeadHandoffService } from './lead-handoff-service.js';
 import type { HITLFormService } from './hitl-form-service.js';
 import type { TrajectoryStoreService } from './trajectory-store-service.js';
+import type { DeviationRuleService } from './deviation-rule-service.js';
 import {
   EXECUTE_TIMEOUT_MS,
   MERGE_RETRY_DELAY_MS,
@@ -65,7 +66,13 @@ export interface IPlanReviewService {
     complexity: string;
     planOutput: string;
     projectPath: string;
-  }): Promise<{ approved: boolean; reason?: string } | null>;
+    structuredPlan?: StructuredPlan;
+  }): Promise<{
+    approved: boolean;
+    reason?: string;
+    coveragePercent?: number;
+    gaps?: string[];
+  } | null>;
 }
 
 /**
@@ -86,6 +93,7 @@ export interface ProcessorServiceContext {
   antagonisticReviewService?: IPlanReviewService;
   hitlFormService?: HITLFormService;
   trajectoryStoreService?: TrajectoryStoreService;
+  deviationRuleService?: DeviationRuleService;
 }
 
 // ────────────────────────── Feature State Machine Types ──────────────────────────
@@ -149,6 +157,10 @@ export interface StateContext {
   projectKnowledge?: string;
   /** ISO 8601 timestamp when processing started */
   startedAt?: string;
+  /** Structured plan produced by PlanProcessor, if parsing succeeded */
+  structuredPlan?: StructuredPlan;
+  /** Context window utilization metrics from the most recent execution attempt */
+  contextMetrics?: ContextMetrics;
 }
 
 /**

@@ -6,6 +6,7 @@ import { useSettingsNavigation } from '@/components/shared/settings';
 import { ProjectIdentitySection } from './project-identity-section';
 import { ProjectThemeSection } from './project-theme-section';
 import { WorktreePreferencesSection } from './worktree-preferences-section';
+import { ProjectDocsSection } from './project-docs-section';
 import { ProjectModelsSection } from './project-models-section';
 import { ProjectWebhooksSection } from './project-webhooks-section';
 import { ProjectCeremoniesSection } from './project-ceremonies-section';
@@ -66,6 +67,8 @@ export function ProjectSettingsView() {
         return <ProjectThemeSection project={currentProject} />;
       case 'worktrees':
         return <WorktreePreferencesSection project={currentProject} />;
+      case 'docs':
+        return <ProjectDocsSection project={currentProject} />;
       case 'claude':
         return <ProjectModelsSection project={currentProject} />;
       case 'webhooks':

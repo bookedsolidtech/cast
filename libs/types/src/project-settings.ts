@@ -269,6 +269,15 @@ export interface ProjectSettings {
    * @see WorkflowSettings
    */
   workflow?: WorkflowSettings;
+
+  // Docs Viewer Configuration (per-project)
+  /**
+   * Path to the documentation directory for the Docs sidebar viewer.
+   * Can be absolute or relative to the project root.
+   * Defaults to `docs/` relative to project root when undefined.
+   * Set to `null` to explicitly disable the Docs viewer for this project.
+   */
+  docsPath?: string | null;
 }
 
 /** Default project settings (empty - all settings are optional and fall back to global) */

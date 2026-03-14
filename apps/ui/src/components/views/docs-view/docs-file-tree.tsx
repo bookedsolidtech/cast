@@ -6,45 +6,16 @@ interface DocFile {
   path: string;
   title: string;
   slug: string;
+  section: string;
 }
 
 interface DocsFileTreeProps {
+  projectPath: string;
   selectedPath: string | null;
   onSelect: (path: string) => void;
 }
 
-/**
- * Infer a section label from the file's slug.
- * Looks for common prefixes like "brand-", "process-", etc.
- * Falls back to "General" for ungrouped files.
- */
-function inferSection(slug: string): string {
-  const prefixes: Record<string, string> = {
-    brand: 'Brand',
-    process: 'Process',
-    workflow: 'Workflow',
-    guide: 'Guides',
-    guidelines: 'Guidelines',
-    architecture: 'Architecture',
-    setup: 'Setup',
-    api: 'API',
-    spec: 'Specs',
-    dev: 'Development',
-    development: 'Development',
-    test: 'Testing',
-    deploy: 'Deployment',
-  };
-
-  for (const [prefix, section] of Object.entries(prefixes)) {
-    if (slug.startsWith(prefix + '-') || slug === prefix) {
-      return section;
-    }
-  }
-
-  return 'General';
-}
-
-export function DocsFileTree({ selectedPath, onSelect }: DocsFileTreeProps) {
+export function DocsFileTree({ projectPath, selectedPath, onSelect }: DocsFileTreeProps) {
   const [docs, setDocs] = useState<DocFile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +27,9 @@ export function DocsFileTree({ selectedPath, onSelect }: DocsFileTreeProps) {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch('/api/docs/list');
+        const response = await fetch(
+          `/api/docs/list?projectPath=${encodeURIComponent(projectPath)}`
+        );
         if (!response.ok) {
           throw new Error(`Failed to fetch docs list: ${response.status}`);
         }
@@ -79,7 +52,7 @@ export function DocsFileTree({ selectedPath, onSelect }: DocsFileTreeProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [projectPath]);
 
   if (isLoading) {
     return (
@@ -106,10 +79,10 @@ export function DocsFileTree({ selectedPath, onSelect }: DocsFileTreeProps) {
     );
   }
 
-  // Group docs by inferred section
+  // Group docs by section (provided by server)
   const sections: Record<string, DocFile[]> = {};
   for (const doc of docs) {
-    const section = inferSection(doc.slug);
+    const section = doc.section || 'General';
     if (!sections[section]) {
       sections[section] = [];
     }

@@ -4,6 +4,7 @@ export type ProjectSettingsViewId =
   | 'identity'
   | 'theme'
   | 'worktrees'
+  | 'docs'
   | 'claude'
   | 'webhooks'
   | 'ceremonies'

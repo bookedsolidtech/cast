@@ -367,7 +367,7 @@ export function registerRoutes(app: Express, services: ServiceContainer): void {
   );
   app.use('/api/issues', createIssuesRoutes(events));
   app.use('/api/deploy', createDeployRoutes(autoModeService));
-  app.use('/api/docs', createDocsRoutes(repoRoot));
+  app.use('/api/docs', createDocsRoutes(settingsService));
   app.use('/api/integrity', createIntegrityRoutes(integrityWatchdogService));
   app.use('/api/escalation', createEscalationRoutes(escalationRouter));
   app.use('/api/analytics', createAnalyticsRoutes());

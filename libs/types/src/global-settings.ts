@@ -191,8 +191,6 @@ const DEFAULT_CODEX_ADDITIONAL_DIRS: string[] = [];
 export interface FeatureFlags {
   /** Designs/pen file viewer in project sidebar */
   designs: boolean;
-  /** Docs view in project sidebar */
-  docs: boolean;
   /**
    * Authority pipeline (TRIAGE → RESEARCH → SPEC → SPEC_REVIEW → … → PUBLISH).
    * When false, PipelineOrchestrator ignores all events — no gate cycling, no HITL
@@ -220,7 +218,6 @@ export interface FeatureFlags {
 /** Default feature flags — all off by default, opt-in per environment */
 export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   designs: false,
-  docs: false,
   pipeline: false,
   specEditor: false,
   systemView: false,

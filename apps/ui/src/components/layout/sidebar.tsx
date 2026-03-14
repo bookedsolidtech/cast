@@ -259,7 +259,6 @@ export function Sidebar() {
     shortcuts,
     hideSpecEditor: hideSpecEditor || !featureFlags.specEditor,
     hideDesigns: !featureFlags.designs,
-    hideDocs: !featureFlags.docs,
     hideFileEditor: false,
     hideSystemView: !featureFlags.systemView,
     currentProject,
