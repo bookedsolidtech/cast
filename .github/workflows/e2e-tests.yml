@@ -5,6 +5,11 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'docs/**'
+      - 'site/**'
+      - '**.md'
+      - '.automaker/**'
   workflow_dispatch:
 
 permissions: read-all
@@ -17,7 +22,7 @@ jobs:
   e2e:
     runs-on: self-hosted
     if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request'
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code

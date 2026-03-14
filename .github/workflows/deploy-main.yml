@@ -19,7 +19,7 @@ jobs:
   deploy:
     runs-on: [self-hosted, protolabs]
     if: github.repository == 'protoLabsAI/protoMaker'
-    timeout-minutes: 30
+    timeout-minutes: 45
     concurrency:
       group: main-deploy
       cancel-in-progress: false
