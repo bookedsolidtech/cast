@@ -1,6 +1,6 @@
 {
   "name": "@protolabsai/crdt",
-  "version": "0.42.11",
+  "version": "0.53.0",
   "type": "module",
   "description": "CRDT document store wrapping Automerge + automerge-repo for AutoMaker",
   "main": "dist/index.js",

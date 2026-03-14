@@ -313,5 +313,4 @@ These are rendered by `buildSystemPrompt()` in the agent factory. Templates can 
 
 - [Agent Philosophy](./philosophy.md) — Why the prompt system is designed this way
 - [Context System](./context-system.md) — How context files and memory flow into prompts
-- [Dynamic Role Registry](./dynamic-role-registry.md) — Template-based agent creation
 - [Langfuse Integration](../integrations/langfuse.md) — Tracing and cost tracking

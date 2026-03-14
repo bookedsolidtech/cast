@@ -3,11 +3,21 @@ name: Test Suite
 
 on:
   pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - 'site/**'
+      - '**.md'
+      - '.automaker/**'
   push:
     branches:
       - main
       - staging
       - dev
+    paths-ignore:
+      - 'docs/**'
+      - 'site/**'
+      - '**.md'
+      - '.automaker/**'
 
 permissions: read-all
 

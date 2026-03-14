@@ -602,7 +602,7 @@ export class AvaGatewayService {
    */
   private calculateBackoffDelay(failureCount: number): number {
     if (failureCount < 3) return 0;
-    return Math.pow(2, failureCount - 3) * 30000;
+    return Math.min(Math.pow(2, Math.min(failureCount - 3, 10)) * 30000, 300_000);
   }
 
   /**

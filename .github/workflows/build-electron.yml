@@ -12,7 +12,7 @@ concurrency:
 jobs:
   build-mac:
     runs-on: macos-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
@@ -47,7 +47,7 @@ jobs:
 
   build-linux:
     runs-on: self-hosted
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
@@ -84,7 +84,7 @@ jobs:
 
   build-windows:
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
@@ -118,7 +118,7 @@ jobs:
   test-mac:
     needs: build-mac
     runs-on: macos-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
@@ -156,7 +156,7 @@ jobs:
   test-windows:
     needs: build-windows
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
@@ -194,7 +194,7 @@ jobs:
   test-linux:
     needs: build-linux
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code

@@ -44,7 +44,7 @@ export function createAgentRoutes(featureLoader: FeatureLoader): Router {
         extends: role,
         description: ROLE_CAPABILITIES[role]?.description ?? '',
         _builtIn: true,
-      })) as unknown as ProjectAgent[];
+      }));
 
       const service = getAgentManifestService();
       const manifest = await service.getAgentsForProject(projectPath);
@@ -118,7 +118,14 @@ export function createAgentRoutes(featureLoader: FeatureLoader): Router {
         return;
       }
 
-      const capabilities = await service.getResolvedCapabilities(projectPath, agent.name);
+      let capabilities = await service.getResolvedCapabilities(projectPath, agent.name);
+
+      // getResolvedCapabilities returns null when the agent isn't in the project manifest
+      // (i.e. it's a synthetic built-in). Fall back to direct ROLE_CAPABILITIES lookup so
+      // built-in roles always return their capabilities.
+      if (capabilities === null && ROLE_CAPABILITIES[agent.name]) {
+        capabilities = ROLE_CAPABILITIES[agent.name];
+      }
 
       res.json({
         success: true,
@@ -181,7 +188,8 @@ export function createAgentRoutes(featureLoader: FeatureLoader): Router {
         success: true,
         projectPath,
         featureId,
-        agent: matched,
+        agent: matched?.agent ?? null,
+        confidence: matched?.confidence ?? null,
       });
     } catch (error) {
       logger.error('Failed to match agent for feature:', error);

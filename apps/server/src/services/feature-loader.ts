@@ -37,6 +37,7 @@ import {
 import { addImplementedFeature, type ImplementedFeature } from '../lib/xml-extractor.js';
 import { debugLog } from '../lib/debug-log.js';
 import type { DataIntegrityWatchdogService } from './data-integrity-watchdog-service.js';
+import type { ProjectSlugResolver } from './project-slug-resolver.js';
 import { featuresByStatus } from '../lib/prometheus.js';
 
 const execAsync = promisify(exec);
@@ -50,6 +51,7 @@ export class FeatureLoader implements FeatureStore {
   private events: EventEmitter | null = null;
   /** Instance ID stamped onto newly created features as createdByInstance */
   private instanceId: string | null = null;
+  private projectSlugResolver: ProjectSlugResolver | null = null;
 
   setIntegrityWatchdog(watchdog: DataIntegrityWatchdogService): void {
     this.integrityWatchdog = watchdog;
@@ -65,6 +67,14 @@ export class FeatureLoader implements FeatureStore {
    */
   setInstanceId(instanceId: string): void {
     this.instanceId = instanceId;
+  }
+
+  /**
+   * Set the project slug resolver used to auto-assign projectSlug on feature creation.
+   * Call this once at startup when the resolver is available.
+   */
+  setProjectSlugResolver(resolver: ProjectSlugResolver): void {
+    this.projectSlugResolver = resolver;
   }
   /**
    * Normalize feature status to canonical values
@@ -547,6 +557,16 @@ export class FeatureLoader implements FeatureStore {
     // Auto-generate branchName from title if not provided
     const branchName = featureData.branchName || this.generateBranchName(featureData.title);
 
+    // Auto-assign projectSlug if not already provided
+    let resolvedProjectSlug = featureData.projectSlug;
+    if (!resolvedProjectSlug && this.projectSlugResolver) {
+      const slug = await this.projectSlugResolver.resolveDefaultSlug(projectPath);
+      if (slug) {
+        resolvedProjectSlug = slug;
+        logger.debug(`Auto-assigned projectSlug "${slug}" to new feature ${featureId}`);
+      }
+    }
+
     // Set lifecycle timestamps
     const createdAt = new Date().toISOString();
     const initialStatus = (featureData.status || 'backlog') as FeatureStatus;
@@ -574,6 +594,9 @@ export class FeatureLoader implements FeatureStore {
       ...(featureData.createdByInstance == null && this.instanceId != null
         ? { createdByInstance: this.instanceId }
         : {}),
+      // Apply resolved projectSlug (resolver result takes precedence over featureData when
+      // the caller did not supply one, ensuring auto-assignment for all creation paths).
+      ...(resolvedProjectSlug != null ? { projectSlug: resolvedProjectSlug } : {}),
     };
 
     // Write feature.json atomically with backup support
@@ -735,8 +758,64 @@ export class FeatureLoader implements FeatureStore {
       });
     }
 
+    // Auto-complete epic when all child features reach 'done'
+    if (updates.status === 'done' && updatedFeature.epicId) {
+      await this.checkAndAutoCompleteEpic(projectPath, updatedFeature.epicId).catch((err) =>
+        logger.warn(`Epic auto-completion check failed for epic ${updatedFeature.epicId}:`, err)
+      );
+    }
+
     logger.info(`Updated feature ${featureId}`);
     return updatedFeature;
+  }
+
+  /**
+   * Check if all child features of an epic are done, and if so, auto-complete the epic.
+   * Called after any feature transitions to 'done' status.
+   *
+   * @param projectPath - Path to the project
+   * @param epicId - ID of the parent epic to check
+   */
+  private async checkAndAutoCompleteEpic(projectPath: string, epicId: string): Promise<void> {
+    // Get the epic itself
+    const epic = await this.get(projectPath, epicId);
+    if (!epic) {
+      logger.warn(`Epic ${epicId} not found, skipping auto-completion`);
+      return;
+    }
+
+    // Skip if epic is already done
+    if (epic.status === 'done') {
+      return;
+    }
+
+    // Get all features for this project
+    const allFeatures = await this.getAll(projectPath);
+
+    // Find all child features that belong to this epic
+    const childFeatures = allFeatures.filter((f) => f.epicId === epicId);
+
+    if (childFeatures.length === 0) {
+      // No children — don't auto-complete (epic might be freshly created)
+      return;
+    }
+
+    // Check if all children are done
+    const allDone = childFeatures.every((f) => f.status === 'done');
+
+    if (!allDone) {
+      return;
+    }
+
+    // All children are done — auto-complete the epic
+    logger.info(
+      `Auto-completing epic ${epicId} — all ${childFeatures.length} child features are done`
+    );
+
+    await this.update(projectPath, epicId, {
+      status: 'done',
+      statusChangeReason: 'All child features completed',
+    });
   }
 
   /**

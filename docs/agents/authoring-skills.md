@@ -764,6 +764,5 @@ env | grep API_KEY
 
 ## Learn More
 
-- [Agent Templates](./authoring-templates.md) - Creating agent templates that use skills
 - [Agent Prompts](./authoring-prompts.md) - Writing effective agent prompts
 - [SDK Integration](./sdk-integration.md) - How agents load and use skills

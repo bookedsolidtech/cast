@@ -473,7 +473,12 @@ export class ExecutionService {
               status: 'blocked',
               statusChangeReason: reason,
             });
-            this.events.emit('feature:error', { projectPath, featureId, error: reason });
+            this.events.emit('feature:error', {
+              projectPath,
+              featureId,
+              error: reason,
+              projectSlug: feature?.projectSlug,
+            });
             return;
           }
         }
@@ -485,7 +490,12 @@ export class ExecutionService {
           status: 'blocked',
           statusChangeReason: reason,
         });
-        this.events.emit('feature:error', { projectPath, featureId, error: reason });
+        this.events.emit('feature:error', {
+          projectPath,
+          featureId,
+          error: reason,
+          projectSlug: feature?.projectSlug,
+        });
         return;
       }
 
@@ -500,7 +510,12 @@ export class ExecutionService {
           status: 'blocked',
           statusChangeReason: reason,
         });
-        this.events.emit('feature:error', { projectPath, featureId, error: reason });
+        this.events.emit('feature:error', {
+          projectPath,
+          featureId,
+          error: reason,
+          projectSlug: feature?.projectSlug,
+        });
         return;
       }
 
@@ -522,7 +537,12 @@ export class ExecutionService {
                 status: 'blocked',
                 statusChangeReason: reason,
               });
-              this.events.emit('feature:error', { projectPath, featureId, error: reason });
+              this.events.emit('feature:error', {
+                projectPath,
+                featureId,
+                error: reason,
+                projectSlug: feature?.projectSlug,
+              });
               return;
             } else {
               logger.warn(
@@ -619,7 +639,46 @@ export class ExecutionService {
       // Get customized prompts from settings
       const prompts = await getPromptCustomization(this.settingsService, '[AutoMode]');
 
-      // Build the prompt - use continuation prompt if provided (for recovery after plan approval)
+      // Auto-assign agent role via manifest match rules BEFORE prompt building
+      // so that the first execution gets the role prompt and model override.
+      if (!feature.assignedRole && workflowSettings.agentConfig?.autoAssignEnabled !== false) {
+        try {
+          const agentManifestService = getAgentManifestService();
+          const matched = await agentManifestService.matchFeature(projectPath, {
+            category: feature.category,
+            title: feature.title ?? '',
+            description: feature.description,
+            filesToModify: feature.filesToModify,
+          });
+          if (matched) {
+            const assignedRole = matched.agent.name as import('@protolabsai/types').AgentRole;
+            const routingSuggestion = {
+              role: assignedRole,
+              confidence: matched.confidence,
+              reasoning: `Auto-assigned via manifest match rule (agent: ${matched.agent.name})`,
+              autoAssigned: true,
+              suggestedAt: new Date().toISOString(),
+            };
+            feature = {
+              ...feature,
+              assignedRole,
+              routingSuggestion,
+            };
+            await this.featureLoader.update(projectPath, featureId, {
+              assignedRole,
+              routingSuggestion,
+            });
+            logger.info(
+              `Auto-assigned role "${assignedRole}" to feature ${featureId} via manifest match (confidence: ${matched.confidence.toFixed(2)})`
+            );
+          }
+        } catch (matchError) {
+          // Non-fatal: log and proceed with default execution
+          logger.warn(`Match rule auto-assign failed for feature ${featureId}:`, matchError);
+        }
+      }
+
+      // Build the prompt — AFTER auto-assignment so the role prompt is available on first run
       let prompt: string;
       // Load project context files (CLAUDE.md, CODE_QUALITY.md, etc.) and memory files
       // Context loader uses task context to select relevant memory files
@@ -683,44 +742,6 @@ export class ExecutionService {
         typeof img === 'string' ? img : img.path
       );
 
-      // Auto-assign agent role via manifest match rules (if not already assigned)
-      if (!feature.assignedRole && workflowSettings.agentConfig?.autoAssignEnabled !== false) {
-        try {
-          const agentManifestService = getAgentManifestService();
-          const matched = await agentManifestService.matchFeature(projectPath, {
-            category: feature.category,
-            title: feature.title ?? '',
-            description: feature.description,
-            filesToModify: feature.filesToModify,
-          });
-          if (matched) {
-            const assignedRole = matched.name as import('@protolabsai/types').AgentRole;
-            const routingSuggestion = {
-              role: assignedRole,
-              confidence: 1.0,
-              reasoning: `Auto-assigned via manifest match rule (agent: ${matched.name})`,
-              autoAssigned: true,
-              suggestedAt: new Date().toISOString(),
-            };
-            feature = {
-              ...feature,
-              assignedRole,
-              routingSuggestion,
-            };
-            await this.featureLoader.update(projectPath, featureId, {
-              assignedRole,
-              routingSuggestion,
-            });
-            logger.info(
-              `Auto-assigned role "${assignedRole}" to feature ${featureId} via manifest match`
-            );
-          }
-        } catch (matchError) {
-          // Non-fatal: log and proceed with default execution
-          logger.warn(`Match rule auto-assign failed for feature ${featureId}:`, matchError);
-        }
-      }
-
       // Get model based on feature complexity and failure count
       const modelResult = await this.getModelForFeature(feature, projectPath);
       const maxTurns = getTurnsForFeature(feature);
@@ -780,7 +801,12 @@ export class ExecutionService {
               status: 'blocked',
               statusChangeReason: reason,
             });
-            this.events.emit('feature:error', { projectPath, featureId, error: reason });
+            this.events.emit('feature:error', {
+              projectPath,
+              featureId,
+              error: reason,
+              projectSlug: feature?.projectSlug,
+            });
             return;
           } else {
             logger.warn(`Git merge failed for ${branchName}: ${mergeMsg}`);
@@ -876,6 +902,7 @@ export class ExecutionService {
               projectPath,
               featureId,
               featureTitle: feature.title,
+              projectSlug: feature.projectSlug,
               status: 'review',
             });
             return;
@@ -894,6 +921,7 @@ export class ExecutionService {
               projectPath,
               featureId,
               error: reason,
+              projectSlug: feature.projectSlug,
             });
             return;
           }
@@ -1428,7 +1456,11 @@ export class ExecutionService {
             });
           } else {
             // Exponential backoff: 30s → 60s → 120s … max 5min
-            const backoffMs = Math.min(30_000 * Math.pow(2, newFailureCount - 1), 300_000);
+            // Cap exponent to prevent overflow when failureCount is unexpectedly large
+            const backoffMs = Math.min(
+              30_000 * Math.pow(2, Math.min(newFailureCount - 1, 10)),
+              300_000
+            );
             logger.warn(
               `[GitCommitFailure] Feature ${featureId} git commit failed ` +
                 `(attempt ${newFailureCount}), retrying in ${Math.round(backoffMs / 1000)}s`
@@ -1597,7 +1629,7 @@ export class ExecutionService {
     // Capture values for closure before setTimeout
     const currentRetryCount = tempRunningFeature.retryCount;
     const currentPreviousErrors = tempRunningFeature.previousErrors;
-    const backoffMs = Math.min(1000 * Math.pow(2, currentRetryCount), 30_000);
+    const backoffMs = Math.min(1000 * Math.pow(2, Math.min(currentRetryCount, 10)), 30_000);
     const retryTimer = setTimeout(() => {
       this.retryTimers.delete(featureId);
       this.executeFeature(
@@ -1634,6 +1666,56 @@ export class ExecutionService {
 
     // Get customized prompts from settings
     const prompts = await getPromptCustomization(this.settingsService, '[AutoMode]');
+
+    // Auto-assign agent role via manifest match rules BEFORE prompt building
+    // so that pipeline steps get the role prompt and model override.
+    const pipelineWorkflowSettings = await getWorkflowSettings(
+      projectPath,
+      this.settingsService,
+      '[AutoMode]'
+    );
+    if (
+      !feature.assignedRole &&
+      pipelineWorkflowSettings.agentConfig?.autoAssignEnabled !== false
+    ) {
+      try {
+        const agentManifestService = getAgentManifestService();
+        const matched = await agentManifestService.matchFeature(projectPath, {
+          category: feature.category,
+          title: feature.title ?? '',
+          description: feature.description,
+          filesToModify: feature.filesToModify,
+        });
+        if (matched) {
+          const assignedRole = matched.agent.name as import('@protolabsai/types').AgentRole;
+          const routingSuggestion = {
+            role: assignedRole,
+            confidence: matched.confidence,
+            reasoning: `Auto-assigned via manifest match rule (agent: ${matched.agent.name})`,
+            autoAssigned: true,
+            suggestedAt: new Date().toISOString(),
+          };
+          feature = {
+            ...feature,
+            assignedRole,
+            routingSuggestion,
+          };
+          await this.featureLoader.update(projectPath, featureId, {
+            assignedRole,
+            routingSuggestion,
+          });
+          logger.info(
+            `Auto-assigned role "${assignedRole}" to feature ${featureId} via manifest match (pipeline path, confidence: ${matched.confidence.toFixed(2)})`
+          );
+        }
+      } catch (matchError) {
+        // Non-fatal: log and proceed with default execution
+        logger.warn(
+          `Match rule auto-assign failed for feature ${featureId} (pipeline path):`,
+          matchError
+        );
+      }
+    }
 
     // Load context files once with feature context for smart memory selection
     const contextResult = await loadContextFiles({
@@ -3525,26 +3607,39 @@ After generating the revised spec, output:
     if (!feature.assignedRole) {
       return '';
     }
+    const role = feature.assignedRole;
     try {
       const agentManifestService = getAgentManifestService();
-      const agent = await agentManifestService.getAgent(projectPath, feature.assignedRole);
-      if (!agent?.promptFile) {
-        return '';
+      const agent = await agentManifestService.getAgent(projectPath, role);
+
+      // Primary path: manifest promptFile takes precedence
+      if (agent?.promptFile) {
+        const promptFilePath = path.join(projectPath, agent.promptFile);
+        let promptFileContents: string;
+        try {
+          promptFileContents = (await secureFs.readFile(promptFilePath, 'utf-8')) as string;
+        } catch (err) {
+          logger.warn(`Role prompt file not found for role "${role}" at ${promptFilePath}: ${err}`);
+          return '';
+        }
+        const description = agent.description ? `${agent.description}\n\n` : '';
+        return `## Agent Role: ${agent.name}\n${description}${promptFileContents}\n\n---\n`;
       }
-      const promptFilePath = path.join(projectPath, agent.promptFile);
-      let promptFileContents: string;
-      try {
-        promptFileContents = (await secureFs.readFile(promptFilePath, 'utf-8')) as string;
-      } catch (err) {
-        logger.warn(
-          `Role prompt file not found for role "${feature.assignedRole}" at ${promptFilePath}: ${err}`
-        );
-        return '';
+
+      // Fallback: check project-level agentConfig.rolePromptOverrides
+      if (this.settingsService) {
+        const projectSettings = await this.settingsService.getProjectSettings(projectPath);
+        const override = projectSettings.workflow?.agentConfig?.rolePromptOverrides?.[role];
+        if (override?.enabled && override.value) {
+          const agentName = agent?.name ?? role;
+          const description = agent?.description ? `${agent.description}\n\n` : '';
+          return `## Agent Role: ${agentName}\n${description}${override.value}\n\n---\n`;
+        }
       }
-      const description = agent.description ? `${agent.description}\n\n` : '';
-      return `## Agent Role: ${agent.name}\n${description}${promptFileContents}\n\n---\n`;
+
+      return '';
     } catch (err) {
-      logger.warn(`Failed to load role prompt for role "${feature.assignedRole}": ${err}`);
+      logger.warn(`Failed to load role prompt for role "${role}": ${err}`);
       return '';
     }
   }

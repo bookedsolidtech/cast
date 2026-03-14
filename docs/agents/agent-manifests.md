@@ -63,13 +63,15 @@ Each file can contain:
 
 If both `.automaker/agents.yml` and the directory exist, the single file takes precedence.
 
+> **Note:** Manifest file locations are fixed — there is no `manifestPaths` setting to configure custom lookup paths.
+
 ### Agent Fields
 
 | Field          | Type   | Required | Description                                                    |
 | -------------- | ------ | -------- | -------------------------------------------------------------- |
 | `name`         | string | Yes      | Unique identifier (e.g., `react-specialist`)                   |
 | `extends`      | string | Yes      | Built-in role to inherit from                                  |
-| `description`  | string | Yes      | What this agent specializes in                                 |
+| `description`  | string | No       | What this agent specializes in (defaults to empty string)      |
 | `model`        | string | No       | Model override (e.g., `claude-opus-4-6`, `claude-sonnet-4-6`)  |
 | `promptFile`   | string | No       | Path to custom prompt file, relative to project root           |
 | `capabilities` | object | No       | Override inherited capabilities (tools, maxTurns, permissions) |
@@ -147,7 +149,20 @@ When auto-mode picks up a feature for execution, the system runs this flow:
 1. **Skip if manually assigned** --- If `feature.assignedRole` is already set, respect it
 2. **Skip if disabled** --- If `agentConfig.autoAssignEnabled` is `false` in project settings
 3. **Run match rules** --- Score all project agents against the feature
-4. **Assign best match** --- Set `assignedRole` and record a `routingSuggestion` with confidence and reasoning
+4. **Assign best match** --- Set `assignedRole` and record a `routingSuggestion`:
+
+   ```json
+   {
+     "role": "react-specialist",
+     "confidence": 0.85,
+     "reasoning": "category: frontend (+10), keywords: react (+5), component (+5)",
+     "autoAssigned": true,
+     "suggestedAt": "2026-03-13T10:00:00.000Z"
+   }
+   ```
+
+   Confidence is normalized via `rawScore / (rawScore + 10)`, giving diminishing returns as scores grow.
+
 5. **Proceed to execution** --- `getModelForFeature()` picks up the role's model override
 
 Auto-assignment is non-fatal. If matching fails or no agents match, the feature executes with default settings.
@@ -168,7 +183,7 @@ Manifest model (step 4) takes precedence over settings override (step 5), but se
 
 ## Prompt Injection
 
-When a feature has an assigned role with a `promptFile`, the file contents are prepended to the agent's system prompt:
+When a feature has an assigned role with a `promptFile`, the assembled system prompt follows this order:
 
 ```markdown
 ## Agent Role: react-specialist
@@ -180,8 +195,10 @@ Expert in React component architecture and hooks
 ---
 
 {context files from .automaker/context/}
-{standard system prompt}
+{memory from .automaker/memory/}
 ```
+
+The role prompt (header + `promptFile` contents) is injected first, followed by context and memory files.
 
 If the prompt file is missing, a warning is logged and execution continues normally.
 
@@ -197,16 +214,18 @@ Configure agent behavior in `.automaker/settings.json`:
       "react-specialist": { "model": "claude-opus-4-6" },
       "api-specialist": { "model": "claude-sonnet-4-6" }
     },
-    "manifestPaths": [".automaker/agents/"]
+    "rolePromptOverrides": {
+      "frontend-engineer": { "value": "You are a senior React architect...", "enabled": true }
+    }
   }
 }
 ```
 
-| Setting              | Default                  | Description                                               |
-| -------------------- | ------------------------ | --------------------------------------------------------- |
-| `autoAssignEnabled`  | `true`                   | Enable/disable match rule auto-assignment                 |
-| `roleModelOverrides` | `{}`                     | Per-role model overrides (settings-level, below manifest) |
-| `manifestPaths`      | `[".automaker/agents/"]` | Additional directories to search for manifests            |
+| Setting               | Default | Description                                                                                   |
+| --------------------- | ------- | --------------------------------------------------------------------------------------------- |
+| `autoAssignEnabled`   | `true`  | Enable/disable match rule auto-assignment                                                     |
+| `roleModelOverrides`  | `{}`    | Per-role model overrides (settings-level, below manifest). Values are `{ model, provider? }`. |
+| `rolePromptOverrides` | `{}`    | Per-role system prompt overrides. Used when no manifest `promptFile` is present for the role. |
 
 ## API Reference
 
@@ -225,6 +244,7 @@ Returns all agents (built-in + project-defined) for a project.
 ```json
 {
   "success": true,
+  "projectPath": "/path/to/project",
   "count": 10,
   "agents": [
     { "name": "frontend-engineer", "extends": "frontend-engineer", "_builtIn": true },
@@ -276,12 +296,14 @@ Returns the best-matching agent for a given feature.
 ```json
 {
   "success": true,
+  "projectPath": "/path/to/project",
   "featureId": "feature-123",
-  "agent": { "name": "react-specialist", "extends": "frontend-engineer" }
+  "agent": { "name": "react-specialist", "extends": "frontend-engineer" },
+  "confidence": 0.85
 }
 ```
 
-Returns `"agent": null` if no agents match.
+Returns `"agent": null, "confidence": null` if no agents match.
 
 ## UI Integration
 

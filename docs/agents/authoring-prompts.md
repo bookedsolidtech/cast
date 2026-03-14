@@ -1001,7 +1001,6 @@ const promptB = getBackendEngineerPromptV2({
 
 ## Learn More
 
-- [Agent Templates](./authoring-templates.md) - Creating agent templates
 - [Agent Skills](./authoring-skills.md) - Reusable skill files
 - [SDK Integration](./sdk-integration.md) - How agents execute
 - [Model Resolver](../server/model-resolver.md) - Choosing the right model

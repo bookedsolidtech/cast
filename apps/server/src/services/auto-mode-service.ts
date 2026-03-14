@@ -119,6 +119,7 @@ import {
   getProviderByModelId,
   getPhaseModelWithOverrides,
 } from '../lib/settings-helpers.js';
+import { getAgentManifestService } from './agent-manifest-service.js';
 import { getNotificationService } from './notification-service.js';
 import { RecoveryService, getRecoveryService } from './recovery-service.js';
 import type { LeadEngineerService } from './lead-engineer-service.js';
@@ -202,6 +203,8 @@ export class AutoModeService {
   private autoModeCoordinator!: AutoModeCoordinator;
   /** Guards against TOCTOU race in startAutoLoopForProject: keys claimed synchronously before any await */
   private readonly pendingLoopStarts = new Set<string>();
+  /** Event subscriptions that must be cleaned up on shutdown */
+  private eventSubscriptions: Array<{ unsubscribe: () => void }> = [];
   private featureLoader = new FeatureLoader();
   // Legacy single-project properties (kept for backward compatibility during transition)
   private autoLoopRunning = false;
@@ -331,7 +334,7 @@ export class AutoModeService {
     // Stop running agents when their feature reaches a terminal state.
     // This prevents zombie agents from continuing to run (and consume API budget)
     // after a feature is marked done/verified externally (MCP, manual update, epic merge).
-    this.events.on('feature:status-changed', (data) => {
+    const statusSub = this.events.on('feature:status-changed', (data) => {
       if (data.featureId && (data.newStatus === 'done' || data.newStatus === 'verified')) {
         if (this.runningFeatures.has(data.featureId)) {
           logger.info(
@@ -341,9 +344,12 @@ export class AutoModeService {
         }
 
         // Auto-unblock: Check if any features were waiting on this as a human-blocked dependency
-        void this.handleFeatureCompletion(data.featureId, data.projectPath);
+        void this.handleFeatureCompletion(data.featureId, data.projectPath).catch((err) =>
+          logger.error(`Failed to auto-unblock after feature ${data.featureId} completed:`, err)
+        );
       }
     });
+    this.eventSubscriptions.push(statusSub);
   }
 
   /**
@@ -468,7 +474,7 @@ export class AutoModeService {
    * 5. Complexity-based fallback (small → haiku, default → sonnet)
    */
   private async getModelForFeature(
-    feature: { model?: string; complexity?: string; failureCount?: number },
+    feature: { model?: string; complexity?: string; failureCount?: number; assignedRole?: string },
     projectPath?: string
   ): Promise<{ model: string; providerId?: string }> {
     // 1. Feature explicitly specifies a model → use it (highest priority)
@@ -488,7 +494,42 @@ export class AutoModeService {
       return { model: DEFAULT_MODELS.claude }; // opus
     }
 
-    // 4. Read user's configured agent execution model from settings
+    // 4. AssignedRole model override (manifest takes precedence over settings)
+    if (feature.assignedRole && projectPath) {
+      try {
+        const agentManifestService = getAgentManifestService();
+        const agent = await agentManifestService.getAgent(projectPath, feature.assignedRole);
+        if (agent?.model) {
+          logger.info(
+            `Using manifest model override "${agent.model}" for role "${feature.assignedRole}"`
+          );
+          return { model: resolveModelString(agent.model, DEFAULT_MODELS.autoMode) };
+        }
+      } catch (err) {
+        logger.warn(
+          `Failed to read agent manifest model for role "${feature.assignedRole}": ${err}`
+        );
+      }
+      // 4b. Settings roleModelOverrides fallback
+      try {
+        const workflowSettings = await getWorkflowSettings(projectPath, this.settingsService);
+        const roleOverride =
+          workflowSettings.agentConfig?.roleModelOverrides?.[feature.assignedRole];
+        if (roleOverride?.model) {
+          logger.info(
+            `Using settings roleModelOverride "${roleOverride.model}" for role "${feature.assignedRole}"`
+          );
+          return {
+            model: resolveModelString(roleOverride.model, DEFAULT_MODELS.autoMode),
+            providerId: roleOverride.providerId,
+          };
+        }
+      } catch (err) {
+        logger.warn(`Failed to read roleModelOverrides for role "${feature.assignedRole}": ${err}`);
+      }
+    }
+
+    // 5. Read user's configured agent execution model from settings
     try {
       const { phaseModel } = await getPhaseModelWithOverrides(
         'agentExecutionModel',
@@ -505,7 +546,7 @@ export class AutoModeService {
       logger.warn(`Failed to read agentExecutionModel setting, using fallback: ${err}`);
     }
 
-    // 5. Fallback: complexity-based (only if no setting configured)
+    // 6. Fallback: complexity-based (only if no setting configured)
     if (feature.complexity === 'small') {
       logger.info('Using haiku for small feature');
       return { model: DEFAULT_MODELS.trivial }; // haiku
@@ -1423,6 +1464,12 @@ export class AutoModeService {
       logger.info(`[Shutdown] Aborted feature: ${featureId}`);
     }
     this.runningFeatures.clear();
+
+    // Unsubscribe all event listeners to prevent leaks on restart
+    for (const sub of this.eventSubscriptions) {
+      sub.unsubscribe();
+    }
+    this.eventSubscriptions = [];
   }
 
   /**
@@ -1876,7 +1923,12 @@ export class AutoModeService {
               status: 'blocked',
               statusChangeReason: reason,
             });
-            this.events.emit('feature:error', { projectPath, featureId, error: reason });
+            this.events.emit('feature:error', {
+              projectPath,
+              featureId,
+              error: reason,
+              projectSlug: feature.projectSlug,
+            });
             return;
           }
         }
@@ -1887,7 +1939,12 @@ export class AutoModeService {
           status: 'blocked',
           statusChangeReason: reason,
         });
-        this.events.emit('feature:error', { projectPath, featureId, error: reason });
+        this.events.emit('feature:error', {
+          projectPath,
+          featureId,
+          error: reason,
+          projectSlug: feature.projectSlug,
+        });
         return;
       }
 
@@ -1901,7 +1958,12 @@ export class AutoModeService {
           status: 'blocked',
           statusChangeReason: reason,
         });
-        this.events.emit('feature:error', { projectPath, featureId, error: reason });
+        this.events.emit('feature:error', {
+          projectPath,
+          featureId,
+          error: reason,
+          projectSlug: feature.projectSlug,
+        });
         return;
       }
 
@@ -1921,7 +1983,12 @@ export class AutoModeService {
                 status: 'blocked',
                 statusChangeReason: reason,
               });
-              this.events.emit('feature:error', { projectPath, featureId, error: reason });
+              this.events.emit('feature:error', {
+                projectPath,
+                featureId,
+                error: reason,
+                projectSlug: feature.projectSlug,
+              });
               return;
             } else {
               logger.warn(
@@ -2197,7 +2264,12 @@ export class AutoModeService {
             status: 'blocked',
             statusChangeReason: reason,
           });
-          this.events.emit('feature:error', { projectPath, featureId, error: reason });
+          this.events.emit('feature:error', {
+            projectPath,
+            featureId,
+            error: reason,
+            projectSlug: feature?.projectSlug,
+          });
           throw new Error(reason);
         }
       }
@@ -2211,7 +2283,12 @@ export class AutoModeService {
         status: 'blocked',
         statusChangeReason: reason,
       });
-      this.events.emit('feature:error', { projectPath, featureId, error: reason });
+      this.events.emit('feature:error', {
+        projectPath,
+        featureId,
+        error: reason,
+        projectSlug: feature?.projectSlug,
+      });
       throw new Error(reason);
     }
 
@@ -2248,7 +2325,12 @@ export class AutoModeService {
         status: 'blocked',
         statusChangeReason: followUpConflictReason,
       });
-      this.events.emit('feature:error', { projectPath, featureId, error: followUpConflictReason });
+      this.events.emit('feature:error', {
+        projectPath,
+        featureId,
+        error: followUpConflictReason,
+        projectSlug: feature?.projectSlug,
+      });
       throw new Error(followUpConflictReason);
     }
 

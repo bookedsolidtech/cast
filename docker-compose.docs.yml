@@ -19,6 +19,21 @@ services:
     restart: unless-stopped
     ports:
       - '${DOCS_PORT:-3009}:80'
+    networks:
+      - default
+      - coolify
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.docs.rule=Host(`docs.protolabs.studio`)
+      - traefik.http.routers.docs.entrypoints=https
+      - traefik.http.routers.docs.tls=true
+      - traefik.http.routers.docs.tls.certresolver=letsencrypt
+      - traefik.http.services.docs.loadbalancer.server.port=80
+      - traefik.http.routers.docs-http.rule=Host(`docs.protolabs.studio`)
+      - traefik.http.routers.docs-http.entrypoints=http
+      - traefik.http.routers.docs-http.middlewares=docs-redirect
+      - traefik.http.middlewares.docs-redirect.redirectscheme.scheme=https
+      - traefik.http.middlewares.docs-redirect.redirectscheme.permanent=true
     deploy:
       resources:
         limits:
@@ -38,3 +53,7 @@ services:
       options:
         max-size: '5m'
         max-file: '3'
+
+networks:
+  coolify:
+    external: true

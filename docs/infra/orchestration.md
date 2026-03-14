@@ -609,6 +609,5 @@ gh pr create --base main
 ## Learn More
 
 - [Git Workflow](../dev/git-workflow.md) - Branch strategies and PR process
-- [Agent Authoring](../agents/authoring-templates.md) - Creating custom agents for project planning
 - [Shared Packages](../dev/shared-packages.md) - Dependency resolution package details
 - [MCP Tools Reference](../integrations/mcp-tools-reference.md) - All orchestration tools

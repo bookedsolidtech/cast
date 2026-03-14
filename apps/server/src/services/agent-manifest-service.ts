@@ -8,10 +8,10 @@
  *
  * Responsibilities:
  *   - loadManifest: Discovers and parses YAML, validates against ProjectAgent type
- *   - getAgentsForProject: Cached lookup with fs.watch-based invalidation
+ *   - getAgentsForProject: Cached lookup with polling-based invalidation
  *   - getAgent: Lookup a specific agent by name
  *   - getResolvedCapabilities: Merge project overrides onto base ROLE_CAPABILITIES
- *   - matchFeature: Run all match rules and return the best-matching agent
+ *   - matchFeature: Run all match rules and return the best-matching agent + normalized confidence
  */
 
 import path from 'path';
@@ -20,6 +20,9 @@ import { createLogger } from '@protolabsai/utils';
 import type { AgentManifest, ProjectAgent, RoleCapabilities } from '@protolabsai/types';
 import { ROLE_CAPABILITIES } from '@protolabsai/types';
 import { minimatch } from 'minimatch';
+
+/** Poll interval for manifest file change detection (ms). */
+export const WATCH_POLL_INTERVAL_MS = 2000;
 
 const logger = createLogger('AgentManifestService');
 
@@ -33,11 +36,26 @@ export interface MatchableFeature {
   filesToModify?: string[];
 }
 
+/**
+ * Result returned by matchFeature: the best-matching agent plus a
+ * normalized confidence score in [0, 1) derived from the raw match score.
+ *
+ * Confidence uses a diminishing-returns formula: rawScore / (rawScore + 10)
+ *   rawScore=5  → ~0.33  (weak match, e.g. single keyword)
+ *   rawScore=10 → ~0.50  (moderate, e.g. one category hit)
+ *   rawScore=20 → ~0.67  (good, e.g. category + several keywords)
+ *   rawScore=30 → ~0.75  (strong, multiple signal types)
+ */
+export interface MatchResult {
+  agent: ProjectAgent;
+  confidence: number;
+}
+
 // ─── Service ─────────────────────────────────────────────────────────────────
 
 export class AgentManifestService {
   private cache = new Map<string, AgentManifest>();
-  private watchers = new Map<string, fs.FSWatcher>();
+  private watchers = new Map<string, ReturnType<typeof setInterval>>();
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -154,14 +172,17 @@ export class AgentManifestService {
 
   /**
    * Scores all project agents' match rules against the given feature and returns
-   * the highest-scoring agent, or null if no agents match (score > 0).
+   * the highest-scoring agent with a normalized confidence, or null if no agents
+   * match (score > 0).
    *
    * Scoring:
    *   - Category match: +10 per matched category
    *   - Keyword match:  +5 per matched keyword (title + description)
    *   - File pattern:   +3 per (file × pattern) match via minimatch
+   *
+   * Confidence is normalized via diminishing-returns: rawScore / (rawScore + 10)
    */
-  async matchFeature(projectPath: string, feature: MatchableFeature): Promise<ProjectAgent | null> {
+  async matchFeature(projectPath: string, feature: MatchableFeature): Promise<MatchResult | null> {
     const manifest = await this.getAgentsForProject(projectPath);
     if (!manifest || manifest.agents.length === 0) return null;
 
@@ -176,7 +197,12 @@ export class AgentManifestService {
       }
     }
 
-    return bestMatch;
+    if (!bestMatch) return null;
+
+    return {
+      agent: bestMatch,
+      confidence: this._normalizeScore(bestScore),
+    };
   }
 
   /**
@@ -304,6 +330,18 @@ export class AgentManifestService {
     return '1';
   }
 
+  /**
+   * Normalizes a raw match score to a [0, 1) confidence value using a
+   * diminishing-returns formula: rawScore / (rawScore + 10).
+   *
+   * This ensures low-score matches produce low confidence (< 0.5) while
+   * high-score matches approach — but never reach — 1.0.
+   */
+  private _normalizeScore(rawScore: number): number {
+    if (rawScore <= 0) return 0;
+    return rawScore / (rawScore + 10);
+  }
+
   private _scoreMatch(agent: ProjectAgent, feature: MatchableFeature): number {
     const { match } = agent;
     if (!match) return 0;
@@ -354,47 +392,84 @@ export class AgentManifestService {
     const singleFile = path.join(projectPath, '.automaker', 'agents.yml');
     const dirPath = path.join(projectPath, '.automaker', 'agents');
 
-    const watchTarget = fs.existsSync(singleFile)
-      ? singleFile
-      : this._isDirectory(dirPath)
-        ? dirPath
-        : null;
-
-    if (!watchTarget) return;
-
-    try {
-      const watcher = fs.watch(watchTarget, { recursive: true }, (_eventType, filename) => {
-        if (
-          !filename ||
-          filename.endsWith('.yml') ||
-          filename.endsWith('.yaml') ||
-          watchTarget === singleFile
-        ) {
-          this.cache.delete(projectPath);
-          logger.info(`Agent manifest cache invalidated for ${projectPath} (file changed)`);
+    // Collect all files to track (single file OR all .yml files in directory).
+    // We record their mtime at watch-start and invalidate the cache if any of
+    // them change.  This mtime-polling approach is used instead of fs.watch
+    // because fs.watch({ recursive: true }) is a no-op on Linux prior to
+    // Node 22 and unreliable with certain native binding versions.
+    const getTrackedFiles = (): string[] => {
+      if (fs.existsSync(singleFile)) return [singleFile];
+      if (this._isDirectory(dirPath)) {
+        try {
+          return fs
+            .readdirSync(dirPath)
+            .filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'))
+            .map((f) => path.join(dirPath, f));
+        } catch {
+          return [];
         }
-      });
+      }
+      return [];
+    };
 
-      watcher.on('error', (err) => {
-        logger.warn(`Agent manifest watcher error for ${projectPath}:`, err);
-        this._stopWatcher(projectPath);
-      });
+    const initialFiles = getTrackedFiles();
+    if (initialFiles.length === 0) return;
 
-      this.watchers.set(projectPath, watcher);
-      logger.debug(`Watching agent manifest at ${watchTarget}`);
-    } catch (err) {
-      logger.warn(`Could not watch agent manifest for ${projectPath}:`, err);
+    // Snapshot mtime for each file at watch-start.
+    const mtimes = new Map<string, number>();
+    for (const f of initialFiles) {
+      try {
+        mtimes.set(f, fs.statSync(f).mtimeMs);
+      } catch {
+        mtimes.set(f, 0);
+      }
     }
+
+    const timer = setInterval(() => {
+      const currentFiles = getTrackedFiles();
+      let changed = currentFiles.length !== mtimes.size;
+
+      if (!changed) {
+        for (const f of currentFiles) {
+          try {
+            const mtime = fs.statSync(f).mtimeMs;
+            if (mtime !== mtimes.get(f)) {
+              changed = true;
+              break;
+            }
+          } catch {
+            changed = true; // file disappeared
+            break;
+          }
+        }
+      }
+
+      if (changed) {
+        this.cache.delete(projectPath);
+        logger.info(`Agent manifest cache invalidated for ${projectPath} (file changed)`);
+        // Refresh the mtime snapshot so we only fire once per actual change.
+        mtimes.clear();
+        for (const f of getTrackedFiles()) {
+          try {
+            mtimes.set(f, fs.statSync(f).mtimeMs);
+          } catch {
+            mtimes.set(f, 0);
+          }
+        }
+      }
+    }, WATCH_POLL_INTERVAL_MS);
+
+    // Don't hold the event loop open just for watching.
+    if (typeof timer.unref === 'function') timer.unref();
+
+    this.watchers.set(projectPath, timer);
+    logger.debug(`Polling agent manifest at ${initialFiles.join(', ')}`);
   }
 
   private _stopWatcher(projectPath: string): void {
-    const watcher = this.watchers.get(projectPath);
-    if (watcher) {
-      try {
-        watcher.close();
-      } catch {
-        // Ignore close errors during shutdown
-      }
+    const timer = this.watchers.get(projectPath);
+    if (timer) {
+      clearInterval(timer);
       this.watchers.delete(projectPath);
     }
   }
