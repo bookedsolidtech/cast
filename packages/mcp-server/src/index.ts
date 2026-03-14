@@ -625,29 +625,34 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
     }
 
     case 'get_server_logs': {
-      // Read directly from disk — works even when server is down
+      // Strategy: ask the server to read its own log file via API.
+      // This works even when the server runs in Docker (log file is inside
+      // a Docker volume that the MCP tool on the host can't access).
+      // Falls back to direct disk reads only when the server is down.
       const fs = await import('fs');
       const path = await import('path');
 
-      // Resolve log file path by asking the running server for its absolute path.
-      // The server runs from apps/server/ so its DATA_DIR resolves differently than
-      // the MCP server's CWD (monorepo root). Asking the server eliminates the mismatch.
-      // Falls back to a computed path if the server is down.
-      let logPath: string;
+      const maxLines = (args.maxLines as number) || 200;
+      const filterText = args.filter as string | undefined;
+      const sinceTimestamp = args.since as string | undefined;
+
+      // Try the server API first — it can always access its own log file
       try {
-        const logPathResult = (await apiCall('/health/log-path', {}, 'GET')) as {
-          logPath: string;
-        };
-        logPath = logPathResult.logPath;
+        const params = new URLSearchParams();
+        if (maxLines) params.set('maxLines', String(maxLines));
+        if (filterText) params.set('filter', filterText);
+        if (sinceTimestamp) params.set('since', sinceTimestamp);
+
+        const result = await apiCall(`/health/logs?${params.toString()}`, {}, 'GET');
+        return result;
       } catch {
-        // Server is down — compute best-guess path.
-        // Server CWD is apps/server/ and DATA_DIR defaults to ./data (relative to that).
+        // Server is down — fall back to direct disk read.
+        // Compute best-guess path from environment.
         const dataDirEnv = process.env.DATA_DIR;
+        let logPath: string;
         if (dataDirEnv && path.isAbsolute(dataDirEnv)) {
-          // Absolute DATA_DIR: both server and MCP agree on this path
           logPath = path.join(dataDirEnv, 'server.log');
         } else {
-          // Relative or unset DATA_DIR: resolve relative to apps/server/ within AUTOMAKER_ROOT
           const serverRoot = path.join(
             process.env.AUTOMAKER_ROOT || process.cwd(),
             'apps',
@@ -655,57 +660,51 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
           );
           logPath = path.join(serverRoot, dataDirEnv || 'data', 'server.log');
         }
-      }
 
-      if (!fs.existsSync(logPath)) {
+        if (!fs.existsSync(logPath)) {
+          return {
+            success: false,
+            error: `Server is down and log file not found at ${logPath}. If the server runs in Docker, logs are only accessible while the server is running.`,
+            logPath,
+          };
+        }
+
+        const content = fs.readFileSync(logPath, 'utf-8');
+        let lines = content.split('\n').filter((l: string) => l.length > 0);
+
+        if (sinceTimestamp) {
+          const sinceDate = new Date(sinceTimestamp);
+          lines = lines.filter((line: string) => {
+            const match = line.match(/^\[(\d{4}-\d{2}-\d{2}T[\d:.]+Z?)\]/);
+            if (!match) return true;
+            const lineDate = new Date(match[1]);
+            return lineDate >= sinceDate;
+          });
+        }
+
+        if (filterText) {
+          const lowerFilter = filterText.toLowerCase();
+          lines = lines.filter((line: string) => line.toLowerCase().includes(lowerFilter));
+        }
+
+        const totalLines = lines.length;
+        if (maxLines > 0 && lines.length > maxLines) {
+          lines = lines.slice(-maxLines);
+        }
+
+        const stats = fs.statSync(logPath);
+
         return {
-          success: false,
-          error: `Server log file not found at ${logPath}. The server may not have been started with file logging enabled.`,
+          success: true,
           logPath,
+          fileSize: `${(stats.size / 1024).toFixed(1)} KB`,
+          totalLines,
+          returnedLines: lines.length,
+          truncated: maxLines > 0 && totalLines > maxLines,
+          content: lines.join('\n'),
+          source: 'disk-fallback',
         };
       }
-
-      const maxLines = (args.maxLines as number) || 200;
-      const filterText = args.filter as string | undefined;
-      const sinceTimestamp = args.since as string | undefined;
-
-      const content = fs.readFileSync(logPath, 'utf-8');
-      let lines = content.split('\n').filter((l: string) => l.length > 0);
-
-      // Filter by timestamp if provided
-      if (sinceTimestamp) {
-        const sinceDate = new Date(sinceTimestamp);
-        lines = lines.filter((line: string) => {
-          const match = line.match(/^\[(\d{4}-\d{2}-\d{2}T[\d:.]+Z?)\]/);
-          if (!match) return true; // Keep non-timestamped lines (markers, separators)
-          const lineDate = new Date(match[1]);
-          return lineDate >= sinceDate;
-        });
-      }
-
-      // Filter by text content if provided
-      if (filterText) {
-        const lowerFilter = filterText.toLowerCase();
-        lines = lines.filter((line: string) => line.toLowerCase().includes(lowerFilter));
-      }
-
-      // Take last N lines
-      const totalLines = lines.length;
-      if (maxLines > 0 && lines.length > maxLines) {
-        lines = lines.slice(-maxLines);
-      }
-
-      const stats = fs.statSync(logPath);
-
-      return {
-        success: true,
-        logPath,
-        fileSize: `${(stats.size / 1024).toFixed(1)} KB`,
-        totalLines,
-        returnedLines: lines.length,
-        truncated: maxLines > 0 && totalLines > maxLines,
-        content: lines.join('\n'),
-      };
     }
 
     case 'get_briefing': {
