@@ -1,12 +1,10 @@
 /**
  * Quarantine Management Tools
  *
- * Tools for managing quarantine entries and trust tiers:
+ * Tools for managing quarantine entries:
  * - list_quarantine_entries: List quarantine entries (with optional filtering)
  * - approve_quarantine_entry: Approve a pending entry
  * - reject_quarantine_entry: Reject with reason
- * - get_trust_tier: Get trust tier for a GitHub username
- * - set_trust_tier: Grant/upgrade tier
  */
 
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
@@ -15,7 +13,7 @@ export const quarantineTools: Tool[] = [
   {
     name: 'list_quarantine_entries',
     description:
-      'List all quarantine entries in a project. Can filter by result (pending, passed, failed, bypassed). Returns entries with violation details, trust tier, and sanitization information.',
+      'List all quarantine entries in a project. Can filter by result (pending, passed, failed, bypassed). Returns entries with violation details and sanitization information.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -81,51 +79,6 @@ export const quarantineTools: Tool[] = [
         },
       },
       required: ['projectPath', 'quarantineId', 'reviewedBy', 'reason'],
-    },
-  },
-  {
-    name: 'get_trust_tier',
-    description:
-      'Get the trust tier for a GitHub username. Returns tier level (0-4) where 0=anonymous, 1=github_user, 2=contributor, 3=maintainer, 4=system.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        githubUsername: {
-          type: 'string',
-          description: 'GitHub username to query',
-        },
-      },
-      required: ['githubUsername'],
-    },
-  },
-  {
-    name: 'set_trust_tier',
-    description:
-      'Grant or upgrade a trust tier for a GitHub username. Trust tiers: 0=anonymous, 1=github_user, 2=contributor, 3=maintainer, 4=system. Higher tiers bypass more validation stages.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        githubUsername: {
-          type: 'string',
-          description: 'GitHub username to grant tier to',
-        },
-        tier: {
-          type: 'number',
-          enum: [0, 1, 2, 3, 4],
-          description:
-            'Trust tier level: 0=anonymous, 1=github_user, 2=contributor, 3=maintainer, 4=system',
-        },
-        grantedBy: {
-          type: 'string',
-          description: 'Username of the person granting this tier',
-        },
-        reason: {
-          type: 'string',
-          description:
-            'Optional reason for granting this tier (e.g., "Consistent high-quality contributions")',
-        },
-      },
-      required: ['githubUsername', 'tier', 'grantedBy'],
     },
   },
 ];
