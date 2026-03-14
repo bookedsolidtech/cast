@@ -1,51 +1,106 @@
-import { useEffect, useState } from 'react';
-import { Loader2, FileText } from 'lucide-react';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { Loader2, FileText, Pencil, Eye } from 'lucide-react';
 import Markdown from 'react-markdown';
-
-interface DocContent {
-  path: string;
-  title: string;
-  content: string;
-}
+import remarkGfm from 'remark-gfm';
+import type { Editor } from '@tiptap/react';
+import { Button } from '@protolabsai/ui/atoms';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@protolabsai/ui/atoms';
+import { cn } from '@/lib/utils';
+import { DocsEditor } from './docs-editor';
+import { DocsToolbar } from './docs-toolbar';
 
 interface DocsContentPanelProps {
+  projectPath: string;
   selectedPath: string | null;
 }
 
-export function DocsContentPanel({ selectedPath }: DocsContentPanelProps) {
-  const [doc, setDoc] = useState<DocContent | null>(null);
+export function DocsContentPanel({ projectPath, selectedPath }: DocsContentPanelProps) {
+  const [content, setContent] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editor, setEditor] = useState<Editor | null>(null);
 
+  // Track pending changes for auto-save
+  const pendingContentRef = useRef<string | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const currentPathRef = useRef<string | null>(null);
+
+  // Flush pending save
+  const flushSave = useCallback(async () => {
+    if (!pendingContentRef.current || !currentPathRef.current) return;
+    const toSave = pendingContentRef.current;
+    const pathToSave = currentPathRef.current;
+    pendingContentRef.current = null;
+
+    setIsSaving(true);
+    try {
+      const response = await fetch('/api/docs/file', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectPath, path: pathToSave, content: toSave }),
+      });
+      if (!response.ok) throw new Error('Save failed');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [projectPath]);
+
+  // Schedule debounced save
+  const scheduleSave = useCallback(
+    (markdown: string) => {
+      pendingContentRef.current = markdown;
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => flushSave(), 1000);
+    },
+    [flushSave]
+  );
+
+  // Flush on unmount or path change
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      flushSave();
+    };
+  }, [flushSave]);
+
+  // Load file content
   useEffect(() => {
     if (!selectedPath) {
-      setDoc(null);
+      setContent(null);
       setError(null);
+      setIsEditing(false);
       return;
     }
 
+    // Flush any pending save from previous file before loading new one
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    if (pendingContentRef.current && currentPathRef.current) {
+      flushSave();
+    }
+
+    currentPathRef.current = selectedPath;
     let cancelled = false;
 
     async function fetchDoc() {
       setIsLoading(true);
       setError(null);
+      setIsEditing(false);
       try {
-        const response = await fetch(`/api/docs/file?path=${encodeURIComponent(selectedPath!)}`);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch doc: ${response.status}`);
-        }
+        const params = new URLSearchParams({ projectPath, path: selectedPath! });
+        const response = await fetch(`/api/docs/file?${params}`);
+        if (!response.ok) throw new Error(`Failed to fetch doc: ${response.status}`);
         const data = await response.json();
         if (!cancelled) {
-          setDoc({ path: data.path, title: data.title, content: data.content });
+          setContent(data.content);
         }
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Failed to load document');
         }
       } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
+        if (!cancelled) setIsLoading(false);
       }
     }
 
@@ -53,7 +108,7 @@ export function DocsContentPanel({ selectedPath }: DocsContentPanelProps) {
     return () => {
       cancelled = true;
     };
-  }, [selectedPath]);
+  }, [projectPath, selectedPath, flushSave]);
 
   if (!selectedPath) {
     return (
@@ -81,15 +136,68 @@ export function DocsContentPanel({ selectedPath }: DocsContentPanelProps) {
     );
   }
 
-  if (!doc) {
-    return null;
-  }
+  if (content === null) return null;
 
   return (
-    <div className="h-full overflow-y-auto p-6">
-      <div className="prose prose-sm prose-invert max-w-none prose-p:text-foreground/90 prose-headings:text-foreground prose-li:text-foreground/90 prose-strong:text-foreground prose-code:text-violet-300 prose-code:bg-muted/50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-muted/30 prose-pre:border prose-pre:border-border/20 prose-table:text-foreground/90 prose-th:text-foreground prose-td:border-border/20 prose-th:border-border/20">
-        <Markdown>{doc.content}</Markdown>
+    <div className="flex h-full flex-col">
+      {/* Mode toggle bar */}
+      <div className="flex items-center justify-between border-b border-border px-3 py-1">
+        <span className="truncate text-xs text-muted-foreground">{selectedPath}</span>
+        <div className="flex items-center gap-1">
+          {isSaving && <span className="text-[10px] text-muted-foreground">Saving...</span>}
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn('size-7', !isEditing && 'text-primary')}
+                  onClick={() => {
+                    if (isEditing) flushSave();
+                    setIsEditing(false);
+                  }}
+                >
+                  <Eye className="size-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Read</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn('size-7', isEditing && 'text-primary')}
+                  onClick={() => setIsEditing(true)}
+                >
+                  <Pencil className="size-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Edit</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
+
+      {isEditing ? (
+        <>
+          <DocsToolbar editor={editor} />
+          <DocsEditor
+            content={content}
+            onUpdate={(md) => {
+              setContent(md);
+              scheduleSave(md);
+            }}
+            onEditorReady={setEditor}
+          />
+        </>
+      ) : (
+        <div className="h-full overflow-y-auto p-6">
+          <div className="markdown-body max-w-none">
+            <Markdown remarkPlugins={[remarkGfm]}>{content}</Markdown>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

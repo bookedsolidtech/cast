@@ -706,11 +706,12 @@ input[type='datetime-local'] {
 }
 
 /* ========================================
-   TIPTAP / PROSEMIRROR EDITOR STYLES
-   Theme-aware typography for the notes editor.
-   No @tailwindcss/typography dependency — explicit styles.
+   MARKDOWN TYPOGRAPHY — shared by read-only
+   renderers (react-markdown) and TipTap editors.
+   No @tailwindcss/typography dependency.
    ======================================== */
 
+.markdown-body,
 .ProseMirror {
   outline: none;
   color: var(--foreground);
@@ -718,11 +719,13 @@ input[type='datetime-local'] {
   line-height: 1.625;
 }
 
+.markdown-body > * + *,
 .ProseMirror > * + * {
   margin-top: 0.75em;
 }
 
 /* Headings */
+.markdown-body h1,
 .ProseMirror h1 {
   font-size: 1.5rem;
   font-weight: 700;
@@ -730,6 +733,7 @@ input[type='datetime-local'] {
   color: var(--foreground);
 }
 
+.markdown-body h2,
 .ProseMirror h2 {
   font-size: 1.25rem;
   font-weight: 600;
@@ -737,6 +741,7 @@ input[type='datetime-local'] {
   color: var(--foreground);
 }
 
+.markdown-body h3,
 .ProseMirror h3 {
   font-size: 1.1rem;
   font-weight: 600;
@@ -745,30 +750,36 @@ input[type='datetime-local'] {
 }
 
 /* Paragraph */
+.markdown-body p,
 .ProseMirror p {
   color: var(--foreground);
 }
 
 /* Lists */
+.markdown-body ul,
 .ProseMirror ul {
   list-style-type: disc;
   padding-left: 1.5em;
 }
 
+.markdown-body ol,
 .ProseMirror ol {
   list-style-type: decimal;
   padding-left: 1.5em;
 }
 
+.markdown-body li,
 .ProseMirror li {
   margin-top: 0.25em;
 }
 
+.markdown-body li > p,
 .ProseMirror li > p {
   margin-top: 0;
 }
 
 /* Blockquote */
+.markdown-body blockquote,
 .ProseMirror blockquote {
   border-left: 3px solid var(--border);
   padding-left: 1em;
@@ -777,6 +788,7 @@ input[type='datetime-local'] {
 }
 
 /* Inline code */
+.markdown-body code,
 .ProseMirror code {
   background: var(--muted);
   color: var(--foreground);
@@ -787,6 +799,7 @@ input[type='datetime-local'] {
 }
 
 /* Code block */
+.markdown-body pre,
 .ProseMirror pre {
   background: var(--muted);
   border: 1px solid var(--border);
@@ -798,6 +811,7 @@ input[type='datetime-local'] {
   line-height: 1.5;
 }
 
+.markdown-body pre code,
 .ProseMirror pre code {
   background: none;
   padding: 0;
@@ -806,6 +820,7 @@ input[type='datetime-local'] {
 }
 
 /* Horizontal rule */
+.markdown-body hr,
 .ProseMirror hr {
   border: none;
   border-top: 1px solid var(--border);
@@ -813,31 +828,58 @@ input[type='datetime-local'] {
 }
 
 /* Strong / emphasis */
+.markdown-body strong,
 .ProseMirror strong {
   font-weight: 600;
 }
 
 /* Strikethrough */
+.markdown-body s,
 .ProseMirror s {
   color: var(--muted-foreground);
 }
 
 /* Links */
+.markdown-body a,
 .ProseMirror a {
   color: var(--primary);
   text-decoration: underline;
   text-underline-offset: 2px;
   cursor: pointer;
 }
+.markdown-body a:hover,
 .ProseMirror a:hover {
   opacity: 0.8;
 }
 
 /* Highlight */
+.markdown-body mark,
 .ProseMirror mark {
   background-color: oklch(0.85 0.15 85);
   border-radius: 2px;
   padding: 1px 2px;
+}
+
+/* Tables (markdown-body only — ProseMirror doesn't use tables) */
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+  font-size: 0.85em;
+}
+.markdown-body th,
+.markdown-body td {
+  border: 1px solid var(--border);
+  padding: 0.5em 0.75em;
+  text-align: left;
+}
+.markdown-body th {
+  font-weight: 600;
+  color: var(--foreground);
+  background: var(--muted);
+}
+.markdown-body td {
+  color: var(--foreground);
 }
 
 /* Task list */

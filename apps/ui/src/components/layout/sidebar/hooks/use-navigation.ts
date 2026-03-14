@@ -66,7 +66,6 @@ interface UseNavigationProps {
   };
   hideSpecEditor: boolean;
   hideDesigns: boolean;
-  hideDocs: boolean;
   hideFileEditor: boolean;
   hideSystemView: boolean;
   currentProject: Project | null;
@@ -89,7 +88,6 @@ export function useNavigation({
   shortcuts,
   hideSpecEditor,
   hideDesigns,
-  hideDocs,
   hideFileEditor,
   hideSystemView,
   currentProject,
@@ -143,7 +141,6 @@ export function useNavigation({
     // Filter out hidden items
     const visibleToolsItems = allToolsItems.filter((item) => {
       if (item.id === 'spec' && hideSpecEditor) return false;
-      if (item.id === 'docs' && hideDocs) return false;
       return true;
     });
 
@@ -234,7 +231,6 @@ export function useNavigation({
     shortcuts,
     hideSpecEditor,
     hideDesigns,
-    hideDocs,
     hideFileEditor,
     hideSystemView,
     unreadNotificationsCount,

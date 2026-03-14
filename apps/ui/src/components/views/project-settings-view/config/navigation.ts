@@ -8,6 +8,7 @@ import {
   PartyPopper,
   Plug,
   Bot,
+  Library,
 } from 'lucide-react';
 import type { SettingsNavigationItem } from '@/components/shared/settings';
 import type { ProjectSettingsViewId } from '../hooks/use-project-settings-view';
@@ -27,6 +28,7 @@ export const PROJECT_NAV_GROUPS: ProjectNavigationGroup[] = [
     items: [
       { id: 'identity', label: 'Identity', icon: User },
       { id: 'worktrees', label: 'Worktrees', icon: GitBranch },
+      { id: 'docs', label: 'Docs', icon: Library },
       { id: 'theme', label: 'Theme', icon: Palette },
       { id: 'claude', label: 'Models', icon: Workflow },
       { id: 'webhooks', label: 'Webhooks', icon: Webhook },

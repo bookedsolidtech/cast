@@ -21,10 +21,6 @@ const FEATURE_FLAG_LABELS: Record<keyof FeatureFlags, { label: string; descripti
     label: 'Designs',
     description: 'Show the Designs (pen file) viewer in the project sidebar.',
   },
-  docs: {
-    label: 'Docs',
-    description: 'Show the Docs viewer in the project sidebar.',
-  },
   pipeline: {
     label: 'Authority Pipeline + HITL',
     description:
