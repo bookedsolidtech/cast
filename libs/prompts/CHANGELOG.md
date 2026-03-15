@@ -1,5 +1,23 @@
 # @protolabsai/prompts
 
+## 0.60.0
+
+### Minor Changes
+
+- ### Features
+  - add landing page starter kit template
+  - add landing page starter kit template
+
+  ### Refactors
+  - rename Projects to Project Management in sidebar and routes
+  - rename Projects to Project Management in sidebar and routes
+
+### Patch Changes
+
+- Updated dependencies
+  - @protolabsai/types@0.60.0
+  - @protolabsai/utils@0.60.0
+
 ## 0.59.0
 
 ### Minor Changes
