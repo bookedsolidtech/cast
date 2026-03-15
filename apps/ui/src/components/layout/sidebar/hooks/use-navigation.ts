@@ -147,8 +147,8 @@ export function useNavigation({
     // Build project items
     const projectItems: NavItem[] = [
       {
-        id: 'projects',
-        label: 'Projects',
+        id: 'project-management',
+        label: 'Project Management',
         icon: FolderKanban,
         shortcut: shortcuts.projects,
       },

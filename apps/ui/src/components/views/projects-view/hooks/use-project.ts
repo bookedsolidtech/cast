@@ -148,7 +148,7 @@ export function useCreateProject() {
       }
       queryClient.invalidateQueries({ queryKey: ['projects-list', projectPath] });
       if (result.localSlug) {
-        void navigate({ to: '/projects/$slug', params: { slug: result.localSlug } });
+        void navigate({ to: '/project-management/$slug', params: { slug: result.localSlug } });
       }
     },
     onError: (error: Error) => {

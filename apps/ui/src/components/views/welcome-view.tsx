@@ -127,7 +127,7 @@ export function WelcomeView() {
         }
 
         // Navigate to the board view
-        navigate({ to: '/projects' });
+        navigate({ to: '/project-management' });
       } catch (error) {
         logger.error('[Welcome] Failed to open project:', error);
         toast.error('Failed to open project', {
@@ -260,7 +260,7 @@ export function WelcomeView() {
       setShowInitDialog(true);
 
       // Navigate to the board view (dialog shows as overlay)
-      navigate({ to: '/projects' });
+      navigate({ to: '/project-management' });
     } catch (error) {
       logger.error('Failed to create project:', error);
       toast.error('Failed to create project', {
@@ -383,7 +383,7 @@ export function WelcomeView() {
       setShowInitDialog(true);
 
       // Navigate to the board view (dialog shows as overlay)
-      navigate({ to: '/projects' });
+      navigate({ to: '/project-management' });
 
       // Kick off project analysis
       analyzeProject(projectPath);
@@ -483,7 +483,7 @@ export function WelcomeView() {
       setShowInitDialog(true);
 
       // Navigate to the board view (dialog shows as overlay)
-      navigate({ to: '/projects' });
+      navigate({ to: '/project-management' });
 
       // Kick off project analysis
       analyzeProject(projectPath);

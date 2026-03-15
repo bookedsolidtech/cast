@@ -21,7 +21,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  * Resolve the path to a starter kit directory.
  * Works from both the compiled `dist/` and the `src/` directory during dev.
  */
-function resolveStarterDir(kitName: 'docs' | 'portfolio' | 'general'): string {
+function resolveStarterDir(kitName: 'docs' | 'portfolio' | 'general' | 'landing-page'): string {
   // From dist/: ../starters/<kit>  (libs/templates/starters/<kit>)
   const fromDist = path.resolve(__dirname, '..', 'starters', kitName);
   return fromDist;
@@ -177,6 +177,50 @@ export async function scaffoldPortfolioStarter(options: ScaffoldOptions): Promis
  * Copies `starters/general/` to the output directory — provides the
  * standard `.automaker/` structure (settings, categories, context, features).
  */
+/**
+ * Scaffold a new **landing page** starter kit at `options.outputDir`.
+ *
+ * Copies `starters/landing-page/` to the output directory, substituting
+ * `projectName` into package.json and astro.config.mjs.
+ */
+export async function scaffoldLandingPageStarter(
+  options: ScaffoldOptions
+): Promise<ScaffoldResult> {
+  const { projectName, outputDir } = options;
+  const filesCreated: string[] = [];
+
+  try {
+    const starterDir = resolveStarterDir('landing-page');
+    await copyDir(starterDir, outputDir);
+    await applySubstitutions(outputDir, projectName);
+
+    // Patch site config with project name
+    const configPath = path.join(outputDir, 'src', 'content', 'siteConfig', 'main.json');
+    try {
+      const raw = await fs.readFile(configPath, 'utf-8');
+      const config = JSON.parse(raw) as Record<string, Record<string, unknown>>;
+      if (config.brand) {
+        config.brand.name = projectName;
+      }
+      await fs.writeFile(configPath, JSON.stringify(config, null, 2) + '\n', 'utf-8');
+    } catch {
+      // Config missing — skip
+    }
+
+    const entries = await fs.readdir(outputDir);
+    filesCreated.push(...entries.map((e) => path.join(outputDir, e)));
+
+    return { success: true, outputDir, filesCreated };
+  } catch (error) {
+    return {
+      success: false,
+      outputDir,
+      filesCreated,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
 export async function scaffoldGeneralStarter(options: ScaffoldOptions): Promise<ScaffoldResult> {
   const { projectName, outputDir } = options;
   const filesCreated: string[] = [];

@@ -139,6 +139,8 @@ export function getStarterFeatures(type: StarterKitType): StarterFeature[] {
       return [...UNIVERSAL_FEATURES, ...PORTFOLIO_FEATURES];
     case 'extension':
       return [...UNIVERSAL_FEATURES, ...EXTENSION_FEATURES];
+    case 'landing-page':
+      return [...UNIVERSAL_FEATURES];
     case 'general':
       return [...UNIVERSAL_FEATURES];
   }
