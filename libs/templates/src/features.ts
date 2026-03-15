@@ -61,6 +61,39 @@ const DOCS_FEATURES: StarterFeature[] = [
   },
 ];
 
+const PORTFOLIO_FEATURES: StarterFeature[] = [
+  {
+    title: 'Customize site identity',
+    description:
+      'Update src/content/siteConfig/ with your name, bio, social links, and profile photo. Replace the placeholder content throughout the site with real information.',
+    complexity: 'small',
+  },
+  {
+    title: 'Add portfolio projects',
+    description:
+      'Populate src/content/projects/ with your real projects. Each project gets a title, description, tech stack tags, links, and an optional cover image.',
+    complexity: 'small',
+  },
+  {
+    title: 'Write blog posts',
+    description:
+      'Create your first blog posts in src/content/blog/. Posts are MDX and support syntax highlighting, images, and custom components.',
+    complexity: 'medium',
+  },
+  {
+    title: 'Configure custom domain',
+    description:
+      'Set up a custom domain for the portfolio. Update astro.config.mjs with the site URL, configure DNS records, and deploy to Cloudflare Pages.',
+    complexity: 'small',
+  },
+  {
+    title: 'Add testimonials',
+    description:
+      'Collect and add testimonials to src/content/testimonials/. Each testimonial includes a quote, author name, role, and optional avatar.',
+    complexity: 'small',
+  },
+];
+
 const EXTENSION_FEATURES: StarterFeature[] = [
   {
     title: 'Add options page settings',
@@ -94,45 +127,6 @@ const EXTENSION_FEATURES: StarterFeature[] = [
   },
 ];
 
-const PORTFOLIO_FEATURES: StarterFeature[] = [
-  {
-    title: 'Add projects to the portfolio',
-    description:
-      'Populate src/content/projects/ with real project entries. Each entry needs title, description, tags, date, and an optional link. Update the ProjectGrid component to use live data from the content collection.',
-    complexity: 'small',
-  },
-  {
-    title: 'Configure custom domain',
-    description:
-      'Set up a custom domain for the portfolio on Cloudflare Pages. Update astro.config.mjs with the site URL and configure CNAME DNS records.',
-    complexity: 'small',
-  },
-  {
-    title: 'Add blog section',
-    description:
-      'Create src/content/blog/ content collection with schema. Add a BlogList section component and a dynamic /blog/[slug] route using Astro 5 render() API. Link from the homepage.',
-    complexity: 'medium',
-  },
-  {
-    title: 'Add dark mode toggle',
-    description:
-      'Implement a theme switcher React island that toggles between light and dark mode. Persist preference to localStorage. Use Tailwind dark: variants for styling.',
-    complexity: 'medium',
-  },
-  {
-    title: 'Add contact form',
-    description:
-      'Wire the Contact section form to a backend. Options: Formspree, Resend, or a Cloudflare Worker. Add honeypot spam protection and a success/error state in the UI.',
-    complexity: 'medium',
-  },
-  {
-    title: 'Add OG image generation',
-    description:
-      'Generate Open Graph images for blog posts and project pages. Use Satori or a Cloudflare Worker to render dynamic images from page metadata. Set og:image meta tags in the SEO component.',
-    complexity: 'large',
-  },
-];
-
 /**
  * Get starter features for a given kit type.
  * Returns universal features plus type-specific features.
@@ -141,10 +135,10 @@ export function getStarterFeatures(type: StarterKitType): StarterFeature[] {
   switch (type) {
     case 'docs':
       return [...UNIVERSAL_FEATURES, ...DOCS_FEATURES];
-    case 'extension':
-      return [...UNIVERSAL_FEATURES, ...EXTENSION_FEATURES];
     case 'portfolio':
       return [...UNIVERSAL_FEATURES, ...PORTFOLIO_FEATURES];
+    case 'extension':
+      return [...UNIVERSAL_FEATURES, ...EXTENSION_FEATURES];
     case 'general':
       return [...UNIVERSAL_FEATURES];
   }
