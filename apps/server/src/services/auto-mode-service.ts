@@ -315,9 +315,7 @@ export class AutoModeService {
           logger.info(
             `Stopping agent for completed feature ${data.featureId} (→ ${data.newStatus})`
           );
-          this.stopFeature(data.featureId).catch((err) =>
-            logger.error(`Failed to stop agent for completed feature ${data.featureId}:`, err)
-          );
+          void this.stopFeature(data.featureId);
         }
       }
     });

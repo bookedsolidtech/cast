@@ -14,6 +14,7 @@ export type {
   DefaultSettings,
   ClaudeMdOptions,
   WelcomeNoteOptions,
+  ScaffoldOptions,
 } from './types.js';
 
 // Projects
@@ -46,3 +47,40 @@ export { getCodingRules } from './coding-rules.js';
 
 // CI templates
 export { getDocsCI, getExtensionCI } from './ci.js';
+
+// Starter kit context files (write to .automaker/CONTEXT.md in new projects)
+export { getDocsStarterContext, getPortfolioStarterContext } from './starters.js';
+
+// Starter kit scaffolding (copies Astro projects with name/config substitution)
+export { scaffoldDocsStarter, scaffoldPortfolioStarter } from './scaffold.js';
+export type { ScaffoldResult } from './scaffold.js';
+
+// Design tokens
+export { getDesignTokensCss, getDesignTokensThemeBlock, designTokens } from './design-tokens.js';
+export type { DesignTokens } from './design-tokens.js';
+
+// Astro component string templates (for project scaffolding — write to disk)
+export {
+  getNavComponent,
+  getNavMobileMenuComponent,
+  getFooterComponent,
+  getSEOComponent,
+  getButtonComponent,
+  getBadgeComponent,
+  getCardComponent,
+  getAstroComponents,
+} from './components.js';
+
+// Shared component prop interfaces (for typed usage in consuming Astro projects)
+// Astro components are imported directly: import Nav from '@protolabsai/templates/components/Nav.astro'
+export type {
+  NavLink,
+  FooterLink,
+  FooterColumn,
+  SocialPlatform,
+  SocialLink,
+  ButtonVariant,
+  ButtonSize,
+  BadgeColor,
+  CardGlow,
+} from './components/index.js';
