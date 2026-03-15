@@ -13,7 +13,7 @@ export interface StarterTemplate {
   /** How the template is provisioned */
   source: 'scaffold' | 'clone';
   /** Kit type for scaffold source — maps to scaffold endpoint */
-  kitType?: 'docs' | 'portfolio' | 'extension';
+  kitType?: 'docs' | 'portfolio' | 'landing-page' | 'extension';
   /** GitHub URL for clone source */
   repoUrl?: string;
   techStack: string[];
@@ -58,6 +58,25 @@ export const starterTemplates: StarterTemplate[] = [
       'Contact form with validation (React island)',
       'SEO meta tags, Open Graph, Twitter Cards',
       'View Transitions for SPA-like navigation',
+    ],
+    category: 'frontend',
+    author: 'protoLabs',
+  },
+  {
+    id: 'landing-page',
+    name: 'Landing Page',
+    description:
+      'Dark-themed landing page with composable sections, CSS custom property theming, scroll animations, and Content Collections for easy customization. Includes hero, stats, features, pricing, testimonials, FAQ, and CTA sections.',
+    source: 'scaffold',
+    kitType: 'landing-page',
+    techStack: ['Astro 5', 'Tailwind CSS 4', 'Content Collections', 'IntersectionObserver'],
+    features: [
+      'Composable section components (hero, stats, features, pricing, FAQ, testimonials)',
+      'CSS custom property theming (rebrand by changing 6 values)',
+      'Scroll-triggered fade-in animations',
+      'Content Collections for all section data (edit JSON, not code)',
+      'SEO meta tags, Open Graph, Twitter Cards, sitemap',
+      'Geist font family (sans + mono)',
     ],
     category: 'frontend',
     author: 'protoLabs',

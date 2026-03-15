@@ -55,6 +55,7 @@ export { getDocsStarterContext, getPortfolioStarterContext } from './starters.js
 export {
   scaffoldDocsStarter,
   scaffoldPortfolioStarter,
+  scaffoldLandingPageStarter,
   scaffoldGeneralStarter,
 } from './scaffold.js';
 export type { ScaffoldResult } from './scaffold.js';

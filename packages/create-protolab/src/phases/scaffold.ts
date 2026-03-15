@@ -12,6 +12,7 @@ import * as path from 'node:path';
 import {
   scaffoldDocsStarter,
   scaffoldPortfolioStarter,
+  scaffoldLandingPageStarter,
   getDocsStarterContext,
   getPortfolioStarterContext,
   getStarterFeatures,
@@ -65,6 +66,18 @@ export async function scaffoldStarter(
     filesCreated = result.filesCreated;
   } else if (kitType === 'portfolio') {
     const result = await scaffoldPortfolioStarter({ projectName, outputDir });
+    if (!result.success) {
+      return {
+        success: false,
+        outputDir,
+        filesCreated: result.filesCreated,
+        starterFeatures: [],
+        error: result.error,
+      };
+    }
+    filesCreated = result.filesCreated;
+  } else if (kitType === 'landing-page') {
+    const result = await scaffoldLandingPageStarter({ projectName, outputDir });
     if (!result.success) {
       return {
         success: false,
