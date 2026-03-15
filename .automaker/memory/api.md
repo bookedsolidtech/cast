@@ -5,9 +5,9 @@ relevantTo: [api]
 importance: 0.7
 relatedFiles: []
 usageStats:
-  loaded: 568
-  referenced: 161
-  successfulFeatures: 161
+  loaded: 573
+  referenced: 166
+  successfulFeatures: 166
 ---
 <!-- domain: API Design & Integration | GitHub GraphQL, REST endpoints, HTTP client patterns -->
 
@@ -385,3 +385,8 @@ usageStats:
 - **Situation:** ai-agent-app was added to validation list in PR #2651, but memory entry still cited old list ['docs','portfolio','general','my-kit'].
 - **Root cause:** Hardcoding validation list in docs creates a single-source-of-truth problem. The real list lives in code; docs/memory are secondary sources that drift.
 - **How to avoid:** Explicit list in docs is clear but requires synchronization when new kits are added. Code-reference requires jumping to source but stays current.
+
+#### [Pattern] Markdown-based code block parsing (=== FILE: <name>.tsx === + ``` ``` delimiters) as contract between Claude system prompt and refinement parser (2026-03-15)
+- **Problem solved:** Claude must return refined components in a machine-readable format that the refine() method can extract and write back to disk
+- **Why this works:** Markdown is Claude-native and human-readable. Format is defined in the system prompt (`implement.md`), making the contract explicit and auditable
+- **Trade-offs:** Easier: prompt controls format, parser is simple regex. Harder: fragile if Claude drifts format; no validation that file block contains valid code

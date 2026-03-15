@@ -209,3 +209,30 @@ usageStats:
 - **Problem solved:** Prop editor needs to know what controls to render (text input, toggle, color picker, range, select) for each story without hardcoding a prop list.
 - **Why this works:** Declarative metadata (argTypes) is standard CSF pattern. Parsing it at runtime means prop controls are always in sync with story definition—no duplication. Reduces boilerplate for story authors.
 - **Trade-offs:** Easier: story author writes argTypes once, controls appear. Harder: story author must know argTypes schema and be disciplined; invalid argTypes config silently renders broken controls.
+
+#### [Pattern] Temporary Playwright test file created, verified to pass (5/5 tests), then deleted after verification (2026-03-15)
+- **Problem solved:** Feature involved new DocsRoute component; needed verification before merging, but tests aren't meant to be permanent
+- **Why this works:** Playwright tests validate runtime behavior (route renders, sidebar visible, props table shows, navigation works) in real browser context. Deletion keeps repo clean - tests were for one-time verification, not regression prevention
+- **Trade-offs:** Easier: clean git history, no test maintenance. Harder: no ongoing regression protection; if someone refactors DocsRoute later, no test safety net
+
+#### [Pattern] Feature verified using Playwright tests run against actual Vite dev server (port 5190). Tests checked real rendered output: sidebar text, admin page content, route navigation. (2026-03-15)
+- **Problem solved:** Verifying TinaCMS integration before merge, ensuring all 5 routes work end-to-end
+- **Why this works:** Real integration test against actual running app catches rendering, routing, timing issues that unit tests miss. Confirms Vite bundling works.
+- **Trade-offs:** Slower than unit tests, requires server lifecycle management, harder to debug failures; but much higher confidence
+
+#### [Gotcha] Playwright test execution required NODE_PATH=/path/to/root/node_modules to resolve @playwright/test correctly (2026-03-15)
+- **Situation:** Temporary verification tests created in worktree subdirectory to validate components render
+- **Root cause:** Playwright module installed at monorepo root, not in design-system package. Default Node resolution doesn't traverse up to root node_modules.
+- **How to avoid:** Gains: discovered NODE_PATH workaround for monorepo testing. Loses: time debugging module resolution.
+
+#### [Pattern] Temporary Playwright tests created, executed against live Vite dev server, then deleted post-verification (2026-03-15)
+- **Problem solved:** Need lightweight component verification without adding persistent test infrastructure to starter template
+- **Why this works:** Avoids committing test files to template. Quick validation of component rendering. Leaves template clean for users. Tests run in real browser environment.
+- **Trade-offs:** Gains: quick validation, clean template. Loses: no persistent regression tests, verification is manual/one-time.
+
+### TypeScript type-check gate (tsc --noEmit) inserted immediately after code generation, before refinement loop begins (2026-03-15)
+- **Context:** Generated React components from .pen codegen need verification before being fed to Claude for refinement
+- **Why:** Catches structural/type errors in generated code early. Invalid TypeScript can confuse Claude's refinement loop or waste iterations. Fail-fast approach prevents garbage-in-garbage-out
+- **Rejected:** Skipping type check and letting refinement handle all errors would require Claude to diagnose and fix type issues, wasting tokens and iterations
+- **Trade-offs:** Easier: generated code guaranteed to be valid TypeScript before refinement. Harder: requires tsc as a build dependency and adds latency
+- **Breaking if changed:** If you remove this gate, generated code with type errors enters refinement loop, reducing reliability of output and increasing iteration costs

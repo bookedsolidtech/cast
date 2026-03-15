@@ -144,3 +144,15 @@ usageStats:
 - **Problem solved:** Ladle and similar tools auto-discover stories. For a self-contained template, needed a discovery mechanism that requires no configuration and survives copy-paste into different projects.
 - **Why this works:** Dynamic discovery via glob pattern means adding a new .stories.tsx file automatically makes it visible in the sidebar without touching config, tsconfig, or any build script. Maximizes developer velocity for rapidly prototyping components.
 - **Trade-offs:** Easier: drop-and-go file creation, zero config changes. Harder: relies on naming convention (*.stories.tsx) being enforced by team discipline; glob pattern is tightly coupled to file structure.
+
+#### [Pattern] Search results include 80-character context excerpts extracted from body text around match location (2026-03-15)
+- **Problem solved:** Search results across multiple content sections need to show relevance/match reason to user
+- **Why this works:** Helps users quickly understand why result matched without opening full content. Standard pattern in documentation search (Algolia, etc.). 80-char limit balances readability with context window.
+- **Trade-offs:** Gains: better UX, users see match context before clicking. Loses: extraction logic adds complexity, might cut off important context.
+
+### Explicit TypeScript type casts (as const on style objects, as React.CSSProperties on inline styles) with no any types (2026-03-15)
+- **Context:** Building inline styles in TypeScript strict mode
+- **Why:** Maintains type safety for CSS properties. Catches typos/invalid properties at compile time. Documents intent via explicit casts.
+- **Rejected:** Using any type would bypass checks. CSS modules would require build step.
+- **Trade-offs:** Gains: type safety, compile-time validation. Loses: more verbose style definitions.
+- **Breaking if changed:** If type safety is removed (any types allowed), catch typos in style properties later at runtime.

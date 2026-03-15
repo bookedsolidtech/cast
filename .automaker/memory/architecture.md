@@ -5,9 +5,9 @@ relevantTo: [architecture]
 importance: 0.9
 relatedFiles: []
 usageStats:
-  loaded: 539
-  referenced: 124
-  successfulFeatures: 124
+  loaded: 544
+  referenced: 129
+  successfulFeatures: 129
 ---
 <!-- domain: Architecture Decisions | System-wide structural decisions that have breaking consequences if changed -->
 
@@ -1505,3 +1505,131 @@ usageStats:
 - **Rejected:** Integrate Storybook (adds 50+ transitive deps, large bundle, opinionated plugin model); wrap Ladle (same dep bloat, less familiar to most devs)
 - **Trade-offs:** Easier: lightweight, self-contained, teachable. Harder: must implement prop editor, viewport switching, theme toggle from scratch (but small surface area).
 - **Breaking if changed:** If team wants features like a11y testing addons or snapshot testing, those need custom implementation or template modification. No existing plugin ecosystem.
+
+### Docs route auto-generates from existing .stories.tsx files instead of maintaining separate documentation metadata (2026-03-15)
+- **Context:** Two potential sources: (1) extract from stories, (2) maintain parallel docs metadata files
+- **Why:** Stories are already authored with argTypes, parameters.docs.description, and control definitions. Reusing this source is DRY and keeps docs always in sync with actual component implementations
+- **Rejected:** Separate JSDoc annotations or dedicated .docs.tsx files - would create dual authorship burden
+- **Trade-offs:** Easier: single source of truth, lower maintenance. Harder: story format constrains what docs can express; story validation directly impacts docs completeness
+- **Breaking if changed:** If docs source decoupled from stories, maintainers must now track two parallel systems; docs become stale
+
+### Implemented inline markdown renderer (h1-h3, bold, italic, code, fenced blocks) instead of importing markdown library (2026-03-15)
+- **Context:** Feature requires rendering story descriptions as markdown; options: (1) zero-dep inline parser, (2) remark/rehype/markdown-it libraries
+- **Why:** Zero-dependency constraint (noted in acceptance criteria). Inline parser is sufficient for typical story descriptions and avoids bundle bloat
+- **Rejected:** remark + rehype: adds ~50KB, overcomplicated for limited feature set
+- **Trade-offs:** Easier: no external deps, lightweight. Harder: maintenance of custom parser; advanced markdown features (tables, strikethrough, etc.) unsupported. Risk: user writes unsupported markdown, silently renders incorrectly
+- **Breaking if changed:** If zero-dep constraint removed, team might switch to real library and markdown format would need validation
+
+#### [Gotcha] ControlType → TypeScript type string mapping creates temporal coupling between story argTypes and docs rendering (2026-03-15)
+- **Situation:** Props table converts story control types (e.g., 'color', 'text', 'boolean') to human-readable type strings for documentation
+- **Root cause:** Raw control types aren't meaningful to end users; mapping improves UX. Mapping logic lives in docs-generator.ts extractProps
+- **How to avoid:** Easier: consistent, polished docs. Harder: if new control type added to a story, docs-generator.ts must be updated or type renders as unknown
+
+### Used CSS custom properties (--pg-* prefix) for theming instead of theme context provider or inline styles (2026-03-15)
+- **Context:** DocsRoute components need theme awareness for live component examples. Options: (1) CSS vars scoped to DOM, (2) React context, (3) inline styles
+- **Why:** CSS vars work without JS context, enable static generation potential, zero runtime overhead. Prefix (--pg-*) prevents conflicts with app tokens. Works across shadow DOM boundaries
+- **Rejected:** React context: requires provider wrap, adds JS bundle. Inline styles: non-composable, hard to override
+- **Trade-offs:** Easier: decoupled from React state, works in iframes. Harder: browser CSP issues if vars not in stylesheet; variable scoping requires careful naming
+- **Breaking if changed:** If theme switched to context, components must be wrapped in provider; if removed entirely, theme toggle in live examples doesn't work
+
+#### [Gotcha] Playwright test required NODE_PATH environment variable and trial-and-error to locate @playwright/test package (2026-03-15)
+- **Situation:** Running Playwright from CLI with external config file in monorepo caused module resolution failures
+- **Root cause:** Monorepo hoisting makes @playwright/test location non-obvious; NODE_PATH is crude but necessary workaround when npm module resolution fails
+- **How to avoid:** Easier: don't need to install Playwright locally. Harder: NODE_PATH is fragile, breaks if hoisting changes
+
+#### [Pattern] Category-based sidebar grouping of components with per-component main panel (master-detail layout) (2026-03-15)
+- **Problem solved:** DocsRoute must display many components from stories; options: (1) flat list, (2) category groups, (3) search-only
+- **Why this works:** Categories already exist in story organization; grouping reduces cognitive load, helps users discover related components, mirrors playground structure
+- **Trade-offs:** Easier: intuitive navigation, grouping enforces organization discipline. Harder: requires consistent category naming in stories; if categories inconsistent, sidebar becomes cluttered
+
+### Self-hosted TinaCMS (no TinaCloud dependency). Content is git-backed, stored in repo, managed entirely by local tinacms dev server. (2026-03-15)
+- **Context:** Integrating CMS into design-system starter kit without external service dependencies
+- **Why:** Maximizes starter kit autonomy: git versioning automatic, offline-first development, no cloud account setup required. Better for templates/cloning.
+- **Rejected:** TinaCloud would provide hosted admin UI + user management, but introduces vendor lock-in and deployment coupling
+- **Trade-offs:** Developer manages TinaCMS server startup, but gains full git history and offline capability. Schema changes are version-controlled.
+- **Breaking if changed:** Migrating to cloud CMS (Contentful, Sanity) would require major refactor of content storage and admin workflow
+
+#### [Pattern] Admin route performs async health-check to TinaCMS endpoint; if running, redirects to admin; if offline, shows setup instructions (tinacms dev) instead of erroring (2026-03-15)
+- **Problem solved:** TinaCMS backend is optional and may not be running; need graceful UX that doesn't break when optional service is absent
+- **Why this works:** Solves the 'missing optional dependency' problem. Developers see helpful instructions instead of blank/error page. No blocking waits.
+- **Trade-offs:** Adds async logic to page load and must handle health check timeout/failure cases; simpler UX for developers
+
+#### [Pattern] Vite glob imports (`import.meta.glob`) used to statically discover content files at build time. Site.tsx iterates glob results to populate navbar and render pages. (2026-03-15)
+- **Problem solved:** Need to automatically discover markdown files in content/ without hardcoded imports or runtime filesystem scanning
+- **Why this works:** Build-time discovery via Vite static analysis; enables server-less rendering, static file hosting, predictable bundle. No glob() function needed at runtime.
+- **Trade-offs:** Files must match glob pattern exactly or won't be discovered; adds build-time coupling to file structure
+
+### Implemented custom inline frontmatter parser in React component instead of gray-matter dependency. Only parses YAML key:value and ignores complex structures. (2026-03-15)
+- **Context:** Starter kit should minimize bundle size and dependencies. gray-matter adds ~15KB unpacked.
+- **Why:** Starter kits are templates meant to be copied; keeping deps minimal reduces bloat. Simpler frontmatter parsing covers 80% of cases.
+- **Rejected:** gray-matter is battle-tested but adds dependency and bundle size to a starter template that developers will ship directly
+- **Trade-offs:** Limited YAML support (no nested objects, no lists) accepted in exchange for no external dependency
+- **Breaking if changed:** Adding complex frontmatter (arrays, nested objects) breaks the parser; requires migrating to gray-matter or equivalent
+
+### Hash-based routing (#/) instead of HTML5 history API (/#/playground, /#/site, /#/admin). Router implemented in main.tsx, no server-side routing. (2026-03-15)
+- **Context:** Designing a preview/starter kit that should work as static files or on simple HTTP servers without routing config
+- **Why:** Hash routing works everywhere: static hosting (S3, Netlify static), simple HTTP servers, file:// URLs. No server-side routing needed.
+- **Rejected:** Browser history API (/playground, /site, /admin) requires server to handle 404s and route to index.html on every path
+- **Trade-offs:** URLs contain hash (#/site not pretty), but maximum compatibility. Deep linking works but includes hash in bookmarks.
+- **Breaking if changed:** Switching to server-side routing requires URL migration (links change), server config changes, and SEO implications
+
+### Content stored in git repository alongside code (content/pages/index.md, etc). TinaCMS reads/writes directly to repo files. (2026-03-15)
+- **Context:** Choosing content storage model for a git-versioned starter kit
+- **Why:** Content versioning is automatic via git. Content deploys together with code. Offline dev works. Cloning the repo gives you everything.
+- **Rejected:** Headless CMS (Contentful, Firebase) would separate content from repo, require API keys, and add deployment complexity
+- **Trade-offs:** Merge conflicts possible if multiple editors touch same file; content structure changes are breaking changes (like code changes)
+- **Breaking if changed:** Extracting content to external service requires migration tools, schema mapping, losing git history
+
+### State-based responsiveness (resize listener + isMobile/sidebarOpen state) instead of CSS media queries for layout switching (2026-03-15)
+- **Context:** Mobile drawer vs desktop fixed sidebar layout needs to respond to viewport changes
+- **Why:** Consistency with existing codebase pattern (site.tsx). Provides single source of truth in React state for responsive behavior. Allows dynamic sidebar toggle state independent of viewport.
+- **Rejected:** CSS media queries (@media) would be simpler and more standard, but breaks consistency with existing codebase patterns
+- **Trade-offs:** Gains: consistent architecture, centralized state management, easier to test. Loses: CSS-only responsiveness, potential performance (resize listener overhead)
+- **Breaking if changed:** Changing to CSS media queries breaks architectural consistency. SSR would need special handling for window.innerWidth in initial render (noted as safe for Vite SPA only).
+
+#### [Pattern] Token-driven theming via --pg-* CSS custom properties with inline styles, zero external UI library dependencies (2026-03-15)
+- **Problem solved:** Need runtime-customizable theming for documentation site starter template
+- **Why this works:** Matches existing site.tsx pattern. Avoids adding dependencies to starter template. CSS variables enable color customization without component re-architecture. Inline styles keep everything co-located.
+- **Trade-offs:** Gains: no deps, runtime theming, consistent with existing code. Loses: CSS encapsulation, component-local style scoping. Makes inline styles verbose but predictable.
+
+#### [Gotcha] Workspace placeholder packages (@@PROJECT_NAME-*) cannot be listed in package.json dependencies. npm validates package names at install time and rejects placeholders. Must use tsconfig paths + references instead for TypeScript resolution. (2026-03-15)
+- **Situation:** Initial approach put @@PROJECT_NAME-agents in server package.json dependencies, causing npm install failure.
+- **Root cause:** npm performs semantic validation on dependency package names during install. Placeholders are invalid identifiers. TypeScript compilation and npm install operate on different validation layers.
+- **How to avoid:** Complexity: requires dual resolution strategy (tsconfig + npm). Benefit: forces clean separation between generation-time placeholders and runtime dependencies.
+
+#### [Gotcha] TypeScript project references require composite: true in referenced package's tsconfig. Without it, tsc errors with confusing 'must have setting composite' messages. This is a silent failure mode. (2026-03-15)
+- **Situation:** Server package (server/tsconfig.json) references agents package (agents/tsconfig.json) via paths and project references.
+- **Root cause:** TypeScript composite flag enables incremental compilation across project boundaries. Without it, tsc cannot track cross-project dependencies properly.
+- **How to avoid:** Benefit: enables proper incremental builds and type resolution. Complexity: another tsconfig constraint to remember.
+
+#### [Pattern] Include mock tool executors as first-class implementations in agentic code. Agent switches between mock and real MCP calls at execution boundary. Enables self-contained local testing without live external services. (2026-03-15)
+- **Problem solved:** Design agent needs to call Pencil MCP tools (batch_design, set_variables, get_screenshot, snapshot_layout) but Pencil MCP server may not be running locally.
+- **Why this works:** Improves developer experience and test isolation. Mocks are not test doubles but actual production code paths with switchable executors. Allows package to be useful standalone.
+- **Trade-offs:** Benefit: self-contained agents, faster iteration, easier testing. Cost: duplicated tool executor logic (mock + real). Worth it for UX.
+
+#### [Pattern] Monorepo internal packages use tsconfig paths mapping to dist/ directories instead of placeholder workspace dependencies in package.json. Server references agents via paths (../agents/dist/), not via @@PROJECT_NAME-agents dependency. (2026-03-15)
+- **Problem solved:** Server and agents packages are both generated into a single starter kit. Need type resolution between them without npm understanding the relationship.
+- **Why this works:** Maintains clean separation: package.json has only real npm packages (anthropic, express). tsconfig handles internal resolution. Follows established ai-agent-app pattern. Avoids npm validation of placeholder names.
+- **Trade-offs:** Benefit: works with any package manager, no special monorepo tooling required. Cost: requires careful tsconfig paths setup and dist/ output routing.
+
+#### [Pattern] Design prompt (design.md) is a first-class code artifact encoding operational knowledge: token definitions (8pt spacing), type hierarchies, MCP tool schemas, and agent workflow steps. Treated as infrastructure, not documentation. (2026-03-15)
+- **Problem solved:** Agent needs shared understanding of design tokens, component patterns, and valid tool operations. This knowledge was encoded in the prompt itself.
+- **Why this works:** Prompt as code enables version control, code review, and tight coupling between agent reasoning and operational constraints. Design tokens become testable specifications.
+- **Trade-offs:** Benefit: maintainable design specifications, clear agent behavior boundaries. Cost: prompt becomes large (~1K tokens), requires careful organization.
+
+### Agentic loop implements configurable maxIterations (default 10) with screenshot-driven verification: execute → capture screenshot → verify output → adjust → loop. Prevents infinite loops while enabling visual feedback cycles. (2026-03-15)
+- **Context:** Design agent must apply multiple design operations iteratively, verifying each step produces expected visual output.
+- **Why:** Bounded iteration prevents resource exhaustion. Screenshot capture creates concrete feedback for agent to reason about success/failure. Matches human design workflow (apply change, review, adjust).
+- **Rejected:** Unbounded loops (risk of infinite execution), single-shot execution (brittle), external verification (harder to debug)
+- **Trade-offs:** Benefit: self-correcting agent, visual grounding. Cost: extra screenshot calls per iteration, bounded by max iterations.
+- **Breaking if changed:** If maxIterations is removed or set to 0, agent either runs indefinitely or doesn't execute at all.
+
+#### [Pattern] Dynamic runtime imports of sibling packages using absolute paths instead of static npm dependencies with @PROJECT_NAME-* placeholders (2026-03-15)
+- **Problem solved:** Starter kit template projects need to support name substitution (@@PROJECT_NAME-*), but npm can't resolve placeholders at install time
+- **Why this works:** Allows sibling packages (pen, codegen) to be required without hardcoding @PROJECT_NAME names in package.json. Resolves at runtime when the template is instantiated with a real name
+- **Trade-offs:** Easier: template works out-of-box without post-processing. Harder: runtime errors if sibling packages aren't built or paths shift; no static analysis
+
+#### [Gotcha] System prompt (implement.md) must be loaded and embedded in messages.create() call; changes to prompt don't auto-reload in running processes (2026-03-15)
+- **Situation:** Prompt file is external, separate from agent code. If prompt is updated after agent starts, changes won't be visible until restart
+- **Root cause:** Prompt is read via fs.readFileSync() at call time. No hot-reload or caching. This is by design—prompts should be versioned and stable
+- **How to avoid:** Easier: iterate on prompt without rebuilding. Harder: prompt must be present at runtime, not bundled in compiled js

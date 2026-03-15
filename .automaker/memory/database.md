@@ -246,3 +246,8 @@ usageStats:
 - **Situation:** Tool result renderers receive output from defineSharedTool, which can return either the value directly or wrapped in success/data object
 - **Root cause:** Defensive programming - account for both possible shapes from tool definition. Ensures renderer works regardless of tool output shape.
 - **How to avoid:** Gains: renderer is resilient to API variations. Loses: suggests inconsistent API contract - unclear which shape a tool will use.
+
+#### [Pattern] Atomic design categories (Atoms → Molecules → Organisms → Templates → Pages → Other) derived from frontmatter.category field (2026-03-15)
+- **Problem solved:** Sidebar needs to organize navigation by design system hierarchy without hardcoded mappings
+- **Why this works:** Content becomes self-describing via frontmatter. Single source of truth. Scales without code changes. Follows established atomic design principles.
+- **Trade-offs:** Gains: self-describing content, scalable. Loses: requires consistent frontmatter discipline, category changes aren't validated at build time.

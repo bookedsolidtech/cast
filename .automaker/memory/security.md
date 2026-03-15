@@ -247,3 +247,10 @@ usageStats:
 - **Problem solved:** GraphBuilder wraps each node execution with OTel tracing to monitor node-level performance and errors.
 - **Why this works:** Granular spans identify slow or failing nodes quickly. Spans are named with node identity (flow-node:{name}) for easy filtering. Per-node context enables better debugging of complex flows.
 - **Trade-offs:** More spans increase Langfuse tracing costs vs better visibility into node behavior. Developers pay for granularity.
+
+### No @protolabsai/* dependencies in agents package; only @anthropic-ai/sdk. Sibling packages (pen, codegen) are dynamic runtime imports (2026-03-15)
+- **Context:** Agents package must not create circular dependency chain (agents → pen → agents) or implicit dependency on internal build artifacts
+- **Why:** Keeps agents package lightweight and independent. Can be published to npm without exposing internal tooling. Sibling packages are optional—code gracefully fails if they're missing
+- **Rejected:** Static deps on @protolabsai/pen and @protolabsai/codegen would create circular refs in monorepo and complicate package publishing
+- **Trade-offs:** Easier: publish agents independently, no hidden deps. Harder: must ensure sibling packages are built before calling generate()
+- **Breaking if changed:** If agents tries to import siblings as static npm deps, it will either fail to install (circular) or create implicit dependency on build order

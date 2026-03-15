@@ -430,3 +430,10 @@ usageStats:
 - **Rejected:** Share the same React root (simpler code, but stories can crash the UI); use iframe (complete isolation but loses React context from host, complicates prop passing)
 - **Trade-offs:** Easier: stories are truly independent, can't break playground. Harder: minor complexity to maintain dual React roots and prop/event syncing.
 - **Breaking if changed:** If code assumes all React components share a single root (e.g., for global theme context), it will silently fail—components in preview won't inherit provider context from host app.
+
+### Iterative refinement loop with configurable max iterations (default 3) rather than one-shot generation (2026-03-15)
+- **Context:** Claude can improve generated React components through multi-turn feedback (accessibility, Tailwind, event handlers, etc.)
+- **Why:** Each iteration adds specific semantic improvements. Multiple passes allow Claude to focus on one concern per turn without overwhelming the prompt. Better quality output
+- **Rejected:** One-shot generation would require a single massive prompt covering all concerns, harder for Claude to balance and easier to miss details
+- **Trade-offs:** Easier: cleaner prompts, focused improvements per turn. Harder: 3x API calls, slower wall-clock time, higher token cost
+- **Breaking if changed:** If max iterations is 1, many semantic improvements (accessibility patterns, full Tailwind conversion) won't be applied
