@@ -57,7 +57,7 @@
           ],
           "complexity": "large",
           "featureId": "feature-1773570576073-vntzanqmk",
-          "executionStatus": "in-progress"
+          "executionStatus": "blocked"
         },
         {
           "number": 3,
@@ -108,7 +108,7 @@
           ],
           "complexity": "large",
           "featureId": "feature-1773570576078-mqttaz7yv",
-          "executionStatus": "in-progress"
+          "executionStatus": "blocked"
         },
         {
           "number": 2,
@@ -131,7 +131,7 @@
           ],
           "complexity": "medium",
           "featureId": "feature-1773570576078-z4zse2dah",
-          "executionStatus": "in-progress"
+          "executionStatus": "blocked"
         }
       ],
       "status": "completed",
@@ -186,7 +186,7 @@
           ],
           "complexity": "medium",
           "featureId": "feature-1773570576081-r4t9h6ngf",
-          "executionStatus": "blocked"
+          "executionStatus": "in-progress"
         }
       ],
       "status": "pending",
@@ -218,7 +218,8 @@
             "Self-hosted mode (no external dependency)"
           ],
           "complexity": "large",
-          "featureId": "feature-1773570576082-5ol0gomw6"
+          "featureId": "feature-1773570576082-5ol0gomw6",
+          "executionStatus": "in-progress"
         },
         {
           "number": 2,
@@ -238,7 +239,8 @@
             "Breadcrumb navigation"
           ],
           "complexity": "medium",
-          "featureId": "feature-1773570576083-v9l4pip2z"
+          "featureId": "feature-1773570576083-v9l4pip2z",
+          "executionStatus": "in-progress"
         }
       ],
       "status": "pending",
@@ -268,7 +270,8 @@
             "Screenshot verification after modifications"
           ],
           "complexity": "large",
-          "featureId": "feature-1773570576084-87bj3kxwe"
+          "featureId": "feature-1773570576084-87bj3kxwe",
+          "executionStatus": "in-progress"
         },
         {
           "number": 2,
@@ -287,7 +290,8 @@
             "Agent can refine output based on feedback"
           ],
           "complexity": "medium",
-          "featureId": "feature-1773570576085-8yet9utml"
+          "featureId": "feature-1773570576085-8yet9utml",
+          "executionStatus": "completed"
         }
       ],
       "status": "pending",
@@ -318,7 +322,8 @@
             "Can audit single component or full page"
           ],
           "complexity": "medium",
-          "featureId": "feature-1773570576085-vgklpzblc"
+          "featureId": "feature-1773570576085-vgklpzblc",
+          "executionStatus": "blocked"
         },
         {
           "number": 2,
@@ -509,5 +514,5 @@
     "generatedAt": "2026-03-15T08:30:00.000Z"
   },
   "createdAt": "2026-03-15T08:33:36.469Z",
-  "updatedAt": "2026-03-15T12:53:41.870Z"
+  "updatedAt": "2026-03-15T13:49:15.027Z"
 }
