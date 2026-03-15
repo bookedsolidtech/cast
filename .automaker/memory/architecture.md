@@ -5,9 +5,9 @@ relevantTo: [architecture]
 importance: 0.9
 relatedFiles: []
 usageStats:
-  loaded: 552
-  referenced: 136
-  successfulFeatures: 136
+  loaded: 553
+  referenced: 137
+  successfulFeatures: 137
 ---
 <!-- domain: Architecture Decisions | System-wide structural decisions that have breaking consequences if changed -->
 
@@ -1776,3 +1776,20 @@ usageStats:
 - **Rejected:** Consolidating into 3-4 larger packages (codegen, tokens, runtime, apps) — simpler scaffolding but obscures architectural boundaries
 - **Trade-offs:** Higher initial complexity and setup time vs. users learn correct architecture patterns; more maintainable long-term because each package has single responsibility
 - **Breaking if changed:** Merging packages reduces learning value and makes it harder for users to understand which responsibilities should be isolated in their own design systems
+
+### Derived .pen format specification from TypeScript types.ts interfaces as authoritative source rather than independent prose documentation (2026-03-15)
+- **Context:** Creating comprehensive reference documentation for 15 node types with complex type hierarchies (PenFill union, Stroke variants, etc.)
+- **Why:** TypeScript interfaces are the runtime source of truth - deriving docs ensures specification accuracy and prevents drift between documented API and actual implementation
+- **Rejected:** Independent prose documentation would allow richer narrative context and examples, but creates maintenance burden and risks divergence as types evolve
+- **Trade-offs:** Guaranteed accuracy and reduced drift vs. reduced editorial freedom; documentation structure must mirror type structure; requires code literacy to understand generated docs
+- **Breaking if changed:** If types.ts changes without flagging documentation dependencies, specification becomes stale and misleading to users
+
+#### [Pattern] Diataxis taxonomy (Quickstart → Concepts → Guides → Reference) separates four distinct information types rather than narrative flow (2026-03-15)
+- **Problem solved:** Organizing multi-role documentation for design-to-code pipeline where readers have different needs: new users need setup, existing users need concepts, hands-on users need how-to guides, reference implementers need specifications
+- **Why this works:** Diataxis acknowledges that different reader types at different stages need different language, depth, and narrative style. Mixing these (e.g., putting reference details in quickstart) reduces searchability and confuses readers
+- **Trade-offs:** Modularity and clarity for different use cases vs. loss of continuous narrative flow; requires users to understand doc taxonomy to find answers efficiently
+
+#### [Pattern] Documentation as purely additive, non-compiled content decoupled from build system and test pipeline (2026-03-15)
+- **Problem solved:** 5 markdown files added without touching build configuration, TypeScript compilation, or Playwright tests; build verification still passed 18/18 tasks
+- **Why this works:** Markdown documentation is static content independent of runtime - decoupling docs from build enables parallel development, allows docs to be written/reviewed asynchronously, and prevents docs from being blocked by unrelated build failures
+- **Trade-offs:** Development velocity and independence vs. higher risk of docs describing unimplemented/removed features; requires discipline to keep docs synchronized

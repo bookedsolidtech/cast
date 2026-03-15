@@ -269,3 +269,9 @@ usageStats:
 - **Problem solved:** Serializer and deserializer are separate codepaths. Each could silently lose data in one direction (e.g., serialize drops field, deserialize ignores it).
 - **Why this works:** Asymmetric bugs are hard to spot: one direction works, other direction seems to work but loses data. Round-trip testing forces both paths to be tested together. Catches lossy serialization.
 - **Trade-offs:** More test code required (need to compare deep object structures after round-trip). More coverage: catches codec asymmetries that separate tests miss.
+
+
+#### [Pattern] Git pre-commit hooks enforce correct file paths (caught attempt to write docs to main repo instead of worktree) (2026-03-15)
+- **Problem solved:** Developer path selection error was automatically blocked by hook before being committed
+- **Why this works:** Filesystem path validation in hooks is layered safety mechanism - more reliable than guidelines or code review alone; prevents organizational/maintenance issues from wrong paths
+- **Trade-offs:** Automatic enforcement prevents mistakes but adds tooling complexity and can cause friction if overly strict or misconfigured

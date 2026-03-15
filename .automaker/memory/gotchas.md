@@ -5,9 +5,9 @@ relevantTo: [gotchas]
 importance: 0.7
 relatedFiles: []
 usageStats:
-  loaded: 1520
-  referenced: 398
-  successfulFeatures: 398
+  loaded: 1521
+  referenced: 399
+  successfulFeatures: 399
 ---
 <!-- domain: Gotchas & Pitfalls | Known traps, anti-patterns, and hard-won lessons across all domains -->
 
@@ -1074,3 +1074,9 @@ usageStats:
 - **Situation:** Serializer created conditions for all classNames, even when all classes were empty. Deserializer filtered them. Asymmetry caused test failures in round-trip validation.
 - **Root cause:** The serializer didn't validate `cc.classes` before emitting; filter-on-read in deserializer was meant as safety net but exposed asymmetry. Real fix: filter-on-write.
 - **How to avoid:** Filter at serialization source → smaller XCL (+efficiency), but requires deserializer to expect no empty conditions. Simpler codec logic, harder to debug if one side breaks.
+
+
+#### [Gotcha] Documentation scope declared completeness beyond actual implementation (README links to mcp-tools.md and api.md reference pages that don't exist) (2026-03-15)
+- **Situation:** Writing comprehensive README and reference docs before complementary features (MCP tool wiring, API endpoints) were complete
+- **Root cause:** Root cause: documentation planning assumed parallel feature completion timelines; creating links to 'future' pages sets reader expectations but creates broken links and context gaps when features lag
+- **How to avoid:** Transparency about incompleteness vs. appearance of incomplete product; helps roadmap visibility but requires discipline to fill gaps or readers encounter 404s
