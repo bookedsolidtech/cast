@@ -9,7 +9,7 @@
  * completion — no polling required.
  */
 
-import { exec } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
@@ -21,7 +21,7 @@ import type { ProjectService } from './project-service.js';
 import type { SettingsService } from './settings-service.js';
 import type { Feature, Milestone } from '@protolabsai/types';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 const logger = createLogger('CompletionDetector');
 
@@ -136,21 +136,21 @@ export class CompletionDetectorService {
     })();
   }
 
-  initialize(
+  async initialize(
     emitter: EventEmitter,
     featureLoader: FeatureLoader,
     projectService: ProjectService,
     dataDir?: string,
     settingsService?: SettingsService
-  ): void {
+  ): Promise<void> {
     this.emitter = emitter;
     this.featureLoader = featureLoader;
     this.projectService = projectService;
     this.settingsService = settingsService ?? null;
     this.dataDir = dataDir ?? null;
 
-    // Load ledger asynchronously to pre-populate dedup Sets from disk
-    void this.loadLedger();
+    // Await ledger load so dedup Sets are populated before any events are processed
+    await this.loadLedger();
 
     this.unsubscribe = emitter.subscribe((type, payload) => {
       // Auto-mode completion (agent finished successfully)
@@ -252,16 +252,15 @@ export class CompletionDetectorService {
     const epic = allFeatures.find((f) => f.id === epicId);
     if (!epic || epic.status === 'done' || epic.status === 'review') return;
 
-    // Claim dedup slot before async work to prevent race conditions
-    this.emittedEpics.add(dedupeKey);
-    this.appendLedgerEntry('epic', dedupeKey);
-    this.completionCounts.epics++;
-
-    // If the epic has a branch, create the epic-to-dev PR instead of marking done
+    // If the epic has a branch, create the epic-to-dev PR instead of marking done.
+    // Dedup is claimed only after a successful PR creation so that failures are retryable.
     if (epic.branchName) {
       const result = await this.createEpicToDevPR(projectPath, epicId, epic);
       if (result) {
-        // PR created successfully — move epic to review
+        // PR created successfully — claim dedup and move epic to review
+        this.emittedEpics.add(dedupeKey);
+        this.appendLedgerEntry('epic', dedupeKey);
+        this.completionCounts.epics++;
         await this.featureLoader!.update(projectPath, epicId, {
           status: 'review',
           prNumber: result.prNumber,
@@ -280,7 +279,8 @@ export class CompletionDetectorService {
         );
         return;
       }
-      // PR creation failed — fall through to block the epic
+      // PR creation failed — block the epic but do NOT claim dedup so the next
+      // feature:done event can retry the PR creation
       await this.featureLoader!.update(projectPath, epicId, {
         status: 'blocked',
         statusChangeReason: `All child features done but epic-to-dev PR creation failed for branch ${epic.branchName}. Manual intervention required — create PR from ${epic.branchName} to dev.`,
@@ -290,6 +290,11 @@ export class CompletionDetectorService {
       );
       return;
     }
+
+    // No branch — claim dedup then mark done directly (manual or non-git epic)
+    this.emittedEpics.add(dedupeKey);
+    this.appendLedgerEntry('epic', dedupeKey);
+    this.completionCounts.epics++;
 
     // No branch — mark done directly (manual or non-git epic)
     logger.info(`All children of epic "${epic.title}" are done — marking epic done (no branch)`);
@@ -335,8 +340,22 @@ export class CompletionDetectorService {
 
     try {
       // Check if an open PR from this epic branch already exists
-      const { stdout: existingPrs } = await execAsync(
-        `gh pr list --head ${epicBranch} --base ${baseBranch} --state open --json number,url --limit 1`,
+      const { stdout: existingPrs } = await execFileAsync(
+        'gh',
+        [
+          'pr',
+          'list',
+          '--head',
+          epicBranch,
+          '--base',
+          baseBranch,
+          '--state',
+          'open',
+          '--json',
+          'number,url',
+          '--limit',
+          '1',
+        ],
         { cwd: projectPath, timeout: 15000 }
       );
       const existing = JSON.parse(existingPrs.trim() || '[]') as Array<{
@@ -347,7 +366,7 @@ export class CompletionDetectorService {
       if (existing.length > 0) {
         // PR already exists — ensure auto-merge is enabled and return it
         const pr = existing[0];
-        await execAsync(`gh pr merge ${pr.number} --merge --auto`, {
+        await execFileAsync('gh', ['pr', 'merge', String(pr.number), '--merge', '--auto'], {
           cwd: projectPath,
           timeout: 15000,
         }).catch(() => {
@@ -368,9 +387,21 @@ export class CompletionDetectorService {
 
       const body = `## Epic: ${epic.title}\n\nAll child features completed. This PR merges the epic branch into ${baseBranch}.\n\n### Features included:\n${childList}\n\n---\nAuto-generated by CompletionDetectorService.`;
 
-      // Create the PR
-      const { stdout: prOutput } = await execAsync(
-        `gh pr create --base ${baseBranch} --head ${epicBranch} --title "epic: ${epic.title}" --body "${body.replace(/"/g, '\\"')}"`,
+      // Create the PR — use execFile with argument array to prevent shell injection
+      const { stdout: prOutput } = await execFileAsync(
+        'gh',
+        [
+          'pr',
+          'create',
+          '--base',
+          baseBranch,
+          '--head',
+          epicBranch,
+          '--title',
+          `epic: ${epic.title}`,
+          '--body',
+          body,
+        ],
         { cwd: projectPath, timeout: 30000 }
       );
       const prUrl = prOutput.trim();
@@ -384,7 +415,7 @@ export class CompletionDetectorService {
       const prNumber = parseInt(prNumberMatch[1], 10);
 
       // Enable auto-merge with --merge strategy (never squash on promotion PRs)
-      await execAsync(`gh pr merge ${prNumber} --merge --auto`, {
+      await execFileAsync('gh', ['pr', 'merge', String(prNumber), '--merge', '--auto'], {
         cwd: projectPath,
         timeout: 15000,
       }).catch((err) => {

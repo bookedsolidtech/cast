@@ -1,5 +1,198 @@
 # @protolabsai/types
 
+## 0.57.0
+
+### Minor Changes
+
+- ### Features
+  - add milestone progress bars, completion %, and board links to features tab
+  - add starter kit template selection to in-app project creation wizard (#2598)
+  - add project badge to kanban cards and list view rows (#2600)
+  - add project filter dropdown to board header
+  - add portfolio starter kit type (#2592)
+  - portfolio contact page, RSS feed, SEO completion (#2591)
+  - portfolio page sections — Hero, ProjectGrid, Contact, About, Testimonials, BlogList (#2589)
+  - add docs/ directory to docs and portfolio starter kits (#2588)
+  - add CI workflow, agent context, and StarterKitType export for docs starter kit (#2587)
+  - add Docs Starter Kit (Starlight) (#2584)
+  - add portfolio starter kit with Astro 5, Tailwind v4, View Transitions (#2585)
+  - delete pipeline UI components and client methods
+  - add shared Astro design system components (#2582)
+  - add shared design system tokens (#2579)
+  - delete PipelineOrchestrator and remove all pipeline/\* routes (#2557)
+  - delete PipelineOrchestrator and remove all pipeline/\* routes (#2556)
+  - add milestone progress bars, completion %, and board links to features tab
+  - add project badge to kanban cards and list view rows (#2600)
+  - add project filter dropdown to board header
+  - add milestone progress bars, completion %, and board links to features tab
+  - add milestone progress bars, completion %, and board links to features tab
+  - add starter kit template selection to in-app project creation wizard (#2598)
+  - add project badge to kanban cards and list view rows (#2600)
+  - add project filter dropdown to board header
+  - add portfolio starter kit type (#2592)
+  - portfolio contact page, RSS feed, SEO completion (#2591)
+  - portfolio page sections — Hero, ProjectGrid, Contact, About, Testimonials, BlogList (#2589)
+  - add docs/ directory to docs and portfolio starter kits (#2588)
+  - add CI workflow, agent context, and StarterKitType export for docs starter kit (#2587)
+  - add Docs Starter Kit (Starlight) (#2584)
+  - add portfolio starter kit with Astro 5, Tailwind v4, View Transitions (#2585)
+  - delete pipeline UI components and client methods
+  - add shared Astro design system components (#2582)
+  - add shared design system tokens (#2579)
+  - add @protolabsai/templates package and consolidate template generation
+  - add members tag-input and color picker to project sidebar (#2569)
+  - remove defunct graph registry entries (unified-pipeline, lead-engineer-reflection, interrupt-loop) (#2561)
+  - delete dead coordinator, review, and interrupt-loop flows (#2560)
+  - delete PipelineOrchestrator and remove all pipeline/\* routes (#2557)
+  - delete PipelineOrchestrator and remove all pipeline/\* routes (#2556)
+  - add project filter dropdown to board header
+  - delete pipeline UI components and client methods
+  - add portfolio starter kit type (#2592)
+  - portfolio contact page, RSS feed, SEO completion (#2591)
+  - portfolio page sections — Hero, ProjectGrid, Contact, About, Testimonials, BlogList (#2589)
+  - add docs/ directory to docs and portfolio starter kits (#2588)
+  - add CI workflow, agent context, and StarterKitType export for docs starter kit (#2587)
+  - add Docs Starter Kit (Starlight) (#2584)
+  - add portfolio starter kit with Astro 5, Tailwind v4, View Transitions (#2585)
+  - delete pipeline UI components and client methods
+  - add shared Astro design system components (#2582)
+  - add shared design system tokens (#2579)
+  - delete PipelineOrchestrator and remove all pipeline/\* routes (#2557)
+  - delete PipelineOrchestrator and remove all pipeline/\* routes (#2556)
+  - add @protolabsai/templates package and consolidate template generation
+  - add members tag-input and color picker to project sidebar (#2569)
+  - add @protolabsai/templates package and consolidate template generation
+  - add members tag-input and color picker to project sidebar (#2569)
+  - remove defunct graph registry entries (unified-pipeline, lead-engineer-reflection, interrupt-loop) (#2561)
+  - delete dead coordinator, review, and interrupt-loop flows (#2560)
+  - add @protolabsai/templates package and consolidate template generation
+  - add members tag-input and color picker to project sidebar (#2569)
+  - remove defunct graph registry entries (unified-pipeline, lead-engineer-reflection, interrupt-loop) (#2561)
+  - delete dead coordinator, review, and interrupt-loop flows (#2560)
+  - remove defunct graph registry entries (unified-pipeline, lead-engineer-reflection, interrupt-loop) (#2561)
+  - delete dead coordinator, review, and interrupt-loop flows (#2560)
+  - remove defunct graph registry entries (unified-pipeline, lead-engineer-reflection, interrupt-loop) (#2561)
+  - delete dead coordinator, review, and interrupt-loop flows (#2560)
+  - delete PipelineOrchestrator and remove all pipeline/\* routes (#2557)
+  - delete PipelineOrchestrator and remove all pipeline/\* routes (#2556)
+
+  ### Bug Fixes
+  - sync package-lock.json for staging Docker build
+  - remove deleted PipelineService from lifecycle traceability test (#2605)
+  - update HITL test mock to use hitlForms flag instead of pipeline (#2604)
+  - add @protolabsai/templates dependency to server package.json
+  - comment out peer mesh UI from bottom panel ticker
+  - sync Dockerfile from dev (adds templates COPY)
+  - sync routes, shutdown, channel-handlers from dev
+  - sync all server files from dev — remove remaining pipeline references
+  - sync FeatureFlags and HITL service from dev (remove pipeline flag)
+  - restore libs/templates from dev (incorrectly deleted during rebase)
+  - resolve remaining pipeline type errors — ColumnId type and pipeline flag label
+  - remove broken pipeline imports from flow-graph and inbox views
+  - exclude libs/templates/starters/ from monorepo prettier check
+  - gate HITL forms behind hitlForms feature flag (default: off) (#2583)
+  - remove dead PipelineCheckpointService imports from LE files
+  - remove deleted PipelineService from lifecycle traceability test (#2605)
+  - update HITL test mock to use hitlForms flag instead of pipeline (#2604)
+  - add @protolabsai/templates dependency to server package.json
+  - comment out peer mesh UI from bottom panel ticker
+  - sync Dockerfile from dev (adds templates COPY)
+  - sync routes, shutdown, channel-handlers from dev
+  - sync all server files from dev — remove remaining pipeline references
+  - sync FeatureFlags and HITL service from dev (remove pipeline flag)
+  - restore libs/templates from dev (incorrectly deleted during rebase)
+  - resolve remaining pipeline type errors — ColumnId type and pipeline flag label
+  - remove broken pipeline imports from flow-graph and inbox views
+  - exclude libs/templates/starters/ from monorepo prettier check
+  - gate HITL forms behind hitlForms feature flag (default: off) (#2583)
+  - remove dead PipelineCheckpointService imports from LE files
+  - add libs/templates to Dockerfile base COPY entries
+  - remove deleted PipelineService references from lifecycle-traceability test
+  - guard fire-and-forget stopFeature call against unhandled rejection (#2571)
+  - mkdir -p target dir before copyFile in AtomicWriter backup recovery (#2568)
+  - comment out peer mesh UI from bottom panel ticker
+  - sync Dockerfile from dev (adds templates COPY)
+  - sync routes, shutdown, channel-handlers from dev
+  - sync all server files from dev — remove remaining pipeline references
+  - sync FeatureFlags and HITL service from dev (remove pipeline flag)
+  - restore libs/templates from dev (incorrectly deleted during rebase)
+  - resolve remaining pipeline type errors — ColumnId type and pipeline flag label
+  - remove broken pipeline imports from flow-graph and inbox views
+  - sync Dockerfile from dev (adds templates COPY)
+  - sync routes, shutdown, channel-handlers from dev
+  - sync all server files from dev — remove remaining pipeline references
+  - sync FeatureFlags and HITL service from dev (remove pipeline flag)
+  - restore libs/templates from dev (incorrectly deleted during rebase)
+  - resolve remaining pipeline type errors — ColumnId type and pipeline flag label
+  - remove broken pipeline imports from flow-graph and inbox views
+  - exclude libs/templates/starters/ from monorepo prettier check
+  - gate HITL forms behind hitlForms feature flag (default: off) (#2583)
+  - remove dead PipelineCheckpointService imports from LE files
+  - remove dead PipelineCheckpointService imports from LE files
+  - add libs/templates to Dockerfile base COPY entries
+  - remove deleted PipelineService references from lifecycle-traceability test
+  - guard fire-and-forget stopFeature call against unhandled rejection (#2571)
+  - mkdir -p target dir before copyFile in AtomicWriter backup recovery (#2568)
+  - add libs/templates to Dockerfile base COPY entries
+  - remove deleted PipelineService references from lifecycle-traceability test
+  - guard fire-and-forget stopFeature call against unhandled rejection (#2571)
+  - mkdir -p target dir before copyFile in AtomicWriter backup recovery (#2568)
+  - add libs/templates to Dockerfile base COPY entries
+  - remove deleted PipelineService references from lifecycle-traceability test
+  - guard fire-and-forget stopFeature call against unhandled rejection (#2571)
+  - mkdir -p target dir before copyFile in AtomicWriter backup recovery (#2568)
+  - lead engineer autonomy round 2 — DAG-safe merges, event routing, retry guards (#2554)
+  - repair broken internal links found during audit
+  - install vitepress before build in docs workflow
+  - lead engineer autonomy round 2 — DAG-safe merges, event routing, retry guards (#2554)
+  - repair broken internal links found during audit
+  - install vitepress before build in docs workflow
+  - autonomous board management — zero-intervention pipeline bugs (#2552)
+  - autonomous board management — zero-intervention pipeline bugs (#2552)
+  - make all MCP tools API-first, remove broken Twitch tools
+  - make all MCP tools API-first, remove broken Twitch tools
+  - server logs MCP tool broken in Docker — add API-first log reader
+  - replace exec() with execFile() to prevent shell injection in CompletionDetector (#2532)
+  - server logs MCP tool broken in Docker — add API-first log reader
+  - replace exec() with execFile() to prevent shell injection in CompletionDetector (#2532)
+  - block rm/git rm/cd+destructive commands from bleeding worktree deletions to main tree (#2530)
+  - block rm/git rm/cd+destructive commands from bleeding worktree deletions to main tree (#2530)
+
+  ### Refactors
+  - Add starter kit selection to create-protolab CLI interactive prompt (#2596)
+  - Add starter kit selection to create-protolab CLI interactive prompt (#2596)
+  - Delete flow-graph pipeline components and update registries (#2563)
+  - Fix HITL form service test — remove pipeline flag gate tests (#2580)
+  - PM Chat Panel UI (#2576)
+  - Delete PipelineCheckpointService and remove featureFlags.pipeline (#2565)
+  - Add starter kit selection to create-protolab CLI interactive prompt (#2596)
+  - Add starter kit selection to create-protolab CLI interactive prompt (#2596)
+  - Add starter kit selection to create-protolab CLI interactive prompt (#2596)
+  - Add starter kit selection to create-protolab CLI interactive prompt (#2596)
+  - Delete flow-graph pipeline components and update registries (#2563)
+  - Fix HITL form service test — remove pipeline flag gate tests (#2580)
+  - PM Chat Panel UI (#2576)
+  - Delete PipelineCheckpointService and remove featureFlags.pipeline (#2565)
+  - Delete flow-graph pipeline components and update registries (#2563)
+  - Delete flow-graph pipeline components and update registries (#2563)
+  - Fix HITL form service test — remove pipeline flag gate tests (#2580)
+  - Delete PipelineCheckpointService and remove featureFlags.pipeline (#2565)
+  - PM Chat Panel UI (#2576)
+  - PM Chat Panel UI (#2576)
+  - Delete PipelineCheckpointService and remove featureFlags.pipeline (#2565)
+  - Fix runningFeatures tracking gap in execution-service (#2551)
+  - Fix error classification breadth and merge retry logic (#2550)
+  - Fix ExecuteProcessor waitForCompletion race and pre-flight shouldContinu (#2547)
+  - Unify concurrency tracking and fix settings and ledger races (#2546)
+  - Fix runningFeatures tracking gap in execution-service (#2551)
+  - Fix error classification breadth and merge retry logic (#2550)
+  - Fix ExecuteProcessor waitForCompletion race and pre-flight shouldContinu (#2547)
+  - Unify concurrency tracking and fix settings and ledger races (#2546)
+  - remove Discord and Langfuse tools from MCP plugin
+  - remove Discord and Langfuse tools from MCP plugin
+  - Fix GraphQL injection in CodeRabbitResolver and git-workflow-service (#2533)
+  - Fix GraphQL injection in CodeRabbitResolver and git-workflow-service (#2533)
+
 ## 0.56.0
 
 ### Minor Changes

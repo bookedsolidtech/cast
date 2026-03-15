@@ -5,9 +5,9 @@ relevantTo: [security]
 importance: 0.7
 relatedFiles: []
 usageStats:
-  loaded: 82
-  referenced: 23
-  successfulFeatures: 23
+  loaded: 86
+  referenced: 26
+  successfulFeatures: 26
 ---
 <!-- domain: Security | Auth guards, input validation, secure file operations, HMAC verification -->
 
@@ -192,3 +192,39 @@ usageStats:
 - **Rejected:** Could explicitly validate that resolved path is within projectPath before reading, but secureFs is already the sandbox.
 - **Trade-offs:** Relying on secureFs sandbox vs explicit path validation. Current approach assumes secureFs is sufficient; validation would be defense-in-depth.
 - **Breaking if changed:** If secureFs.readFile is replaced with raw fs.readFile, path traversal becomes possible. If projectPath is set incorrectly, role files could become inaccessible or wrong files could be read.
+
+### Replaced exec() with execFile() to construct gh CLI commands - exec() interpolates the entire command string through a shell (interpreting backticks, $(), etc.), while execFile() passes arguments as an array where shell metacharacters are literal bytes (2026-03-14)
+- **Context:** Epic titles containing backticks or $(rm -rf /) were being executed as shell code because exec() passes the full command string to /bin/sh -c
+- **Why:** execFile() invokes the OS-level execve() directly with argv array - the shell never sees the data, so metacharacters have no special meaning. This is a security boundary: user data → argument array → OS syscall, not user data → string interpolation → shell → OS
+- **Rejected:** Could have escaped quotes and backticks more thoroughly in the string, but escaping is incomplete (hard to get right for all shell metacharacters) and masks the real problem
+- **Trade-offs:** execFile() requires argument arrays instead of string concatenation (more verbose but safer); removed the body.replace(/"/g, '\\\"') hack entirely since execFile arguments skip shell processing
+- **Breaking if changed:** Reverting to exec() + string interpolation reintroduces the injection vulnerability; incomplete escaping in the old code is evidence this approach is fragile
+
+#### [Pattern] Test shell injection prevention by asserting dangerous strings appear as literal array elements in the captured execFile args, not by executing actual dangerous commands (2026-03-14)
+- **Problem solved:** Need to verify that $(rm -rf /), backticks, and backslashes in epic titles don't get evaluated
+- **Why this works:** The vulnerability is in the command construction mechanism (shell interpolation), not in downstream execution - verify the args array never gets through a shell. Testing literal safety (args[titleIndex + 1].includes('$(rm -rf /)')) is safer than testing safe execution.
+- **Trade-offs:** Test is white-box (inspects internal args array), not black-box (tests behavior), but it directly validates the security boundary
+
+#### [Gotcha] The original body.replace(/"/g, '\\\"') escaping was a partial mitigation of the shell injection vulnerability, not a complete fix - escaping is fragile because shell metacharacters include backticks, $(), >, |, etc., not just quotes (2026-03-14)
+- **Situation:** Code had escaping logic but still vulnerable to backtick and $() injection in epic titles
+- **Root cause:** Shell injection isn't just about quote escaping; you must escape backticks, $(), all expansion syntax. It's hard to enumerate all dangerous patterns. The only secure approach is to not use a shell at all (execFile with args array).
+- **How to avoid:** Removing escaping entirely (not using a shell) is simpler and fundamentally safer than trying to escape correctly
+
+#### [Pattern] Using execFile with argument arrays as core pattern for preventing shell injection when spawning external commands with user-provided data (2026-03-14)
+- **Problem solved:** Running gh CLI to create PRs with user-provided epic titles and body text that may contain shell metacharacters like backticks, $(), pipes, redirects
+- **Why this works:** execFile never spawns a shell - arguments are passed directly as literal values to the executable process. This is fundamentally different from exec() which parses the entire string through a shell interpreter. The separation of command from argv prevents any string interpolation.
+- **Trade-offs:** execFile is less syntactically flexible (no pipes, redirects, shell globbing) but provides ironclad security by design. Requires thinking in terms of argument arrays rather than shell command strings.
+
+### Passing command arguments as distinct array elements ['pr', 'create', '--title', epicTitle, '--body', body] rather than pre-formatted strings or template-based option syntax (2026-03-14)
+- **Context:** gh command invocation with user-controlled title and body that must remain separate from command structure to prevent injection
+- **Why:** When arguments are separate array positions, they cannot be misinterpreted as command modifiers or shell syntax - gh receives them in argv. This is structurally enforced, not dependent on escaping logic. No amount of special characters in title can escape the argument boundary.
+- **Rejected:** String templates like `--title='${epicTitle}'` or shell option syntax require manual escaping/quoting and are fragile - easy to forget quotes or get escaping wrong in some edge case
+- **Trade-offs:** Array-based calling requires more verbose construction but eliminates the escaping/quoting problem entirely - the structure itself is the defense
+- **Breaking if changed:** If refactored to build a command string that's then parsed (even with exec) or to use string interpolation without quotes, requires defensive escaping everywhere user input appears and is a perpetual security liability
+
+### Use gh CLI's -f (string) and -F (typed) flags for GraphQL variable passing instead of string interpolation (2026-03-14)
+- **Context:** Multiple services were concatenating owner/repo/prNumber/body directly into GraphQL query strings, creating injection risk
+- **Why:** gh api graphql natively supports parameterized variables via CLI flags, eliminating the need for manual escaping or interpolation. This treats GraphQL variables as first-class, not text substitution.
+- **Rejected:** Continue using JSON.stringify(body).slice(1, -1) escaping or regex-based sanitization - both fragile and prone to edge cases
+- **Trade-offs:** Requires knowing gh CLI's variable syntax (-f for strings, -F for typed values); slightly more verbose execFileAsync calls; but gains provable safety without custom escaping logic
+- **Breaking if changed:** If gh CLI changes or doesn't support -f/-F flags, all variable passing breaks; if omitted, reverts to injection-vulnerable string interpolation

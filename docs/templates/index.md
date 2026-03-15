@@ -1,18 +1,45 @@
-# Templates
+---
+outline: deep
+---
 
-Starter templates for common project types. Each template is a pre-configured repository you can clone and build on immediately.
+# Starter Kits
 
-## Available templates
+protoLabs ships two starter kits for common project types. Each kit includes a pre-configured project scaffold, a `.automaker/CONTEXT.md` agent context file, and a board pre-loaded with initial features.
 
-| Template                                 | Stack                               | Description                                                                    |
-| ---------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------ |
-| [Browser extension](./browser-extension) | WXT + React + TypeScript + Tailwind | Chrome/Firefox MV3 extension with messaging, storage, and test setup included. |
+## Available kits
 
-## Using a template
+| Kit                              | Stack                              | Use case                                             |
+| -------------------------------- | ---------------------------------- | ---------------------------------------------------- |
+| [Docs](./docs-starter)           | Astro + Starlight + Tailwind CSS 4 | Documentation sites, API references, knowledge bases |
+| [Portfolio](./portfolio-starter) | Astro + React + Tailwind CSS 4     | Personal sites, marketing pages, project showcases   |
 
-1. Clone the template repository
-2. Follow the quick start steps in the template guide
-3. Remove any example code you do not need
-4. Describe your first feature in protoLabs and let the agents build it
+## Scaffold a starter
 
-Each template guide covers what is included, project-specific gotchas, and architecture patterns relevant to that stack.
+**Via CLI:**
+
+```bash
+npx create-protolab
+```
+
+Select a kit type when prompted. The CLI copies the starter into the current directory, substitutes your project name, and creates initial board features.
+
+**Via UI:**
+
+Open the New Project dialog in the protoLabs Studio board. Select a kit type from the template dropdown. The UI runs the same scaffold logic as the CLI.
+
+## What the scaffold creates
+
+Every kit scaffold produces:
+
+- A ready-to-run project directory with all dependencies listed
+- `.automaker/CONTEXT.md` — loaded into every agent prompt for that project
+- `.automaker/coding-rules.md` — stack-specific coding conventions
+- `.github/workflows/ci.yml` — CI pipeline targeting Cloudflare Pages
+- A set of initial board features (configure CI, write README, add first content, etc.)
+
+Run `npm install` inside the scaffolded directory before starting the dev server.
+
+## Next steps
+
+- [Create a documentation site](./docs-starter)
+- [Create a portfolio site](./portfolio-starter)

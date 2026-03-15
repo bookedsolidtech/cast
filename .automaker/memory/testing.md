@@ -191,3 +191,37 @@ usageStats:
 - **Problem solved:** Spec omitted peer-mesh-service.ts but removing types from shared package broke typecheck
 - **Why this works:** Typecheck enforces transitive impact detection across the codebase; it's a better source of truth than manual file lists for refactoring scope
 - **Trade-offs:** Slower feedback loop (typecheck takes time) but more complete; catches hidden dependencies automatically; acceptance criteria act as specification enforcement
+
+#### [Gotcha] Node's promisify() utility with a vi.fn() mock only captures the first non-error callback argument as the resolved value - test callbacks must pass the complete result object (e.g., { stdout, stderr }) as arg[1], not spread across multiple args (2026-03-14)
+- **Situation:** Tests failed because mocks were calling cb(null, '[]', '') but the service code does { stdout } = await execFileAsync(...), expecting an object with stdout property
+- **Root cause:** promisify() has special logic for functions with [util.promisify.custom] symbol; vi.fn() lacks this, so promisify defaults to treating arg[1] (first non-error arg) as the entire resolved value. There's no automatic mapping of multiple callback args to an object.
+- **How to avoid:** Mocks now pass objects instead of spread arguments (slightly more boilerplate, but explicit and correct); avoids needing custom promisify logic
+
+#### [Gotcha] Module-level const mockExecFile = vi.fn() before vi.mock() hits temporal dead zone - use vi.hoisted(() => ({ mockExecFile: vi.fn() })) instead because vi.mock is hoisted above all module code (2026-03-14)
+- **Situation:** Tests threw 'Cannot access before initialization' even though mockExecFile was defined before vi.mock() in source order
+- **Root cause:** Vitest/TypeScript hoists vi.mock() calls to the top of the module during transformation, putting them before any module-level const declarations. The const stays in its source position, creating a temporal dead zone. vi.hoisted() runs the callback during the hoisting phase.
+- **How to avoid:** vi.hoisted() adds a wrapper function (slightly less readable), but it's the idiomatic Vitest pattern and guarantees the mock is initialized in the right phase
+
+#### [Pattern] Adversarial payload testing for injection vulnerabilities - test suite includes specific dangerous inputs like '$(rm -rf /)' to prove they are treated as literal strings, not executed (2026-03-14)
+- **Problem solved:** Security tests need to prove that shell injection attacks actually FAIL, not just that normal inputs work. This requires passing inputs that WOULD execute if the vulnerability existed.
+- **Why this works:** Normal test cases with alphanumeric titles pass regardless of vulnerability. Only payload tests with shell metacharacters reveal whether escaping/parameterization is actually working. The test case with backticks and command substitution proves the literal argument is received by gh, not interpreted by a shell.
+- **Trade-offs:** Adversarial tests are more complex to write and may seem strange to developers unfamiliar with security testing, but they're mandatory for proving injection protections actually work
+
+### Skip UI/browser testing for pure library package changes (libs/tools) (2026-03-14)
+- **Context:** Build completed successfully; question was whether to run Playwright suite anyway
+- **Why:** libs/tools has no UI surface—it's a TypeScript type definitions and factory functions package. Build passing (type checking + compilation) is the appropriate verification gate. Playwright testing would test the wrong layer.
+- **Rejected:** Run full browser test suite regardless of what changed
+- **Trade-offs:** Faster verification cycle when changing libraries, but requires discipline to skip unnecessary test layers
+- **Breaking if changed:** Nothing breaks by skipping tests, but would waste CI time testing unrelated UI layer
+
+### Skip Playwright browser-based verification for pure server-side GraphQL construction changes (2026-03-14)
+- **Context:** After implementing GraphQL variable changes, team considered running full Playwright test suite but decided against it
+- **Why:** Changes are confined to CLI argument construction in server code with no UI surface. Playwright tests would not exercise the fixed code path (browser cannot see execFileAsync calls). Resources better spent on compile/typecheck verification.
+- **Rejected:** Run full Playwright suite anyway (test pyramid violation - testing UI paths that don't exercise the fix); or skip all verification (insufficient)
+- **Trade-offs:** Faster feedback (no browser test overhead); but team must have high confidence in compile/typecheck/code review to replace integration tests
+- **Breaking if changed:** If the changes were later modified to include UI-visible behavior (e.g., logging response body to frontend), Playwright tests become necessary but would have been disabled
+
+#### [Gotcha] Existing tests checking world state synchronously after firing events require vi.advanceTimersByTimeAsync(0) to flush Promise chain (2026-03-14)
+- **Situation:** Two tests (feature:status-changed, auto-mode events) were asserting state changes immediately after event firing; now events process asynchronously
+- **Root cause:** Promise chain queues work on next microtask; vi.advanceTimersByTimeAsync(0) flushes microtasks without advancing wall-clock time; necessary after switching to async serialization
+- **How to avoid:** Tests become slightly more verbose but accurately reflect async execution model; encourages realistic testing patterns; catches real bugs where callers assumed sync behavior
