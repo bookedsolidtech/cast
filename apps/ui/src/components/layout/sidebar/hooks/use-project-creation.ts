@@ -116,15 +116,36 @@ export function useProjectCreation({ upsertAndSetCurrentProject }: UseProjectCre
       try {
         const api = getElectronAPI();
 
-        // Clone template repository
-        if (!api.templates) {
-          throw new Error('Templates API is not available');
+        let projectPath: string;
+
+        if (template.source === 'scaffold' && template.kitType) {
+          // Local scaffold — copy starter kit into new directory
+          const targetDir = `${parentDir}/${projectName}`;
+
+          const { getHttpApiClient } = await import('@/lib/http-api-client');
+          const httpClient = getHttpApiClient();
+          const scaffoldResult = await httpClient.setup.scaffoldStarterKit(
+            targetDir,
+            template.kitType as 'docs' | 'portfolio',
+            projectName
+          );
+
+          if (!scaffoldResult.success) {
+            throw new Error(scaffoldResult.error || 'Failed to scaffold starter kit');
+          }
+
+          projectPath = targetDir;
+        } else {
+          // GitHub clone
+          if (!api.templates) {
+            throw new Error('Templates API is not available');
+          }
+          const cloneResult = await api.templates.clone(template.repoUrl!, projectName, parentDir);
+          if (!cloneResult.success) {
+            throw new Error(cloneResult.error || 'Failed to clone template');
+          }
+          projectPath = cloneResult.projectPath!;
         }
-        const cloneResult = await api.templates.clone(template.repoUrl, projectName, parentDir);
-        if (!cloneResult.success) {
-          throw new Error(cloneResult.error || 'Failed to clone template');
-        }
-        const projectPath = cloneResult.projectPath!;
 
         // Initialize .automaker directory structure
         await initializeProject(projectPath);

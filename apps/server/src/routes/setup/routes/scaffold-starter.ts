@@ -54,28 +54,21 @@ export function createScaffoldStarterHandler(): RequestHandler<
 
       const absolutePath = path.resolve(projectPath);
 
-      // Validate path exists and is a directory
-      let stats;
+      // Create directory if it doesn't exist, validate if it does
       try {
-        stats = await fs.stat(absolutePath);
-      } catch (_error) {
-        res.status(400).json({
-          success: false,
-          outputDir: absolutePath,
-          filesCreated: [],
-          error: `Path does not exist or is not accessible: ${absolutePath}`,
-        });
-        return;
-      }
-
-      if (!stats.isDirectory()) {
-        res.status(400).json({
-          success: false,
-          outputDir: absolutePath,
-          filesCreated: [],
-          error: `Path is not a directory: ${absolutePath}`,
-        });
-        return;
+        const stats = await fs.stat(absolutePath);
+        if (!stats.isDirectory()) {
+          res.status(400).json({
+            success: false,
+            outputDir: absolutePath,
+            filesCreated: [],
+            error: `Path is not a directory: ${absolutePath}`,
+          });
+          return;
+        }
+      } catch {
+        // Directory doesn't exist — create it
+        await fs.mkdir(absolutePath, { recursive: true });
       }
 
       // Resolve symlinks and validate against base directory if configured

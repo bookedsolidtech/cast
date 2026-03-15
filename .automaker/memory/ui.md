@@ -59,3 +59,10 @@ usageStats:
 - **Problem solved:** Download-as-markdown feature is valuable immediately even though parent hasn't fetched real ceremony report content yet. Without fallback, feature would be useless until parent implements enrichment.
 - **Why this works:** Keeps feature partially useful during development of parent enrichment. Reduces coordination friction: artifact viewer can ship standalone; parent can add content enrichment independently.
 - **Trade-offs:** Download provides metadata instead of full report initially (lower value), but unblocks user-facing feature. Creates technical debt: metadata-based downloads become harder to remove later if UX wants them deprecated.
+
+### Starter kit selection is optional (no default) and uses toggle pattern (click to select, click again to deselect), preserving blank-project flow (2026-03-15)
+- **Context:** Could default to 'docs' kit, or use radio buttons, or require selection. Instead made optional with toggle.
+- **Why:** Explicit opt-in preserves backward compatibility—existing users expecting blank projects unchanged. Toggle UX is lightweight; no dedicated deselect button needed. Reduces cognitive load for users who want blank project.
+- **Rejected:** Defaulting to 'docs' would increase template adoption but breaks expectation for blank projects. Required radio selection increases friction for blank-project path.
+- **Trade-offs:** Simpler UX (toggle) vs. clearer multi-select semantics (checkboxes). Optional path vs. higher template adoption. Fewer clicks to skip templates vs. explicit mutual exclusivity.
+- **Breaking if changed:** If logic later assumes a starter kit is always present, optional starterKit field becomes a problem. Schema migrations needed if making selection required.

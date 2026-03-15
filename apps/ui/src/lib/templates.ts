@@ -1,14 +1,21 @@
 /**
  * Starter Kit Templates
  *
- * Define GitHub templates that users can clone when creating new projects.
+ * Define starter templates for new projects. Templates can be either:
+ * - `scaffold`: Local templates copied from @protolabsai/templates starters
+ * - `clone`: GitHub repositories cloned via git
  */
 
 export interface StarterTemplate {
   id: string;
   name: string;
   description: string;
-  repoUrl: string;
+  /** How the template is provisioned */
+  source: 'scaffold' | 'clone';
+  /** Kit type for scaffold source — maps to scaffold endpoint */
+  kitType?: 'docs' | 'portfolio' | 'extension';
+  /** GitHub URL for clone source */
+  repoUrl?: string;
   techStack: string[];
   features: string[];
   category: 'fullstack' | 'frontend' | 'backend' | 'ai' | 'other';
@@ -18,10 +25,49 @@ export interface StarterTemplate {
 
 export const starterTemplates: StarterTemplate[] = [
   {
+    id: 'docs',
+    name: 'Documentation Site',
+    description:
+      'Astro Starlight documentation site with Diataxis structure, Pagefind search, dark/light theme, and Cloudflare Pages CI. Includes tutorials, how-to guides, and reference pages.',
+    source: 'scaffold',
+    kitType: 'docs',
+    techStack: ['Astro 5', 'Starlight', 'Tailwind CSS 4', 'MDX', 'Pagefind', 'Cloudflare Pages'],
+    features: [
+      'Diataxis sidebar structure (tutorials, guides, reference)',
+      'Pagefind full-text search (automatic)',
+      'protoLabs brand theme with dark/light mode',
+      'Starlight sidebar auto-generation from directories',
+      'CI pipeline with build, format, lint, and deploy',
+      'Markdown linting with markdownlint-cli2',
+    ],
+    category: 'frontend',
+    author: 'protoLabs',
+  },
+  {
+    id: 'portfolio',
+    name: 'Portfolio / Marketing Site',
+    description:
+      'Astro portfolio site with React islands, Content Collections, View Transitions, and RSS feed. Includes project showcase, blog, testimonials, and contact form.',
+    source: 'scaffold',
+    kitType: 'portfolio',
+    techStack: ['Astro 5', 'React 19', 'Tailwind CSS 4', 'Content Collections', 'View Transitions'],
+    features: [
+      'Project showcase with tag filtering (React island)',
+      'Blog with MDX and RSS feed',
+      'Testimonials section with JSON data',
+      'Contact form with validation (React island)',
+      'SEO meta tags, Open Graph, Twitter Cards',
+      'View Transitions for SPA-like navigation',
+    ],
+    category: 'frontend',
+    author: 'protoLabs',
+  },
+  {
     id: 'browser-extension',
     name: 'Browser Extension',
     description:
       'Multi-browser extension template targeting Chrome and Firefox (Manifest V3). Includes typed messaging, storage helpers, popup/options pages, and CI pipeline for both stores.',
+    source: 'clone',
     repoUrl: 'https://github.com/protoLabsAI/browser-extension-template',
     techStack: [
       'WXT',

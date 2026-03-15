@@ -131,23 +131,17 @@ export function useCreateProject() {
       color?: string;
       priority?: string;
       researchOnCreate: boolean;
-      starterKit?: 'docs' | 'portfolio';
     }) => {
       const api = getHttpApiClient();
       // Use description as ideaDescription; fall back to goal if not provided
       const ideaDescription = data.description?.trim() || data.goal.trim();
       const result = await api.lifecycle.initiate(projectPath, data.title, ideaDescription);
 
-      // After project creation, scaffold the starter kit if requested
-      if (data.starterKit && projectPath) {
-        await api.setup.scaffoldStarterKit(projectPath, data.starterKit, data.title);
-      }
-
       return result;
     },
     onSuccess: (result, variables) => {
       toast.success('Project created', {
-        description: `Created "${variables.title}"${variables.starterKit ? ` with ${variables.starterKit === 'docs' ? 'Docs' : 'Portfolio'} starter kit` : ''}`,
+        description: `Created "${variables.title}"`,
       });
       if (variables.researchOnCreate) {
         toast.info('Research started — findings will appear in the Research tab');

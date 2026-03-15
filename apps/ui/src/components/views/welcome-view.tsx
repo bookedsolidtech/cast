@@ -313,7 +313,7 @@ export function WelcomeView() {
   };
 
   /**
-   * Create a project from a GitHub starter template
+   * Create a project from a starter template (scaffold or clone)
    */
   const handleCreateFromTemplate = async (
     template: StarterTemplate,
@@ -325,21 +325,43 @@ export function WelcomeView() {
       const httpClient = getHttpApiClient();
       const api = getElectronAPI();
 
-      // Clone the template repository
-      const cloneResult = await httpClient.templates.clone(
-        template.repoUrl,
-        projectName,
-        parentDir
-      );
+      let projectPath: string;
 
-      if (!cloneResult.success || !cloneResult.projectPath) {
-        toast.error('Failed to clone template', {
-          description: cloneResult.error || 'Unknown error occurred',
-        });
-        return;
+      if (template.source === 'scaffold' && template.kitType) {
+        // Local scaffold — copy starter kit into new directory
+        const targetDir = `${parentDir}/${projectName}`;
+
+        const scaffoldResult = await httpClient.setup.scaffoldStarterKit(
+          targetDir,
+          template.kitType as 'docs' | 'portfolio',
+          projectName
+        );
+
+        if (!scaffoldResult.success) {
+          toast.error('Failed to scaffold starter kit', {
+            description: scaffoldResult.error || 'Unknown error occurred',
+          });
+          return;
+        }
+
+        projectPath = targetDir;
+      } else {
+        // GitHub clone
+        const cloneResult = await httpClient.templates.clone(
+          template.repoUrl!,
+          projectName,
+          parentDir
+        );
+
+        if (!cloneResult.success || !cloneResult.projectPath) {
+          toast.error('Failed to clone template', {
+            description: cloneResult.error || 'Unknown error occurred',
+          });
+          return;
+        }
+
+        projectPath = cloneResult.projectPath;
       }
-
-      const projectPath = cloneResult.projectPath;
 
       // Initialize .automaker directory with all necessary files
       const initResult = await initializeProject(projectPath);

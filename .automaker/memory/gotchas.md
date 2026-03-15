@@ -5,9 +5,9 @@ relevantTo: [gotchas]
 importance: 0.7
 relatedFiles: []
 usageStats:
-  loaded: 1478
-  referenced: 363
-  successfulFeatures: 363
+  loaded: 1505
+  referenced: 378
+  successfulFeatures: 378
 ---
 <!-- domain: Gotchas & Pitfalls | Known traps, anti-patterns, and hard-won lessons across all domains -->
 
@@ -981,3 +981,28 @@ usageStats:
 - **Situation:** Original replyAndResolveThread passed body via JSON.stringify(body).slice(1, -1), which fails on bodies containing quotes, backslashes, or control characters
 - **Root cause:** Escaping is context-dependent (GraphQL string context != JSON context). The slice pattern assumes stable JSON wrapper format which breaks under pressure.
 - **How to avoid:** Switching to CLI variables eliminates custom escaping logic entirely (simpler); but requires understanding that gh cli handles escaping, not the application
+
+#### [Gotcha] prettier-plugin-astro in portfolio's .prettierrc.mjs causes monorepo prettier to fail when it discovers the portfolio's config in scope, even though the plugin is not installed at monorepo root (2026-03-14)
+- **Situation:** Formatting portfolio Astro files within monorepo CI that has its own prettier config
+- **Root cause:** Root cause: prettier loads .prettierrc.mjs files from all subdirectories in the search path. If .prettierrc.mjs requires 'prettier-plugin-astro' but it's not installed at the monorepo root, require() fails.
+- **How to avoid:** Easier: portfolio can use its own prettier config. Harder: monorepo CI must use --no-config for non-Astro files to avoid the scope issue.
+
+#### [Gotcha] Monorepo root prettier config cannot handle .astro files from nested starter kits because prettier-plugin-astro is not installed at monorepo root. Keeping plugins localized to starters avoids this but creates config drift risk. (2026-03-15)
+- **Situation:** Ran prettier on starters/docs/*.astro files and got plugin-not-found errors at monorepo level
+- **Root cause:** prettier loads config from closest tsconfig/package.json. Root config applies to all packages. Astro plugin not in root dependencies. Local prettier in starter would require separate tool invocation.
+- **How to avoid:** Easier: no monorepo changes. Harder: different starters can have different formatter behavior. Potential for unintended file diffs when formatting.
+
+#### [Gotcha] Prettier config in starter kit (.prettierrc.mjs) declares prettier-plugin-astro dependency. When running prettier from monorepo root on worktree files, plugin resolution fails ('Cannot find package prettier-plugin-astro'). Workaround: use --parser markdown flag to bypass config lookup entirely and force explicit parser. (2026-03-15)
+- **Situation:** Portfolio starter kit needs markdown formatting after docs/ creation. Prettier invoked from main repo root where plugin is not installed.
+- **Root cause:** Monorepo tool configurations don't automatically resolve dependencies in worktree contexts. The worktree is an isolated git branch without the parent's node_modules.
+- **How to avoid:** --parser markdown bypasses ALL config rules (ignores .prettierrc settings), so it only applies markdown formatting, not the full config. Cleaner for static content, but loses custom rules.
+
+#### [Gotcha] applySubstitutions() wraps each file patch (package.json name, astro.config.mjs URL/title) in try-catch with silent empty catches. Missing files don't error - they just don't get patched. (2026-03-15)
+- **Situation:** Different starter kits may have different required files. Some might not have package.json or astro.config.mjs.
+- **Root cause:** Defensive: avoids failing entire scaffold if optional files are missing. Supports future starter types with different file structures.
+- **How to avoid:** More forgiving (easier to add new starters) but harder to debug. Users won't know if their project name or site URL got substituted.
+
+#### [Gotcha] Direct import coupling to @protolabsai/templates package (scaffoldDocsStarter, scaffoldPortfolioStarter). Kit types hardcoded as 'docs' | 'portfolio'. (2026-03-15)
+- **Situation:** Templates are external package. Kit types are switch statement in route. Adding new template types requires server code change.
+- **Root cause:** Templates package is source of truth. Hardcoded types prevent invalid scaffold calls. Type-safe at compile time.
+- **How to avoid:** Type safety + compile-time guarantees vs. runtime flexibility. Tight coupling to templates package vs. abstract template interface. Easier onboarding (types obvious) vs. harder to extend (code change needed).

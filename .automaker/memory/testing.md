@@ -225,3 +225,45 @@ usageStats:
 - **Situation:** Two tests (feature:status-changed, auto-mode events) were asserting state changes immediately after event firing; now events process asynchronously
 - **Root cause:** Promise chain queues work on next microtask; vi.advanceTimersByTimeAsync(0) flushes microtasks without advancing wall-clock time; necessary after switching to async serialization
 - **How to avoid:** Tests become slightly more verbose but accurately reflect async execution model; encourages realistic testing patterns; catches real bugs where callers assumed sync behavior
+
+#### [Gotcha] Accepted success criteria as 'build passes + typecheck passes', but skipped value validation tests (hex codes, dimensions, format correctness) (2026-03-14)
+- **Situation:** Noted: 'This is a pure TypeScript data module—no UI interaction to verify with Playwright.' Decision to skip tests because structural exports were confirmed.
+- **Root cause:** Build + typecheck confirm syntax and exports exist, reducing obvious errors. But TypeScript only validates shape, not correctness of literal values.
+- **How to avoid:** Faster iteration (no test suite to maintain), but COLOR typos (e.g., `#a78bfx`) or invalid CSS values would only surface at Tailwind build time or runtime in UI
+
+#### [Gotcha] Running npm workspace tests from main repo root executes against main repo code, not worktree edits. Must run test commands from worktree directory root to test local changes. (2026-03-14)
+- **Situation:** Initial test runs showed 'all 54 pass' but were actually testing the unmodified main repo service. Only when running `npx vitest` from worktree root did the tests actually execute against the fixed code.
+- **Root cause:** npm workspaces resolve packages from the top-level monorepo, not the current working directory. Worktree isolation is not respected by workspace tooling.
+- **How to avoid:** Worktree isolation is lost for npm commands unless run from worktree root. Running from main repo is convenient but gives false confidence in test results.
+
+### Library verification uses build + typecheck + unit tests; deliberately omits Playwright/rendered output testing (2026-03-14)
+- **Context:** Pure library package (not app) without running Astro dev server; no environment to render .astro components during test phase
+- **Why:** Rendering .astro requires full Astro build pipeline. Rendered output testing adds significant CI overhead without proportional value for library (rendering is tested when library is consumed, not when library is built). Build + typecheck + unit tests verify source integrity (what matters for library distribution).
+- **Rejected:** Could stand up Astro dev server for Playwright, but overhead is high and provides testing value only at consumption time. Could ship unverified, but build/test gates catch source-level issues earlier.
+- **Trade-offs:** Faster CI/CD without Playwright overhead; lower confidence in rendered output. Rendering bugs caught by consumers instead of library CI. Acceptable for libraries (consumer builds will catch issues); unacceptable for apps.
+- **Breaking if changed:** Component rendering bugs in Astro builds not caught until library is consumed. This is acceptable because Astro compiler catches syntax errors; styling/layout bugs are harder to catch in library tests anyway.
+
+#### [Gotcha] Form field selectors via getByLabel() collided with nav aria-labels; switched to getByRole('textbox', { name: 'Field' }) (2026-03-15)
+- **Situation:** Playwright test locators failed because multiple elements matched the same aria-label
+- **Root cause:** Role-based selectors are scoped to semantic HTML role, avoiding collision with parent nav labels
+- **How to avoid:** Role selectors are more verbose but more resilient; requires form inputs to have proper ARIA roles
+
+#### [Pattern] Test assertions accept multiple valid states: expect(hasProjects || hasEmpty).toBe(true) instead of asserting specific project count (2026-03-15)
+- **Problem solved:** ProjectGrid filter behavior needed to work with dynamic data without assuming specific dataset
+- **Why this works:** Decouples test assertions from data fixtures; tests verify UI behavior (filtering returns something or shows empty state) not data assumptions
+- **Trade-offs:** Tests are less brittle but verify less strictly; caught by higher-level tests that do check data integrity
+
+#### [Gotcha] Tag filter test conditionally executes based on tag button count > 1 (only tests filter if non-All tags exist) (2026-03-15)
+- **Situation:** ProjectGrid renders 'All' button always, but other tag buttons are dynamic based on project data
+- **Root cause:** Tests that assume specific data presence are fragile; better to skip test path if precondition isn't met than fail
+- **How to avoid:** Test doesn't always exercise filter path vs. cleaner test logic; caught by integration tests with real data
+
+#### [Gotcha] Verified git diff --stat to detect unintended scope creep in multi-file edits (preventing accidental changes to related files) (2026-03-15)
+- **Situation:** Monorepo with 5 interdependent template files (types, features, rules, docs, CI) easy to miss or accidentally modify tangential code
+- **Root cause:** Silent scope expansion can cause cascade issues: unreviewed changes in CI, inconsistent feature definitions, compiler errors later. Explicit diff check catches before PR
+- **How to avoid:** One extra manual verification step, but catches mistakes at edit-time rather than CI-time
+
+#### [Gotcha] Temporary E2E test written (starter-kit-selection.spec.ts) and immediately deleted after manual verification. No permanent test coverage for starter kit selection flow. (2026-03-15)
+- **Situation:** Test was created to verify dialog renders and cards toggle. Then deleted after validation. No regression test remains.
+- **Root cause:** Rapid validation during development. Full E2E test infrastructure (server mocking, auth flow, dialog interaction) is heavy for one feature. Manual deletion keeps test suite clean.
+- **How to avoid:** Fast iteration vs. no regression coverage. Lightweight verification vs. fragile tests if dialog internals change. Manual validation confidence vs. CI coverage.
