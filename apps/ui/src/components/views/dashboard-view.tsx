@@ -343,19 +343,40 @@ export function DashboardView() {
       const httpClient = getHttpApiClient();
       const api = getElectronAPI();
 
-      const cloneResult = await httpClient.templates.clone(
-        template.repoUrl,
-        projectName,
-        parentDir
-      );
-      if (!cloneResult.success || !cloneResult.projectPath) {
-        toast.error('Failed to clone template', {
-          description: cloneResult.error || 'Unknown error occurred',
-        });
-        return;
-      }
+      let projectPath: string;
 
-      const projectPath = cloneResult.projectPath;
+      if (template.source === 'scaffold' && template.kitType) {
+        const targetDir = `${parentDir}/${projectName}`;
+
+        const scaffoldResult = await httpClient.setup.scaffoldStarterKit(
+          targetDir,
+          template.kitType as 'docs' | 'portfolio',
+          projectName
+        );
+
+        if (!scaffoldResult.success) {
+          toast.error('Failed to scaffold starter kit', {
+            description: scaffoldResult.error || 'Unknown error occurred',
+          });
+          return;
+        }
+
+        projectPath = targetDir;
+      } else {
+        const cloneResult = await httpClient.templates.clone(
+          template.repoUrl!,
+          projectName,
+          parentDir
+        );
+        if (!cloneResult.success || !cloneResult.projectPath) {
+          toast.error('Failed to clone template', {
+            description: cloneResult.error || 'Unknown error occurred',
+          });
+          return;
+        }
+
+        projectPath = cloneResult.projectPath;
+      }
       const initResult = await initializeProject(projectPath);
       if (!initResult.success) {
         toast.error('Failed to initialize project', {

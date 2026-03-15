@@ -375,3 +375,15 @@ usageStats:
 - **Problem solved:** Single backfill batch processes multiple features with shared ancestry. Without caching, each descendant re-resolves the same ancestors
 - **Why this works:** Reduces redundant ancestry traversals within one operation. More importantly, ensures within-batch consistency—all features agree on ancestor resolution outcome
 - **Trade-offs:** Easier: fewer lookups. Harder: requires careful state management to avoid bugs from mutation-during-iteration
+
+#### [Pattern] Feature flag gate performs async settings fetch on every method call (`await this.settingsService.getGlobalSettings()`). This is not cached or pre-computed at initialization. (2026-03-14)
+- **Problem solved:** Each call to `create()` pays the cost of fetching global settings to check if pipeline flag is enabled. If this method is called in a loop or high-frequency scenarios, becomes an N+1 problem.
+- **Why this works:** Ensures the feature flag state is always fresh—if settings change at runtime, the method respects the new state immediately.
+- **Trade-offs:** Freshness vs latency. Every call blocks on async I/O. If settings rarely change, caching would be a net win. If they change frequently, current approach is safer.
+
+### All components are pure .astro files with zero client-side JavaScript, even though @astrojs/react is installed (2026-03-14)
+- **Context:** Building static portfolio site with no interactive features
+- **Why:** Static HTML rendering eliminates hydration cost and bundle bloat. Astro's zero-JS-by-default philosophy optimizes for Lighthouse Core Web Vitals.
+- **Rejected:** React components for cards/navigation — would require hydration, increase JS bundle, add runtime overhead for no interactivity benefit
+- **Trade-offs:** Easier: faster site, smaller bundle, zero hydration delay. Harder: adding future interactive features requires migrating to Astro Islands architecture.
+- **Breaking if changed:** Switching to React components for interactivity requires setting up Island hydration; adds build complexity and bundle size

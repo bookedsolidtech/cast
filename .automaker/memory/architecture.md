@@ -5,9 +5,9 @@ relevantTo: [architecture]
 importance: 0.9
 relatedFiles: []
 usageStats:
-  loaded: 510
-  referenced: 101
-  successfulFeatures: 101
+  loaded: 537
+  referenced: 116
+  successfulFeatures: 116
 ---
 <!-- domain: Architecture Decisions | System-wide structural decisions that have breaking consequences if changed -->
 
@@ -1030,3 +1030,330 @@ usageStats:
 - **Rejected:** Keep review as terminal and implement separate retry logic outside the status machine; create bypass flags instead of removing from TERMINAL_STATUSES
 - **Trade-offs:** Removing review from terminal makes state machine more flexible and auto-mode simpler, but requires external logic to prevent infinite loop if a feature perpetually fails review; keeping it terminal prevents loops but requires special-case handling in auto-mode retry
 - **Breaking if changed:** If review is marked terminal, auto-mode cannot restart work on features that failed CI review, breaking the fundamental validation feedback loop that auto-mode depends on
+
+#### [Pattern] Dual-export pattern: CSS string exports + typed const object for same token set (2026-03-14)
+- **Problem solved:** Design tokens needed to be consumed in two different contexts: Tailwind configuration (CSS strings) and JS/TS runtime (inline styles, canvas, storybook)
+- **Why this works:** CSS strings can be injected into Tailwind config methods, but typed objects enable exhaustive type checking and IDE autocomplete in JS contexts. A single format couldn't serve both well.
+- **Trade-offs:** More code to maintain (mirrored values), but zero friction in either context. Parsing CSS in TS is error-prone; formatting objects as CSS loses type safety.
+
+### Centralize tokens as library module (templates package) rather than scattered across site HTML (2026-03-14)
+- **Context:** Tokens previously embedded in site/index.html CSS; now extracted as single source of truth in @protolabsai/templates
+- **Why:** Single source of truth prevents drift between site and other projects using same brand. Enables consistent updates across all consumers via npm version bump.
+- **Rejected:** Leaving tokens in site HTML: simpler for site, but makes it hard for other packages (docs, extensions) to use same tokens without duplication or copy-paste
+- **Trade-offs:** Site now depends on templates package (added build coupling), but consistency guaranteed across entire monorepo. Updates require rebuild of templates, then all consumers.
+- **Breaking if changed:** Site can no longer operate independently—must import from templates. Removing this pattern requires re-embedding tokens in site or creating alternative distribution mechanism
+
+#### [Pattern] Use 'as const' on designTokens object for exhaustive literal types, not just Record<string, string> (2026-03-14)
+- **Problem solved:** Token object includes nested structure (colors.surface.0, colors.accent.DEFAULT, etc.) typed as `typeof designTokens` const
+- **Why this works:** Exhaustive literal typing enables discriminated unions, type-safe theme interpolation, and IDE autocomplete showing exact keys and values. Generic Record type loses specificity.
+- **Trade-offs:** Slightly larger compiled type definition, but massive DX win (autocomplete, refactoring safety). No runtime cost.
+
+#### [Gotcha] Using `!this.settingsService` (null check on injected dependency) as a feature disable gate conflates two concerns: DI wiring errors and intentional feature flags. Null service suppresses errors instead of failing fast. (2026-03-14)
+- **Situation:** The service checks `if (!this.settingsService) return null` to disable the feature. But if settingsService fails to inject due to a wiring bug, the feature silently disables rather than throwing.
+- **Root cause:** Convenient for testing (can pass null to disable) and allows graceful degradation if settings service isn't available.
+- **How to avoid:** Implicit disable via null is convenient in tests but hides real DI configuration errors. Makes bugs harder to diagnose—code appears to work but feature silently disabled.
+
+### Feature flag requirement exists only at interface/test level; implementation was missing the gate entirely. Type signature (`Promise<HITLFormRequest | null>`) promised null return, but code never returned it. (2026-03-14)
+- **Context:** Tests at lines 93 and 99 expected null when feature disabled, but the create() method had no guard. This suggests requirements were spec'd in the interface contract but implementation was incomplete—possibly added post-facto.
+- **Why:** TypeScript interfaces define contracts; if a method signature says it can return null, the implementation must have a code path that returns null. The absence indicates incomplete implementation against spec.
+- **Rejected:** Could have removed the `| null` from return type if null return was never intended, but tests prove null *was* required.
+- **Trade-offs:** Type-driven development (interface-first) ensures completeness but requires discipline. Ad-hoc implementation (impl-first, types follow) is faster initially but can leave specs incomplete.
+- **Breaking if changed:** If you remove the feature flag gate (the fix), the method violates its type contract and tests fail again. The `| null` in the signature is not decorative—it enforces a contract.
+
+#### [Pattern] Astro components distributed as raw source files via wildcard package.json exports ("./components/*": "./src/components/*") without build or compilation step (2026-03-14)
+- **Problem solved:** Building a shared component library for reuse across multiple Astro projects in a monorepo
+- **Why this works:** Astro components require integration with consumer's styling context, layout engine, and build pipeline. Distributing source files allows each consumer to incorporate components into their own Astro build process, avoiding pre-built bottleneck. Enables per-project optimization.
+- **Trade-offs:** Library maintainer benefits from no build step; consumers must have Astro setup. Components cannot be independently versioned. Tight coupling between library and consumer build pipelines.
+
+### Selective React hydration: only MobileMenu (within Nav) is a React island with client:load; remaining 6 components (Footer, SEO, Button, Badge, Card) are pure zero-JS Astro (2026-03-14)
+- **Context:** Nav component requires mobile menu toggle interactivity; Footer, SEO, Button, Badge, Card are static or CSS-only interactive
+- **Why:** Minimizes JavaScript bundle by hydrating only components that require state/event handling. MobileMenu uses client:load (not client:idle) because mobile menu must be interactive immediately on page load. Other components achieve full functionality through HTML/CSS, avoiding JS overhead.
+- **Rejected:** Could make entire library React-first for consistency, but adds unnecessary JS payload (6 static components). Could use Alpine or HTMX for mobile menu, but React island pattern integrates cleanly with existing Astro/React codebase.
+- **Trade-offs:** Zero-JS for most components (excellent performance) vs. architectural complexity of managing React island within Astro. Future interactivity requests create pressure to add more islands (JS creep).
+- **Breaking if changed:** If future nav variants require complex state management, current client:load decision becomes bottleneck. If other components gain interactivity, decision to avoid hydration strategy breaks down and requires rearchitecture.
+
+#### [Pattern] Zero external dependencies for styling and icons: MobileMenu uses inline styles (satisfies React.CSSProperties); Footer inlines social icon SVG path data as strings (2026-03-14)
+- **Problem solved:** Lightweight component library should minimize dependency surface area and work across diverse Astro projects without imposing toolchain requirements
+- **Why this works:** Removes peerDependencies on styled-components/emotion/tailwind and icon libraries. Inlined SVG keeps asset size constant regardless of adoption. Reduces complexity for consumers who must install and manage additional tools.
+- **Trade-offs:** Lower barrier to adoption (fewer dependencies) and smaller distributed package; maintenance becomes painful if styling or icons need dynamic variation. Works for design system v1, becomes unmaintainable if extensive customization required.
+
+#### [Pattern] Dual distribution model: both direct component imports (via exports wildcard) AND string scaffold templates (src/components.ts functions like getNavComponent()) (2026-03-14)
+- **Problem solved:** Library serves two separate workflows: (1) import-and-use in existing Astro projects; (2) scaffold/code-generate components into new projects
+- **Why this works:** Single source of truth for component source: one template serves both import path and scaffold generation. Avoids code duplication between consumable components and scaffolding strings. Supports both advanced users (direct imports) and scaffolding tools (string generation).
+- **Trade-offs:** Two export surfaces must stay in sync (complexity); more maintainer burden. But avoids split implementations and source-of-truth fragmentation.
+
+### Added *.astro to .prettierignore instead of installing prettier-plugin-astro, despite Prettier being active in monorepo (2026-03-14)
+- **Context:** Monorepo has no prettier-plugin-astro; Prettier will error or mangle .astro files without plugin; installing plugin requires CI infrastructure changes and potential conflicts
+- **Why:** Pragmatic constraint: Installing new Prettier plugin requires CI testing, potential conflict resolution, and downstream impact. For design system library, deferring Astro formatting enforcement is acceptable. .astro formatting is lower priority than .ts/.tsx.
+- **Rejected:** Could install prettier-plugin-astro and enforce, but adds toolchain complexity. Could ignore formatting entirely, but .prettierignore is explicit and prevents accidental formatting attempts.
+- **Trade-offs:** Avoid toolchain friction now (good); no formatting enforcement for .astro files (risky for consistency at scale). Acceptable for small component set; breaks down as library grows.
+- **Breaking if changed:** Installing prettier-plugin-astro later requires reformatting all existing .astro files simultaneously (git history bloat). Upgrading plugin versions risks mass diffs if files were unformatted initially.
+
+#### [Gotcha] Nested monorepo packages (not in workspaces declaration) inherit parent node_modules via npm hoisting. Starlight 0.37 requires Zod v3, but monorepo root has Zod v4. npm hoisted v4 into starter's node_modules, breaking build. Fixed by explicitly pinning 'zod': '^3.25.0' in starter's package.json. (2026-03-14)
+- **Situation:** Creating a documentation starter kit nested inside a monorepo that is not declared as a workspace entry
+- **Root cause:** npm's hoisting algorithm traverses up the directory tree to find dependencies. Without an explicit version pin in the starter's own package.json, it uses the parent's Zod v4, causing a major version mismatch with Starlight's internal Zod v3 usage.
+- **How to avoid:** Explicit version pins in nested package.json prevent version conflicts but add maintenance burden — developers must track when parent versions change and whether nested packages need their own pins
+
+#### [Pattern] Content collections in Astro 5.x require explicit src/content.config.ts with docsLoader() and docsSchema() to avoid deprecation warnings about auto-generating collections from directories. (2026-03-14)
+- **Problem solved:** Setting up Starlight documentation with Astro 5 framework
+- **Why this works:** Astro is sunsetting auto-generated collection schemas. Explicit configuration prevents warnings and ensures forward compatibility through Astro 6 migration.
+- **Trade-offs:** Explicit config adds ~20 lines of boilerplate but guarantees no deprecation warnings and makes the collection schema discoverable in the codebase
+
+### Pinned Starlight to ^0.37.0 (not 0.38+) because 0.38+ requires Astro 6, which is not yet in this repo. Astro 5.9 is current; upgrade path documented as: when moving to Astro 6, upgrade Starlight to ^0.38.0 and remove zod pin. (2026-03-14)
+- **Context:** Choosing Starlight version for a production documentation scaffold that must be compatible with current monorepo Astro 5.x
+- **Why:** Starlight 0.38+ introduced a dependency requirement on Astro 6. Using 0.38+ in an Astro 5.x codebase causes peer dependency errors. 0.37.0 is the last Astro 5-compatible release.
+- **Rejected:** Using latest Starlight 0.38+ (would block on Astro 6 migration); using older Starlight 0.36 (missed features, no Pagefind support)
+- **Trade-offs:** 0.37.0 is stable but will require version bump during Astro 6 migration. No workarounds possible — this is a hard peer dependency constraint.
+- **Breaking if changed:** Installing Starlight 0.38+ with Astro 5 fails peer dependency check. Attempting to skip the check with --legacy-peer-deps creates runtime errors in Starlight internals.
+
+#### [Pattern] Used Starlight's CSS variable override system (in global.css) to customize theme (violet accent, dark zinc surfaces, Geist fonts) instead of forking Starlight components. Pattern: define @theme block in Tailwind v4, then override Starlight's --sl-* variables. (2026-03-14)
+- **Problem solved:** Applying protoLabs brand theme to a Starlight documentation site while maintaining upgrade path
+- **Why this works:** CSS variable customization is non-invasive and survives Starlight version upgrades. Forking components would create maintenance burden and block security updates. Starlight explicitly designed around this pattern.
+- **Trade-offs:** CSS variables are limited to color/spacing properties — complex structural theme changes require component overrides. But for brand theming, variables are sufficient and keep code minimal.
+
+#### [Pattern] Pagefind search is auto-enabled in Starlight with zero configuration — just add @astrojs/pagefind to dependencies, Starlight handles index generation during `astro build`. No CLI invocation or config needed. (2026-03-14)
+- **Problem solved:** Building documentation search functionality in Starlight
+- **Why this works:** Starlight integrates Pagefind as a default, built-in feature. The build hook automatically crawls HTML output and generates the index. This is a deliberate simplification over manual search setup.
+- **Trade-offs:** Zero configuration means no customization of search parameters — Pagefind uses defaults (word tokenization, no typo tolerance). For 5-page starter, this is fine; larger sites may need customization.
+
+#### [Pattern] Used Diataxis framework (tutorial, how-to guide, reference) for sample content structure instead of arbitrary examples. Each content type has different learning goals and structure. (2026-03-14)
+- **Problem solved:** Providing documentation template examples that demonstrate best practices for developers using the starter
+- **Why this works:** Diataxis is a well-researched framework for technical documentation structure. Each quadrant (tutorial, how-to, reference, explanation) serves a different user need. Providing examples in each category teaches developers this structure.
+- **Trade-offs:** Diataxis structure requires 4 different content types (3 provided here: tutorial, how-to, reference). This adds content volume but improves documentation quality. New developers inherit the pattern.
+
+### Tailwind v4 CSS-first approach: use @import 'tailwindcss' + @theme block in global.css instead of tailwind.config.js (2026-03-14)
+- **Context:** Configuring Tailwind v4 with brand design tokens (surface, accent, semantic colors)
+- **Why:** Tailwind v4 is CSS-first; no config file needed. Theme tokens are defined inline in CSS file wired through @tailwindcss/vite. Simpler mental model than v3's JS config.
+- **Rejected:** Traditional tailwind.config.js approach — this doesn't work in Tailwind v4 (v3 legacy approach)
+- **Trade-offs:** Easier: tokens colocated with styles. Harder: no JS-level theme access if future client-side theme switching is needed.
+- **Breaking if changed:** Removing @theme block breaks CSS variable generation; brand colors become undefined, all utility classes fail
+
+#### [Gotcha] View Transitions are built-in to Astro 5 (import from astro:transitions); @astrojs/view-transitions package is not needed and may conflict (2026-03-14)
+- **Situation:** Implementing page transitions in portfolio site
+- **Root cause:** Astro 5 made View Transitions a core feature. Developers upgrading from Astro 4 expect to install a package.
+- **How to avoid:** Easier: fewer dependencies, built-in. Harder: API is different from previous versions; documentation must clarify this.
+
+#### [Pattern] Separate data collections (JSON/YAML, type: 'data') from content collections (markdown, type: 'content') using Zod schemas for validation (2026-03-14)
+- **Problem solved:** Managing testimonials/siteConfig (structured JSON) vs projects/blog (markdown with frontmatter)
+- **Why this works:** Data collections skip markdown rendering pipeline entirely. Zod validation at build time catches schema violations early. Cleaner separation of concerns.
+- **Trade-offs:** Easier: simpler data files, compile-time validation. Harder: two different collection patterns in one project (mental overhead).
+
+### Portfolio is a completely standalone project (zero monorepo coupling); requires its own npm install, not monorepo-linked (2026-03-14)
+- **Context:** Creating reusable starter kit template within monorepo structure
+- **Why:** Monorepo worktree symlinks issue prevents @automaker/types resolution (resolves to main repo instead of worktree). Standalone template can be copied/distributed independently without tooling setup.
+- **Rejected:** Monorepo-linked setup (npm workspaces / pnpm imports) — symlink resolution breaks in development worktrees; increases maintenance burden
+- **Trade-offs:** Easier: independent deployment, no monorepo coupling. Harder: users must run 'npm install' in portfolio directory; not automatically built with monorepo.
+- **Breaking if changed:** Adding monorepo linking would require solving worktree symlink resolution; would then couple template updates to main monorepo release cycle
+
+### Static output mode (output: 'static' in astro.config.mjs) for deployment to Cloudflare Pages / Netlify; no SSR, no dynamic rendering (2026-03-14)
+- **Context:** Targeting static-only hosting platforms with pre-computed routes
+- **Why:** Deployment constraint — Cloudflare Pages and Netlify are static-first. Pre-computing all routes at build time allows zero-infrastructure deployment.
+- **Rejected:** Hybrid or server output mode — would require server infrastructure; increases deployment complexity and costs
+- **Trade-offs:** Easier: instant deployment, no server needed. Harder: all routes must be known at build time; dynamic routes require getStaticPaths() precomputation.
+- **Breaking if changed:** Switching to server output enables dynamic route rendering but requires self-hosted infrastructure; breaks Cloudflare Pages target
+
+#### [Pattern] Use render() function (not entry.render()) in Astro 5 to render content collection entries with layout wrapping (2026-03-14)
+- **Problem solved:** Rendering markdown blog posts and project details with consistent layouts
+- **Why this works:** Astro 5 API change: render() is now the standard method. Automatically handles frontmatter extraction, markdown compilation, and layout injection.
+- **Trade-offs:** Easier: cleaner API, less boilerplate. Harder: code breaks on Astro 4 projects; migration required for upgrades.
+
+#### [Pattern] Context files (.automaker/CONTEXT.md) loaded into agent system prompts—content structure (tables, bullets, code blocks) matters for agent parsing, not just human readability (2026-03-15)
+- **Problem solved:** Docs starter kit needed to provide Starlight structure knowledge to agents working on docs projects
+- **Why this works:** Agent services load context files as part of system prompt. Format directly affects agent comprehension. Structured/scannable format (not prose) enables quick reference during execution.
+- **Trade-offs:** Requires more discipline in content structure (tables/bullets preferred over narrative), but improves agent accuracy and latency
+
+### Scaffolding functions return raw strings (getDocsStarterContext() returns markdown as string) rather than object configs or template engines (2026-03-15)
+- **Context:** Need to generate .automaker/CONTEXT.md and .github/workflows/ci.yml files in new projects
+- **Why:** Simple, Git-trackable, requires no parsing/deserialization. Functions become source of truth—agents and tools read the actual string that gets written.
+- **Rejected:** Template engines (would require template syntax parsing), object configs (would require serialization logic), schema-driven generation (would require validation step)
+- **Trade-offs:** Easier: Git diff shows exact file contents, no runtime parsing. Harder: changes to generated files require modifying string literals, not config.
+- **Breaking if changed:** If scaffolding functions are changed to return objects or use templates, must update all call sites and add serialization/validation logic
+
+### Verify via workspace-level build (npm run build --workspace=libs/templates) rather than attempting to resolve monorepo-wide type checking issues (2026-03-15)
+- **Context:** Pre-existing monorepo-level tsc errors (MobileMenu.tsx, prettier-plugin-astro not at root) encountered during development
+- **Why:** Pragmatic scope boundary: verify the feature package builds cleanly, don't get blocked fixing unrelated monorepo config issues. Reduces blast radius of verification.
+- **Rejected:** Fixing prettier-plugin-astro at monorepo root would affect all packages and require coordinating with other teams
+- **Trade-offs:** Easier: feature ships faster, clear scope. Harder: monorepo-level type safety gap not addressed (but was pre-existing).
+- **Breaking if changed:** If workspace build is removed as verification step, could miss integration issues with monorepo build system
+
+#### [Pattern] Dual-purpose context files: .automaker/CONTEXT.md exists both IN the starter kit (for agents working on that project) AND is returned by getDocsStarterContext() (for scaffolding new projects) (2026-03-15)
+- **Problem solved:** Docs starter kit should both provide context to agents AND serve as template for new docs projects
+- **Why this works:** Single source of truth for structure/constraints. Reuses same documentation for both training agents on existing projects and configuring new projects.
+- **Trade-offs:** Easier: one file to update when Starlight changes. Harder: content must serve both purposes (instruction + template).
+
+### Docs/ directories placed at starter kit root (e.g., libs/templates/starters/portfolio/docs/), NOT inside src/content/ or src/content/docs/. This creates spatial separation between site documentation (consumed by site build) and in-app viewer documentation (consumed by protoLabs Studio UI reading files from disk). (2026-03-15)
+- **Context:** Both starter kits need documentation for the in-app viewer, but each also has its own site content (Starlight auto-generates sidebar from src/content/docs/, portfolio uses Content Collections). Risk of confusion about what's for whom.
+- **Why:** Reduces cognitive load. Site maintainers won't accidentally mix in-app docs with site docs. In-app viewer's file path resolution is deterministic (always looks at <kit-root>/docs/).
+- **Rejected:** Placing docs inside src/content/ with a special prefix (would require the viewer to understand site-specific structure) or generating docs at build time (adds complexity, loses static guarantees).
+- **Trade-offs:** Easier to reason about ownership, but creates duplication of structure knowledge (viewers need to know to look at root /docs/ folder). Harder to share tooling/build steps between site and viewer docs.
+- **Breaking if changed:** If in-app viewer's file resolution changes to look inside src/ instead of root, all file paths would need to be rewritten. Starter kit users won't see these docs if the viewer looks in the wrong place.
+
+#### [Pattern] Content duplication pattern: documentation-philosophy.md appears in both kits with ~80% identical Diataxis framework content, but with kit-specific examples (Starlight autogenerate sidebar vs. Content Collections schema). Instead of templating/generating from shared source, each file is standalone. (2026-03-15)
+- **Problem solved:** Both starter kits need to explain the same foundational documentation philosophy (Diataxis), but applied to different tools and workflows.
+- **Why this works:** Standalone files reduce indirection for users exploring a single kit. Each file is self-contained and discoverable without understanding how it was generated. Kit-specific examples are embedded where they're needed, not in separate examples section.
+- **Trade-offs:** Gains clarity and ease-of-discovery within a kit, but loses DRY principle. Updates to core Diataxis content must be made in both files (maintenance burden). Cache invalidation risk if one kit's philosophy falls out of sync.
+
+### Portfolio starter kit is treated as fully standalone project despite living in a monorepo. Project-structure.md explicitly guides users to run 'npm install' inside the starter kit directory, not from repo root. This affects dependency resolution and tooling behavior. (2026-03-15)
+- **Context:** Portfolio starter kit is a self-contained Astro project that can be extracted and deployed independently. Monorepo context is incidental, not the primary use case.
+- **Why:** Ensures users cloning/forking the starter get a complete, reproducible setup without monorepo assumptions. Simplifies onboarding. Dependencies are explicit in starter kit's own package.json, not inherited.
+- **Rejected:** Treating portfolio as a workspace that shares tooling with main repo (would couple starter kit to monorepo structure, breaks when extracted); documenting both monorepo and standalone flows (adds confusion about which is canonical).
+- **Trade-offs:** Cleaner user onboarding, but duplicates dependency declarations across monorepo and starter kit. npm hoisting in worktrees can cause symlink resolution issues (a known P3 issue in the codebase).
+- **Breaking if changed:** If monorepo structure is reorganized and starter kit paths change, the guidance becomes inaccurate. If users copy the starter but run npm install from repo root instead of inside the kit directory, they'll get unexpected dependency conflicts.
+
+### ProjectGrid implemented as React island (client-side hydration) embedded in Astro SSR context for filtering interactivity (2026-03-15)
+- **Context:** Portfolio page needed static SEO rendering + dynamic client-side tag filtering on same page
+- **Why:** Astro static rendering serves fast HTML; React island hydrates only the interactive piece; reduces JS bundle for non-interactive sections
+- **Rejected:** Full React component (requires client-side rendering of entire page), full Astro with server actions (limits real-time interactivity), htmx (adds dependency, less mature with Astro)
+- **Trade-offs:** Island hydration overhead (small) vs. benefits of selective interactivity; slightly complex setup vs. simplicity of full-client-side app
+- **Breaking if changed:** If island hydration fails or React target element unmounts, filtering won't work; island must be properly scoped to avoid state leaks
+
+#### [Pattern] Portfolio composed of 6 discrete section components (Hero, ProjectGrid, About, Testimonials, Contact, BlogList) imported into index.astro (2026-03-15)
+- **Problem solved:** Building reusable, maintainable portfolio template with multiple distinct content sections
+- **Why this works:** Each section is independent, testable, and reusable; allows portfolio layouts to be built by composing sections; easier to maintain and update individual sections
+- **Trade-offs:** Slightly more files and imports vs. clearer separation of concerns; each section can be styled/updated independently
+
+### Two-surface documentation strategy: separate `docs/` (public, VitePress static) from `docs/internal/` (internal team, in-app viewer). Different audiences, deployment models, and content scopes. (2026-03-15)
+- **Context:** Feature description said 'public-facing' but implementation path was `docs/internal/dev/`. Needed to determine which surface was authoritative.
+- **Why:** Cleanly separates product docs (for adopters) from engineering docs (for contributors). Different CI pipelines: static VitePress deployment vs. in-app reader. Prevents audience confusion.
+- **Rejected:** Single unified docs source with access controls; or content duplication across surfaces.
+- **Trade-offs:** Easier to maintain separate narratives and control audience visibility, but requires conscious decision about where each doc belongs. Links must target correct surface.
+- **Breaking if changed:** Merging into one surface requires access control layer, dilutes audience focus, or forces parallel hierarchies. Docs become ambiguous about intended reader.
+
+#### [Pattern] Use Diataxis framework (explanation/how-to/reference/tutorial) to classify documentation pages. Classification determines structure, tone, depth, and completeness criteria. (2026-03-15)
+- **Problem solved:** New documentation-philosophy page was correctly typed as 'Explanation' — narrative + conceptual, no procedural instructions. This classification shaped the entire page structure.
+- **Why this works:** Diataxis provides proven typology. Each type has predictable structure; readers learn to expect patterns. Explanation type = conceptual deep-dive; how-to type = step-by-step; reference type = lookup-oriented. Classification prevents 'kitchen sink' docs that try to do everything.
+- **Trade-offs:** Adds a classification decision when writing docs (extra thinking), but ensures pages serve clear purpose and have consistent structure across the site. Readers can trust patterns.
+
+#### [Gotcha] VitePress `generateSidebar()` auto-discovers markdown files from directory structure — no manual nav config required. New pages appear in sidebar automatically if placed in correct directory. (2026-03-15)
+- **Situation:** Added documentation-philosophy.md to `docs/internal/dev/` and it was immediately discoverable in the sidebar without touching any config files.
+- **Root cause:** Convention over configuration reduces friction for adding docs. Sidebar generation is filesystem-driven, not config-driven. Placement in directory is the interface.
+- **How to avoid:** Much easier to add new docs (just create file), but nav order/hierarchy is implicit in directory structure and naming — harder to fine-tune manually. Must rely on naming conventions being followed.
+
+### Voice and audience assumptions: documentation assumes reader knows CRDTs, webhooks, TypeScript generics. No marketing language. No hedged prose (avoid 'you might consider', use 'do X'). Second-person imperative. (2026-03-15)
+- **Context:** Brand voice policy explicitly stated: 'Technical, not approachable. Assume the reader knows what a CRDT is.' This shapes every example and sentence.
+- **Why:** Target audience is builders/contributors, not product adopters learning basics. Specific knowledge assumptions allow docs to be concise, technical, and direct. Avoids the need to explain foundational concepts in every page.
+- **Rejected:** Beginner-friendly tone; marketing language; hedged/qualified statements; generic feature lists without examples.
+- **Trade-offs:** Faster to read for target audience (no foundational fluff), but excludes newcomers and requires more domain knowledge from readers. Saves ~50% word count per page.
+- **Breaking if changed:** Changing voice to beginner-friendly requires rewriting all examples and adding foundational explanations — roughly 2x page length. Entire onboarding strategy changes.
+
+#### [Pattern] Consolidate scattered documentation standards (Diataxis mapping, IA principles, content rules, voice guidelines) into a single 'explanation' page that becomes the canonical reference for documentation contributors. (2026-03-15)
+- **Problem solved:** Rules were spread across CLAUDE.md, docs-standard.md, brand.md. New page centralizes them at `docs/internal/dev/documentation-philosophy.md` with links back to upstream Diataxis framework.
+- **Why this works:** Single canonical reference reduces ambiguity, becomes the onboarding/training doc for new contributors, easier to keep in sync. Provides a place for other docs to link to when asking 'why is this doc structured this way?'
+- **Trade-offs:** One place to check/update for all rules (easier maintenance), but requires someone to keep this page in sync with actual practices. Single point of failure if out of date.
+
+### Static generation with Astro `getStaticPaths()` for dynamic routes (`[slug].astro` pages) instead of server-side rendering (2026-03-15)
+- **Context:** Building portfolio with dynamic blog and project detail pages
+- **Why:** Pre-generated static HTML enables Lighthouse 95+ performance, semantic HTML rendering at build-time, static hosting (no server cost), and CDN-friendly caching. Framework renders everything upfront with full control.
+- **Rejected:** Server-side rendering (Next.js, Node.js server) would sacrifice build-time optimizations and require persistent hosting to maintain Lighthouse scores
+- **Trade-offs:** New content requires rebuild/redeploy cycle (via CI/CD) vs instant publishing, but gains: lower hosting cost, better cold-start perf, no server dependencies, predictable performance SLAs
+- **Breaking if changed:** Moving to server-side rendering eliminates static hosting benefits and adds runtime performance overhead. Requires infrastructure change (server scaling, monitoring).
+
+#### [Gotcha] Build-time content collection means new blog posts / projects are invisible until full rebuild completes (2026-03-15)
+- **Situation:** Using Astro Collections API with `getCollection()` fetched at build-time via `getStaticPaths()`
+- **Root cause:** Static generation is a compile-time model, not runtime. Content schema is validated and routes generated during CI/CD, not when server receives requests.
+- **How to avoid:** Trade immediate visibility for reliability (no missed frontmatter fields, type-safe, cached perf). Mitigate with fast CI/CD and web-hook triggers.
+
+#### [Pattern] Centralized SEO meta tag rendering in `BaseLayout.astro` component via accepted props (title, description). All sub-pages inherit SEO consistency. (2026-03-15)
+- **Problem solved:** ~6 pages (about, contact, blog/index, blog/[slug], projects/index, projects/[slug]) need identical meta tag structure (og:*, twitter:card, canonical)
+- **Why this works:** Single source of truth prevents duplication and ensures consistency. Framework-level enforcement means if layout changes meta structure, all pages auto-update. Reduces line count and cognitive load.
+- **Trade-offs:** Child pages must respect layout contract (pass required props) vs full flexibility to override. Gain: 0 duplication, instant schema updates, consistency. Lose: per-page meta overrides require prop drilling.
+
+#### [Pattern] Astro Collections API with schema validation (`content/config.ts`) instead of loose `.md` files in `pages/` directory (2026-03-15)
+- **Problem solved:** Blog posts and projects need consistent structure (frontmatter schema, type safety)
+- **Why this works:** Schema validation catches invalid data at build-time (missing fields, wrong types), enables IDE autocomplete in pages, prevents runtime errors from bad markdown. Type-safe frontmatter is enforced by framework.
+- **Trade-offs:** Schema changes require updates in two places (config.ts + existing content files) vs flexibility to add fields on-the-fly. Gain: type safety, IDE support, build-time validation. Lose: quick ad-hoc additions without validation.
+
+### Integration-based sitemap (`@astrojs/sitemap`) and RSS (`@astrojs/rss`) in `astro.config.mjs` vs manual XML generation (2026-03-15)
+- **Context:** SEO requires sitemap discovery, RSS feed readers expect standard format
+- **Why:** Integrations are declarative (config-driven), automatically discover all routes via Astro's internal route table, handle domain/path logic, maintain spec-compliant XML. Less code, fewer edge cases.
+- **Rejected:** Manual `sitemap.xml.ts` endpoint would give full control but requires manual route enumeration and XML format compliance; error-prone with new routes
+- **Trade-offs:** Config-driven limits customization (e.g., can't exclude routes easily) vs explicit control. Gain: automatic route discovery, less maintenance code, harder to break.
+- **Breaking if changed:** If you remove integrations, you must implement sitemap/RSS from scratch. Integration changes to Astro could affect generation; manual approach gives full control but higher maintenance.
+
+### Created distinct 'astro-react' CodingRulesType variant instead of reusing 'react' rules for portfolio starter (2026-03-15)
+- **Context:** Portfolio is Astro (static site generator) + React islands, fundamentally different from single-page React apps despite sharing React component syntax
+- **Why:** Astro has different mental model: Astro-first component selection, no client: directives by default, Tailwind v4 CSS-first config, static output to disk. Reusing 'react' rules would mislead developers on when to use islands vs static components
+- **Rejected:** Could have added 'useAstro' boolean flag or suffix to existing 'react' rules; would reduce type variants but increase conditional logic and rule conflation
+- **Trade-offs:** More type variants to maintain, but cleaner separation—each variant represents a coherent architectural model
+- **Breaking if changed:** Reusing 'react' rules would cascade wrong guidance: developers treating Astro like an SPA, missing static-first optimization opportunities, misusing client directives
+
+#### [Pattern] CI workflow template selection matched to package manager and deployment target, not build system alone (2026-03-15)
+- **Problem solved:** Portfolio CI uses 'npm ci' and mirrors getDocsCI() structure, while extension CI uses pnpm and different workflow
+- **Why this works:** Package manager affects lock file semantics, caching, and CI performance. Deployment target (Cloudflare Pages) matches docs starter. Reusing wrong template would work but with silent inefficiencies or incompatibilities
+- **Trade-offs:** More CI template variants to maintain, but each is cohesive and directly matches its starter kit's actual tooling. Prevents 'works but slow' scenarios
+
+#### [Pattern] Channel Handler Strategy Pattern: GitHubChannelHandler and UIChannelHandler are pluggable via ChannelRouter, selected based on feature.githubIssueNumber presence (2026-03-15)
+- **Problem solved:** Need to deliver HITL form approval requests to different channels (GitHub issue comments vs in-app UI) without modifying core HITLFormService logic
+- **Why this works:** Strategy pattern allows runtime selection of delivery mechanism. Keeps approval routing decoupled from form creation logic
+- **Trade-offs:** Added layer of indirection and startup wiring, but enables future channel types (Slack, email, etc.) without changing HITLFormService
+
+#### [Gotcha] In-memory pending approval tracking by featureId in GitHubChannelHandler loses state on server restart (2026-03-15)
+- **Situation:** GitHubChannelHandler maintains in-memory keyed map of pending approvals to correlate incoming /approve /reject webhook comments back to specific features
+- **Root cause:** Fast lookup for webhook correlation without database round-trip
+- **How to avoid:** Sub-millisecond lookup vs potential loss of pending approvals on server restart or in multi-server deployments
+
+#### [Gotcha] Module wiring (channel-handlers.module.ts) must execute before pipeline operations but failure is silent—missing call breaks GitHub comment routing without error (2026-03-15)
+- **Situation:** ChannelRouter is set on HITLFormService via setChannelRouter() in channel-handlers.module.ts registration function, which has no validation or error if skipped
+- **Root cause:** Late binding allows dependency injection at startup, avoids constructor coupling
+- **How to avoid:** Flexible ordering vs silent failure mode—missing module wiring leaves default no-op handler in place
+
+#### [Pattern] Silent feature flag gate: HITLFormService.create() returns null when featureFlags.hitlForms is false rather than throwing error (2026-03-15)
+- **Problem solved:** Need to support gradual rollout of HITL form feature without breaking existing pipeline behavior
+- **Why this works:** Null return allows callers to skip form creation logic gracefully; error would force try-catch handling
+- **Trade-offs:** Non-disruptive rollout vs risk of null-reference bugs if callers don't handle null case
+
+#### [Pattern] Dual-path HITL form delivery: GitHubChannelHandler posts approval request and form as GitHub comments; UIChannelHandler relies on hitl:form-requested WebSocket event to surface form in in-app dialog (2026-03-15)
+- **Problem solved:** HITL forms must work both in GitHub issue workflows (for GitHub-originating features) and in in-app UI (for direct board features)
+- **Why this works:** Separates approval notification (routed via ChannelHandler) from form data transport (WebSocket event). Allows both surfaces to be implemented independently
+- **Trade-offs:** Two systems must stay in sync; more moving parts but cleaner separation of concerns between GitHub and UI flows
+
+#### [Pattern] Automatic fallback to UIChannelHandler when githubIssueNumber is missing from feature (2026-03-15)
+- **Problem solved:** GitHubChannelHandler delegates to UIChannelHandler automatically when feature lacks GitHub issue association
+- **Why this works:** Graceful degradation—forms still work via UI channel even if GitHub issue data missing; no explicit error path needed
+- **Trade-offs:** Silent degradation vs explicit error—developers may not realize forms aren't going to GitHub
+
+#### [Gotcha] Path resolution for starter kits uses relative paths from __dirname, assuming a specific dist structure. The function resolveStarterDir() hardcodes '../starters/<kit>' relative to dist output. (2026-03-15)
+- **Situation:** Monorepo with compiled output. Starter kits need to be accessible from both dev and production builds.
+- **Root cause:** Simple and works for the current build configuration, but creates brittle coupling to output structure.
+- **How to avoid:** Simple implementation vs. fragility to build structure changes. Any change to how libs/templates is emitted to dist will break this.
+
+#### [Pattern] Configuration substitution uses regex matching on placeholder values (e.g., /site:\s*['"]https:\/\/[^'"]+['"]/) rather than template variables. Replaces found patterns with substituted values. (2026-03-15)
+- **Problem solved:** Need to customize starter templates (project name, domain, title) after copying from static directory.
+- **Why this works:** Pragmatic: avoids adding a templating dependency or modifying starter source files. Starters remain plain Astro projects.
+- **Trade-offs:** Simple, zero extra dependencies vs. extremely brittle. If starter's astro.config format changes, regex silently fails to match.
+
+#### [Pattern] copyDir() explicitly skips node_modules and package-lock.json during recursive copy. Copies source only, expects npm install in target. (2026-03-15)
+- **Problem solved:** Avoid copying dependency artifacts when scaffolding a new project directory.
+- **Why this works:** Clean slate principle: (1) reduces copy size, (2) avoids platform-specific compiled binaries, (3) ensures fresh dependency resolution in target environment.
+- **Trade-offs:** Smaller/cleaner copy but requires npm install in output dir before project is runnable. Caller must handle dependency installation.
+
+### Scaffold executes after project creation succeeds, with failures non-blocking (scaffold errors do not fail project creation) (2026-03-15)
+- **Context:** Starter kit template scaffolding could happen during project initiation or after. Chose post-creation.
+- **Why:** Decouples template scaffolding from core project creation atomicity. Project exists even if scaffolding fails. Prevents cascading failures when template libraries have issues.
+- **Rejected:** Atomic scaffolding-during-creation would simplify error handling but would fail entire project creation if any template library issue occurs. Leaves incomplete projects on failure.
+- **Trade-offs:** Simpler error handling vs. guaranteed project existence. Users get a project even if docs/portfolio setup partially fails. Requires separate error reporting for scaffold phase.
+- **Breaking if changed:** If scaffold failures become critical, changing to atomic pattern requires migrations for partially-scaffolded projects. Affects monitoring/alerting expectations.
+
+### Scaffold logic routed under /api/setup/* (existing setup routes) rather than under /api/projects/* or new dedicated /api/templates/* (2026-03-15)
+- **Context:** Three options for scaffold endpoint placement: setup (project initialization phase), projects (lifecycle management), or templates (template concern).
+- **Why:** Setup routes handle all project-creation-time operations. Semantically correct: scaffolding is setup work, not lifecycle. Reuses setup auth/validation. Logically groups related initialization endpoints.
+- **Rejected:** /api/projects/* mixes initialization concerns with project management. /api/templates/* creates new service boundary for single use case. Separate templating service premature.
+- **Trade-offs:** Clear semantic grouping vs. flatter API surface. Reuses setup middleware vs. duplicating auth. Mirrors product's setup-phase concept in routing vs. generic projects hierarchy.
+- **Breaking if changed:** Moving scaffold to /api/projects/* breaks routing assumption. If setup routes are ever removed/refactored, orphans scaffold endpoint. Route deprecation ripples.
+
+#### [Pattern] Use framework build helpers (generateSidebar) for content auto-discovery rather than manual registration in config (2026-03-15)
+- **Problem solved:** Adding templates section to VitePress documentation required sidebar configuration without page-by-page code changes
+- **Why this works:** Auto-discovery eliminates registration bottleneck—new .md files automatically appear without modifying config. Scales documentation addition from O(n) code changes to O(1).
+- **Trade-offs:** Self-maintaining documentation structure (+), but alphabetical ordering is fixed and not customizable via config alone (-)
+
+### Only document starter kits that exist as buildable templates with actual files, not those referenced in code but not yet implemented (2026-03-15)
+- **Context:** Extension starter exists in CLI but has no template files yet. Docs and portfolio starters are complete and usable.
+- **Why:** Documenting incomplete features creates broken user journeys and documentation debt. Users cannot scaffold non-existent templates. Better to add guides when feature ships.
+- **Rejected:** Documenting future/planned starters is lower effort now but creates maintenance burden and customer confusion
+- **Trade-offs:** Smaller documentation scope, higher trust in docs (+), but requires process discipline to add extension guide when that kit is built (-)
+- **Breaking if changed:** If extension starter ships without docs, users have no guide. If docs exist for templates that can't be scaffolded, user hits broken onboarding.
+
+#### [Pattern] Use relative cross-section links (../guides/*, ../self-hosting/*) within documentation to establish navigational relationships without URL fragility (2026-03-15)
+- **Problem solved:** Starter kit guides reference existing documentation sections across different hierarchies (guides, self-hosting). ignoreDeadLinks validation requires references to resolve.
+- **Why this works:** Relative links work in local preview and deployed site regardless of base URL or domain. Creates true site relationships that survive restructuring better than absolute URLs.
+- **Trade-offs:** Relative links work anywhere (+), but break if referenced sections move or are renamed (-). Requires documentation structure stability.

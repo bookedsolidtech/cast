@@ -5,9 +5,9 @@ relevantTo: [api]
 importance: 0.7
 relatedFiles: []
 usageStats:
-  loaded: 534
-  referenced: 141
-  successfulFeatures: 141
+  loaded: 551
+  referenced: 151
+  successfulFeatures: 151
 ---
 <!-- domain: API Design & Integration | GitHub GraphQL, REST endpoints, HTTP client patterns -->
 
@@ -259,3 +259,32 @@ usageStats:
 - **Problem solved:** Tools define what they accept but sometimes output validation is skipped as optional
 - **Why this works:** Input schema validates data from tool consumer; output schema validates data from tool provider. Without output schema, return values are unvalidated, breaking type safety on consumer side.
 - **Trade-offs:** More schema code to maintain, but ensures bidirectional type coverage
+
+### Granular API: separate getDesignTokensCss() (full preset) from getDesignTokensThemeBlock() (@theme block only) (2026-03-14)
+- **Context:** Different projects need different integration patterns—some want to replace entire CSS file, others want to merge @theme block into existing file
+- **Why:** Full preset includes resets and utilities; @theme block is composable into existing CSS. Splitting allows both patterns without forcing consumers to parse or filter.
+- **Rejected:** Single function returning full preset would force consumers who want partial integration to extract the @theme block themselves or duplicate the tokens
+- **Trade-offs:** Slightly higher API surface, but consumers get exactly what they need without workarounds. Maintenance burden is minimal (both generated from same source).
+- **Breaking if changed:** Removing getDesignTokensThemeBlock() breaks any consumer merging into existing CSS; must rebuild their CSS if removed
+
+#### [Pattern] String-based exports (CSS strings as functions) rather than pre-built Tailwind config objects (2026-03-14)
+- **Problem solved:** Could have exported ready-made Tailwind theme config or preset plugin directly, but chose to export raw CSS/token strings
+- **Why this works:** Strings are format-agnostic and composable—consumers can integrate into Tailwind v4 CSS-first, PostCSS, or even non-Tailwind pipelines. Pre-built objects would lock to one integration method.
+- **Trade-offs:** Consumer has to understand how to integrate the string (more responsibility), but maximum flexibility. Upside: works with Tailwind v3, v4, PostCSS plugins, etc.
+
+#### [Pattern] Discriminated union (CodingRulesType) enables extensible function dispatch without modifying getCodingRules() logic (2026-03-15)
+- **Problem solved:** Each new framework variant ('react', 'astro-react', etc.) is a distinct type case, not a parameter to existing rules
+- **Why this works:** Allows adding new framework types without changing getCodingRules() signature or adding conditionals; compiler enforces exhaustiveness when new types are added
+- **Trade-offs:** Requires updating getStarterFeatures() switch statement for new types, but compiler catches missing cases. More type definitions, clearer contracts
+
+### ScaffoldResult.filesCreated only includes top-level entries (from readdir), not recursive file listing. Caller gets partial visibility into what was created. (2026-03-15)
+- **Context:** Report what files were created during scaffolding for logging/UI display.
+- **Why:** Reduces verbosity for large starters (100+ files). Top-level entries sufficient for 'success' indication without overwhelming output.
+- **Rejected:** Recursive file listing - would be complete but massive for Astro projects with nested directories.
+- **Trade-offs:** Cleaner reporting vs. incomplete insight. Caller can't easily verify all files were copied.
+- **Breaking if changed:** If a subdirectory fails to copy, caller won't detect it from filesCreated. Need separate verification (e.g., check output dir size) to detect partial failures.
+
+#### [Pattern] Hook (useCreateProject) conditionally orchestrates two async operations: initiate() then conditional scaffoldStarterKit(). Scaffold only runs if starterKit param provided. (2026-03-15)
+- **Problem solved:** Two server calls needed: project creation, then optional template scaffolding. Hook must coordinate.
+- **Why this works:** Keeps project initialization decoupled from scaffolding logic. Hook consumer decides whether to scaffold. Allows scaffold to be optional/future-feature without core hook changes.
+- **Trade-offs:** Conditional logic in hook adds complexity vs. simpler hook doing one thing. Hook consumer has control (testable) vs. implicit behavior. Two separate routes vs. unified project-creation endpoint.
