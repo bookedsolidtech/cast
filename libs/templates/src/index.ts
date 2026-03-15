@@ -52,7 +52,11 @@ export { getDocsCI, getExtensionCI } from './ci.js';
 export { getDocsStarterContext, getPortfolioStarterContext } from './starters.js';
 
 // Starter kit scaffolding (copies Astro projects with name/config substitution)
-export { scaffoldDocsStarter, scaffoldPortfolioStarter } from './scaffold.js';
+export {
+  scaffoldDocsStarter,
+  scaffoldPortfolioStarter,
+  scaffoldGeneralStarter,
+} from './scaffold.js';
 export type { ScaffoldResult } from './scaffold.js';
 
 // Design tokens

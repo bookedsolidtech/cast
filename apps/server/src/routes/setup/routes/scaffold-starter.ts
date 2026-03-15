@@ -2,13 +2,17 @@ import type { RequestHandler } from 'express';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { createLogger } from '@protolabsai/utils';
-import { scaffoldDocsStarter, scaffoldPortfolioStarter } from '@protolabsai/templates';
+import {
+  scaffoldDocsStarter,
+  scaffoldPortfolioStarter,
+  scaffoldGeneralStarter,
+} from '@protolabsai/templates';
 
 const logger = createLogger('setup:scaffold-starter');
 
 interface ScaffoldStarterRequest {
   projectPath: string;
-  kitType: 'docs' | 'portfolio';
+  kitType: 'docs' | 'portfolio' | 'general';
   projectName?: string;
 }
 
@@ -42,12 +46,12 @@ export function createScaffoldStarterHandler(): RequestHandler<
         return;
       }
 
-      if (!kitType || (kitType !== 'docs' && kitType !== 'portfolio')) {
+      if (!kitType || !['docs', 'portfolio', 'general'].includes(kitType)) {
         res.status(400).json({
           success: false,
           outputDir: '',
           filesCreated: [],
-          error: 'kitType must be "docs" or "portfolio"',
+          error: 'kitType must be "docs", "portfolio", or "general"',
         });
         return;
       }
@@ -98,10 +102,12 @@ export function createScaffoldStarterHandler(): RequestHandler<
 
       logger.info('Scaffolding starter kit', { kitType, projectPath: realPath });
 
-      const result =
-        kitType === 'docs'
-          ? await scaffoldDocsStarter(options)
-          : await scaffoldPortfolioStarter(options);
+      const scaffolders = {
+        docs: scaffoldDocsStarter,
+        portfolio: scaffoldPortfolioStarter,
+        general: scaffoldGeneralStarter,
+      };
+      const result = await scaffolders[kitType](options);
 
       if (!result.success) {
         logger.error('Scaffold failed', { error: result.error });

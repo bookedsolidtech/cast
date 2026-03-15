@@ -457,7 +457,7 @@ export const withSetupClient = <TBase extends Constructor<BaseHttpClient>>(Base:
 
       scaffoldStarterKit: (
         projectPath: string,
-        kitType: 'docs' | 'portfolio',
+        kitType: 'docs' | 'portfolio' | 'general',
         projectName?: string
       ): Promise<{
         success: boolean;

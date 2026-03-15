@@ -87,13 +87,22 @@ export function useProjectCreation({ upsertAndSetCurrentProject }: UseProjectCre
     async (projectName: string, parentDir: string) => {
       setIsCreatingProject(true);
       try {
-        const api = getElectronAPI();
         const projectPath = `${parentDir}/${projectName}`;
 
-        // Create project directory
-        await api.mkdir(projectPath);
+        // Scaffold blank project via server endpoint
+        const { getHttpApiClient } = await import('@/lib/http-api-client');
+        const httpClient = getHttpApiClient();
+        const scaffoldResult = await httpClient.setup.scaffoldStarterKit(
+          projectPath,
+          'general',
+          projectName
+        );
 
-        // Finalize project setup
+        if (!scaffoldResult.success) {
+          throw new Error(scaffoldResult.error || 'Failed to scaffold project');
+        }
+
+        // Finalize project setup (git init, store registration, etc.)
         await finalizeProjectCreation(projectPath, projectName);
       } catch (error) {
         logger.error('Failed to create blank project:', error);

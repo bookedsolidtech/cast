@@ -21,7 +21,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  * Resolve the path to a starter kit directory.
  * Works from both the compiled `dist/` and the `src/` directory during dev.
  */
-function resolveStarterDir(kitName: 'docs' | 'portfolio'): string {
+function resolveStarterDir(kitName: 'docs' | 'portfolio' | 'general'): string {
   // From dist/: ../starters/<kit>  (libs/templates/starters/<kit>)
   const fromDist = path.resolve(__dirname, '..', 'starters', kitName);
   return fromDist;
@@ -157,6 +157,62 @@ export async function scaffoldPortfolioStarter(options: ScaffoldOptions): Promis
     await applySubstitutions(outputDir, projectName);
 
     // List top-level created entries for reporting
+    const entries = await fs.readdir(outputDir);
+    filesCreated.push(...entries.map((e) => path.join(outputDir, e)));
+
+    return { success: true, outputDir, filesCreated };
+  } catch (error) {
+    return {
+      success: false,
+      outputDir,
+      filesCreated,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+/**
+ * Scaffold a blank **general** project at `options.outputDir`.
+ *
+ * Copies `starters/general/` to the output directory — provides the
+ * standard `.automaker/` structure (settings, categories, context, features).
+ */
+export async function scaffoldGeneralStarter(options: ScaffoldOptions): Promise<ScaffoldResult> {
+  const { projectName, outputDir } = options;
+  const filesCreated: string[] = [];
+
+  try {
+    const starterDir = resolveStarterDir('general');
+    await copyDir(starterDir, outputDir);
+
+    // Write app_spec.txt with the project name
+    const specPath = path.join(outputDir, '.automaker', 'app_spec.txt');
+    await fs.mkdir(path.dirname(specPath), { recursive: true });
+    await fs.writeFile(
+      specPath,
+      `<project_specification>
+  <project_name>${projectName}</project_name>
+
+  <overview>
+    Describe your project here. This file will be analyzed by an AI agent
+    to understand your project structure and tech stack.
+  </overview>
+
+  <technology_stack>
+    <!-- The AI agent will fill this in after analyzing your project -->
+  </technology_stack>
+
+  <core_capabilities>
+    <!-- List core features and capabilities -->
+  </core_capabilities>
+
+  <implemented_features>
+    <!-- The AI agent will populate this based on code analysis -->
+  </implemented_features>
+</project_specification>\n`,
+      'utf-8'
+    );
+
     const entries = await fs.readdir(outputDir);
     filesCreated.push(...entries.map((e) => path.join(outputDir, e)));
 
