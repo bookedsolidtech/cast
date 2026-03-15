@@ -1,5 +1,24 @@
 # @protolabsai/types
 
+## 0.59.0
+
+### Minor Changes
+
+- ### Features
+  - wire docs and portfolio starter kits into onboarding modal
+  - wire docs and portfolio starter kits into onboarding modal
+
+  ### Bug Fixes
+  - remove starter kit selection from projects-view new project dialog
+  - remove @astrojs/cloudflare adapter from docs starter
+  - remove starter kit selection from projects-view new project dialog
+  - remove @astrojs/cloudflare adapter from docs starter
+  - sync package-lock.json for staging Docker build
+
+  ### Refactors
+  - consolidate blank project creation into general starter scaffold
+  - consolidate blank project creation into general starter scaffold
+
 ## 0.58.0
 
 ### Minor Changes
