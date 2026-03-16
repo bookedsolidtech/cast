@@ -67,6 +67,8 @@ export interface PipelineRunner {
  */
 export interface SchedulerCallbacks {
   getRunningCountForWorktree(projectPath: string, branchName: string | null): Promise<number>;
+  /** Total running agents across ALL projects (for global capacity gate). */
+  getGlobalRunningCount(): number;
   hasInProgressFeatures(projectPath: string, branchName: string | null): Promise<boolean>;
   isFeatureRunning(featureId: string): boolean;
   isFeatureActiveInPipeline(featureId: string): boolean;
@@ -269,6 +271,16 @@ export class FeatureScheduler {
         if (totalOccupied >= projectState.config.maxConcurrency) {
           logger.debug(
             `[AutoLoop] At capacity (${projectRunningCount} running + ${startingCount} starting = ${totalOccupied}/${projectState.config.maxConcurrency}), waiting...`
+          );
+          await this.callbacks.sleep(SLEEP_INTERVAL_CAPACITY_MS);
+          continue;
+        }
+
+        // Global capacity gate: prevent cross-app overcommit
+        const globalRunning = this.callbacks.getGlobalRunningCount();
+        if (globalRunning >= MAX_SYSTEM_CONCURRENCY) {
+          logger.debug(
+            `[AutoLoop] Global capacity reached (${globalRunning}/${MAX_SYSTEM_CONCURRENCY} across all apps), waiting...`
           );
           await this.callbacks.sleep(SLEEP_INTERVAL_CAPACITY_MS);
           continue;

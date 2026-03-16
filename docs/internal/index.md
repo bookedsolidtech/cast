@@ -4,6 +4,10 @@ Development documentation for the automaker team. Architecture decisions, operat
 
 This directory is NOT included in the public VitePress build. Content here is for contributors and operators, not end users.
 
+## Portfolio
+
+- [Portfolio Operating Model](./portfolio-philosophy.md)
+
 ## Agents
 
 - [SDK Integration](./agents/sdk-integration.md)
