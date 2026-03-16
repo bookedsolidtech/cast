@@ -4,7 +4,7 @@ Aggressively remove all dead pipeline/flow infrastructure (~2,000 lines of disab
 
 **Status:** active
 **Created:** 2026-03-14T20:48:29.493Z
-**Updated:** 2026-03-14T23:19:06.319Z
+**Updated:** 2026-03-16T18:46:44.274Z
 
 ## Research Summary
 
@@ -45,7 +45,7 @@ Remove PipelineOrchestrator, PipelineService, PipelineCheckpointService and all 
 #### Phases
 
 1. **Delete PipelineOrchestrator and engine pipeline routes** (medium)
-2. **Delete PipelineService and /api/pipeline/* routes** (medium)
+2. **Delete PipelineService and /api/pipeline/\* routes** (medium)
 3. **Delete PipelineCheckpointService and remove featureFlags.pipeline** (medium)
 
 ### 2. Flow Library and Registry Cleanup

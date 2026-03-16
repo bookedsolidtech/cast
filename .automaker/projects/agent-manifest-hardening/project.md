@@ -4,7 +4,7 @@ Address remaining gaps from the agent manifest audit: type safety, API correctne
 
 **Status:** completed
 **Created:** 2026-03-13T22:43:34.040Z
-**Updated:** 2026-03-15T05:06:19.395Z
+**Updated:** 2026-03-16T18:46:44.009Z
 
 ## PRD
 
@@ -14,7 +14,7 @@ The Project-Level Agent Extensions system shipped in v0.53.0 with 12 features co
 
 ### Problem
 
-Several issues reduce reliability and correctness: (1) /api/agents/get returns null capabilities for built-in roles, (2) AgentManifestService not disposed on shutdown leaks fs.watch handles, (3) pipeline execution path has no auto-assignment, (4) _builtIn flag is untyped, (5) confidence score hardcoded to 1.0, (6) manifestPaths setting declared but never consumed, (7) fs.watch recursive:true is a no-op on Linux, (8) no route or integration tests, (9) docs have inaccuracies.
+Several issues reduce reliability and correctness: (1) /api/agents/get returns null capabilities for built-in roles, (2) AgentManifestService not disposed on shutdown leaks fs.watch handles, (3) pipeline execution path has no auto-assignment, (4) \_builtIn flag is untyped, (5) confidence score hardcoded to 1.0, (6) manifestPaths setting declared but never consumed, (7) fs.watch recursive:true is a no-op on Linux, (8) no route or integration tests, (9) docs have inaccuracies.
 
 ### Approach
 
@@ -50,7 +50,7 @@ Improve type soundness and make confidence scores meaningful
 
 #### Phases
 
-1. **Type the _builtIn flag on ProjectAgent** (small)
+1. **Type the \_builtIn flag on ProjectAgent** (small)
 2. **Calculate confidence from match score** (small)
 3. **Remove or implement manifestPaths setting** (small)
 
