@@ -282,6 +282,7 @@ export class AutoModeService {
     };
     const schedulerCallbacks: SchedulerCallbacks = {
       getRunningCountForWorktree: this.getRunningCountForWorktree.bind(this),
+      getGlobalRunningCount: () => this.concurrencyManager.size,
       hasInProgressFeatures: this.hasInProgressFeatures.bind(this),
       isFeatureRunning: this.isFeatureRunning.bind(this),
       isFeatureActiveInPipeline: (featureId: string) =>

@@ -366,7 +366,9 @@ export type EventType =
   // Deployment tracking events (CI/CD pipeline event capture)
   | 'deploy:started'
   | 'deploy:succeeded'
-  | 'deploy:failed';
+  | 'deploy:failed'
+  // Signal dictionary events (portfolio attention engine)
+  | 'signal:triggered';
 
 export type EventCallback = (type: EventType, payload: unknown) => void;
 
@@ -962,6 +964,14 @@ export interface EventPayloadMap {
     rolledBack: boolean;
     durationMs: number;
     timestamp: string;
+  };
+
+  // Signal dictionary events (portfolio attention engine)
+  'signal:triggered': {
+    signalName: string;
+    currentValue: number;
+    category: import('./signal-dictionary.js').SignalCategory;
+    context: import('./signal-dictionary.js').SignalContext;
   };
 }
 

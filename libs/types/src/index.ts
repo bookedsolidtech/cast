@@ -888,6 +888,19 @@ export type {
 export type { SignalChannel, SignalMetadata } from './signal-channel.js';
 export type { SignalIntent, RecentSignal, RecentSignalStatus } from './signal-intent.js';
 
+// Signal Dictionary types (portfolio attention engine — threshold-based escalation)
+export type {
+  SignalCategory,
+  SignalName,
+  SignalThreshold,
+  SignalDefinition,
+  SignalThresholdOverride,
+  SignalDictionaryConfig,
+  SignalContext,
+  SignalEvaluation,
+} from './signal-dictionary.js';
+export { DEFAULT_SIGNAL_DEFINITIONS } from './signal-dictionary.js';
+
 // Channel Router types (HITL routing interface)
 export type { ChannelHandler } from './channel-router.js';
 

@@ -82,6 +82,8 @@ import { NotificationRouter } from '../services/notification-router.js';
 import { JobExecutorService } from '../services/job-executor-service.js';
 import { DoraMetricsService } from '../services/dora-metrics-service.js';
 import { DeploymentTrackerService } from '../services/deployment-tracker-service.js';
+import { SignalDictionaryService } from '../services/signal-dictionary-service.js';
+import { ProjectHealthService } from '../services/project-health-service.js';
 import { MetricsCollectionService } from '../services/metrics-collection-service.js';
 import { ErrorBudgetService } from '../services/error-budget-service.js';
 import {
@@ -281,6 +283,12 @@ export interface ServiceContainer {
   // Deployment tracking (real CI/CD pipeline event capture for DORA metrics)
   deploymentTrackerService: DeploymentTrackerService;
 
+  // Signal Dictionary (portfolio attention engine — threshold-based escalation)
+  signalDictionaryService: SignalDictionaryService;
+
+  // Project Health (auto-computed from signals, milestones, WIP, blocked features)
+  projectHealthService: ProjectHealthService;
+
   // DORA metrics collection (event-driven time-series collector, persists to .automaker/metrics/dora.json)
   metricsCollectionService: MetricsCollectionService;
 
@@ -453,6 +461,13 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
   // Actionable Items Service with event emitter
   const actionableItemService = getActionableItemService();
 
+  // Signal Dictionary Service — portfolio attention engine (threshold-based escalation)
+  const signalDictionaryService = new SignalDictionaryService(
+    actionableItemService,
+    events,
+    settingsService
+  );
+
   // Actionable Item Bridge — auto-creates items from HITL forms, notifications, escalations, pipeline gates
   const actionableItemBridge = new ActionableItemBridgeService({
     actionableItemService,
@@ -518,6 +533,14 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
 
   const projectService = new ProjectService(featureLoader, events);
   projectService.setCalendarService(calendarService);
+
+  // Project Health Service — auto-computes on-track/at-risk/off-track from signals
+  const projectHealthService = new ProjectHealthService(
+    projectService,
+    featureLoader,
+    settingsService,
+    events
+  );
 
   // Project Lifecycle Service
   const projectLifecycleService = new ProjectLifecycleService(
@@ -930,6 +953,8 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
     todoService,
     doraMetricsService,
     deploymentTrackerService,
+    signalDictionaryService,
+    projectHealthService,
     metricsCollectionService,
     errorBudgetService,
     frictionTrackerService,
