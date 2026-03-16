@@ -44,20 +44,6 @@
     "updatedAt": "2026-03-16T18:59:57.716Z"
   },
   {
-    "title": "Ceremonies: lossless-context-management-agent-resilience",
-    "date": "2026-03-16",
-    "type": "ceremony",
-    "description": "Recurring standup and retro ceremonies for project lossless-context-management-agent-resilience",
-    "recurrence": {
-      "frequency": "daily"
-    },
-    "id": "event-1773689203169-eq0uhl1au",
-    "projectPath": "/Users/kj/dev/automaker",
-    "sourceId": "ceremony:lossless-context-management-agent-resilience",
-    "createdAt": "2026-03-16T19:26:43.166Z",
-    "updatedAt": "2026-03-16T19:26:43.166Z"
-  },
-  {
     "title": "Started: Context Engine Types & Package Scaffold",
     "date": "2026-03-16",
     "type": "ops",
@@ -452,5 +438,60 @@
     "sourceId": "ops:feature:started:feature-1773689186220-t3hv64wzd",
     "createdAt": "2026-03-16T21:56:01.113Z",
     "updatedAt": "2026-03-16T21:56:01.113Z"
+  },
+  {
+    "title": "Merged: [Epic] Retrieval Tools & Large File Handling",
+    "date": "2026-03-16",
+    "type": "ops",
+    "description": "Feature PR merged",
+    "id": "event-1773699750272-zb2xsfqti",
+    "projectPath": "/Users/kj/dev/automaker",
+    "sourceId": "ops:feature:pr-merged:feature-1773689186217-p98tv4d52",
+    "createdAt": "2026-03-16T22:22:30.257Z",
+    "updatedAt": "2026-03-16T22:22:30.257Z"
+  },
+  {
+    "title": "Completed: Agent Service Integration",
+    "date": "2026-03-16",
+    "type": "ops",
+    "description": "Feature implementation completed",
+    "id": "event-1773700161394-khx17ps52",
+    "projectPath": "/Users/kj/dev/automaker",
+    "sourceId": "ops:feature:completed:feature-1773689186220-t3hv64wzd",
+    "createdAt": "2026-03-16T22:29:21.391Z",
+    "updatedAt": "2026-03-16T22:29:21.391Z"
+  },
+  {
+    "title": "Started: Configuration & Settings Wiring",
+    "date": "2026-03-16",
+    "type": "ops",
+    "description": "Feature implementation started",
+    "id": "event-1773700632965-23mnrp7vt",
+    "projectPath": "/Users/kj/dev/automaker",
+    "sourceId": "ops:feature:started:feature-1773689186221-v7nt11awz",
+    "createdAt": "2026-03-16T22:37:12.950Z",
+    "updatedAt": "2026-03-16T22:37:12.950Z"
+  },
+  {
+    "title": "Completed: Configuration & Settings Wiring",
+    "date": "2026-03-16",
+    "type": "ops",
+    "description": "Feature implementation completed",
+    "id": "event-1773701216278-8wgo0sd40",
+    "projectPath": "/Users/kj/dev/automaker",
+    "sourceId": "ops:feature:completed:feature-1773689186221-v7nt11awz",
+    "createdAt": "2026-03-16T22:46:56.275Z",
+    "updatedAt": "2026-03-16T22:46:56.275Z"
+  },
+  {
+    "title": "Merged: feature-1773689186221-v7nt11awz",
+    "date": "2026-03-16",
+    "type": "ops",
+    "description": "Feature PR merged",
+    "id": "event-1773701365205-lqfp6f7ah",
+    "projectPath": "/Users/kj/dev/automaker",
+    "sourceId": "ops:feature:pr-merged:feature-1773689186221-v7nt11awz",
+    "createdAt": "2026-03-16T22:49:25.187Z",
+    "updatedAt": "2026-03-16T22:49:25.187Z"
   }
 ]
