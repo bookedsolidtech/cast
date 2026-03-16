@@ -5,11 +5,10 @@ relevantTo: [gotcha]
 importance: 0.7
 relatedFiles: []
 usageStats:
-  loaded: 1
+  loaded: 2
   referenced: 1
   successfulFeatures: 1
 ---
-
 # gotcha
 
 #### [Gotcha] String literal references vs code imports are different usage types. Server code had `"revise"` as string literals in configuration, not imported the function. Grep-based search found no imports, correctly indicating the export was dead. (2026-03-14)

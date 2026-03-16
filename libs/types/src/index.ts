@@ -1039,3 +1039,10 @@ export type {
   MaintenanceCheckResult,
   MaintenanceSweepResult,
 } from './maintenance.js';
+
+// Webhook delivery tracking types (transient in-memory operational data)
+export type {
+  WebhookDeliveryStatus,
+  WebhookDeliverySource,
+  WebhookDelivery,
+} from './webhook-delivery.js';

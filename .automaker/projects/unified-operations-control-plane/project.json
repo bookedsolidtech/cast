@@ -32,8 +32,8 @@
             "Unit tests cover registration, pause/resume, metrics, error handling"
           ],
           "complexity": "medium",
-          "featureId": "feature-1773612385832-l0cyrf6jr",
-          "executionStatus": "blocked"
+          "featureId": "feature-1773616179688-cxte3sllq",
+          "executionStatus": "in-progress"
         },
         {
           "number": 2,
@@ -54,7 +54,8 @@
             "New integration test verifies registration on startup"
           ],
           "complexity": "medium",
-          "featureId": "feature-1773612385834-yup04fslw"
+          "featureId": "feature-1773612385834-yup04fslw",
+          "executionStatus": "in-progress"
         },
         {
           "number": 3,
@@ -76,7 +77,8 @@
             "Existing unit tests still pass"
           ],
           "complexity": "medium",
-          "featureId": "feature-1773612385835-dd69slcob"
+          "featureId": "feature-1773616179690-dfbeqx3wb",
+          "executionStatus": "in-progress"
         },
         {
           "number": 4,
@@ -97,7 +99,8 @@
             "Existing tests pass"
           ],
           "complexity": "medium",
-          "featureId": "feature-1773612385836-ex0d457su"
+          "featureId": "feature-1773612385836-ex0d457su",
+          "executionStatus": "in-progress"
         },
         {
           "number": 5,
@@ -118,10 +121,11 @@
             "API tests cover all endpoints"
           ],
           "complexity": "medium",
-          "featureId": "feature-1773612385838-ivro6dr4d"
+          "featureId": "feature-1773612385838-ivro6dr4d",
+          "executionStatus": "in-progress"
         }
       ],
-      "status": "pending",
+      "status": "completed",
       "epicId": "feature-1773612385829-vu7v91w7q"
     },
     {
@@ -150,7 +154,8 @@
             "Unit tests for orchestrator"
           ],
           "complexity": "medium",
-          "featureId": "feature-1773612385841-ab0ff6n3d"
+          "featureId": "feature-1773616179696-kjukobvcr",
+          "executionStatus": "in-progress"
         },
         {
           "number": 2,
@@ -174,7 +179,8 @@
             "No duplicate logic across checks"
           ],
           "complexity": "large",
-          "featureId": "feature-1773612385842-5xjq6i6ue"
+          "featureId": "feature-1773616179698-21ixxfbz1",
+          "executionStatus": "in-review"
         },
         {
           "number": 3,
@@ -199,11 +205,12 @@
             "Integration test runs full sweep"
           ],
           "complexity": "large",
-          "featureId": "feature-1773612385844-pw6erg4hu"
+          "featureId": "feature-1773612385844-pw6erg4hu",
+          "executionStatus": "pending"
         }
       ],
       "status": "pending",
-      "epicId": "feature-1773612385840-ajr0tmmqr"
+      "epicId": "feature-1773616179694-uh2osoulv"
     },
     {
       "number": 3,
@@ -232,7 +239,8 @@
             "Unit tests for recurrence expansion and timezone"
           ],
           "complexity": "medium",
-          "featureId": "feature-1773612385847-6gz9jxdyv"
+          "featureId": "feature-1773616179702-3e7nkbg6x",
+          "executionStatus": "in-progress"
         },
         {
           "number": 2,
@@ -254,7 +262,8 @@
             "Unit tests verify event-to-calendar mapping"
           ],
           "complexity": "medium",
-          "featureId": "feature-1773612385848-7zrfqabk2"
+          "featureId": "feature-1773616179704-xh7xlpcp7",
+          "executionStatus": "completed"
         },
         {
           "number": 3,
@@ -277,11 +286,12 @@
             "Conflict warnings on overlapping jobs"
           ],
           "complexity": "medium",
-          "featureId": "feature-1773612385849-a2hi4bd53"
+          "featureId": "feature-1773616179705-fqn6llbu9",
+          "executionStatus": "in-progress"
         }
       ],
       "status": "pending",
-      "epicId": "feature-1773612385846-l86ef9vgt"
+      "epicId": "feature-1773616179701-jnbhiy8gw"
     },
     {
       "number": 4,
@@ -311,7 +321,7 @@
             "Unit tests for retry and idempotency"
           ],
           "complexity": "medium",
-          "featureId": "feature-1773612385852-82mwdqg82"
+          "featureId": "feature-1773616179709-xohtdryf0"
         },
         {
           "number": 2,
@@ -335,7 +345,7 @@
             "Unit tests for rate limiting and dual-secret"
           ],
           "complexity": "medium",
-          "featureId": "feature-1773612385853-w17nynupi"
+          "featureId": "feature-1773616179710-tflbs6fbw"
         },
         {
           "number": 3,
@@ -357,11 +367,11 @@
             "Integration test for end-to-end flow"
           ],
           "complexity": "medium",
-          "featureId": "feature-1773612385854-ixuvd1qhi"
+          "featureId": "feature-1773616179711-a5xzcejbs"
         }
       ],
       "status": "pending",
-      "epicId": "feature-1773612385851-qs0paa3uw"
+      "epicId": "feature-1773616179707-py5gbjkdf"
     },
     {
       "number": 5,
@@ -389,7 +399,7 @@
             "Responsive layout"
           ],
           "complexity": "medium",
-          "featureId": "feature-1773612385856-c1q8ua9y0"
+          "featureId": "feature-1773616179714-ea8uvh26i"
         },
         {
           "number": 2,
@@ -411,7 +421,7 @@
             "Empty states handled"
           ],
           "complexity": "medium",
-          "featureId": "feature-1773612385857-1azqmpq3t"
+          "featureId": "feature-1773616179715-dyjxr1r0u"
         },
         {
           "number": 3,
@@ -432,11 +442,11 @@
             "Auto-refresh on 30s interval"
           ],
           "complexity": "medium",
-          "featureId": "feature-1773612385858-444yzlpiv"
+          "featureId": "feature-1773616179717-ogl4ig4l4"
         }
       ],
       "status": "pending",
-      "epicId": "feature-1773612385855-xoawd5ayz"
+      "epicId": "feature-1773616179713-rhro1kehe"
     },
     {
       "number": 6,
@@ -464,7 +474,7 @@
             "Unit tests for trace creation and sampling"
           ],
           "complexity": "medium",
-          "featureId": "feature-1773612385861-qfeb5f3sh"
+          "featureId": "feature-1773616179718-21fpkdt3e"
         },
         {
           "number": 2,
@@ -486,7 +496,7 @@
             "Unit tests for DORA calculations"
           ],
           "complexity": "medium",
-          "featureId": "feature-1773612385862-wrwff43c0"
+          "featureId": "feature-1773616179719-lrctvyrrv"
         },
         {
           "number": 3,
@@ -512,13 +522,14 @@
             "Under 800 lines per page"
           ],
           "complexity": "medium",
-          "featureId": "feature-1773612385863-d84tdzcqs"
+          "featureId": "feature-1773616179720-4per67zql"
         }
       ],
       "status": "pending",
-      "epicId": "feature-1773612385860-y3zhk851t"
+      "epicId": "feature-1773616179718-qvr7onva4"
     }
   ],
+  "researchSummary": "The production codebase contains **24 independent `setInterval` timer loops** [1][2][3][8][15][16] scattered across services, **4 overlapping board health systems** [3][4][5][6], and a set of disconnected subsystems (calendar, scheduler, webhooks, maintenance) that communicate through a bespoke in-memory event bus [18] with no shared persistence layer [12]. All scheduling is hand-rolled — zero third-party scheduler libraries exist in `package.json` [37] — and the existing `SchedulerService` covers only cron-registered tasks while 16+ polling loops bypass it entirely [38]. Observability is critically gapped: the Prometheus registry exposes 10 custom metrics focused on agents and HTTP, with **zero coverage** for scheduler task durations, health-check results, loop states, or circuit-breaker activity [42][68][70][71]. Grafana dashboards and alerting rules are consequently blind to the operational subsystems this project aims to unify [74][75]. The consolidation path is viable because all services already share a common `EventEmitter` bus [18], a centralized timeout configuration [39], and a single wiring entry point [27], but the testing surface is thin in the exact areas that will change most — health, maintenance, and timer lifecycle [63][65].\n\n---",
   "prd": {
     "situation": "protoLabs Studio runs 40+ service files across five disconnected automation domains: (1) a SchedulerService with full cron support that only manages 11 registered tasks, (2) a CalendarService with job execution but no recurring events or timezone support, (3) a webhook/event system with 351 event types but no retry or delivery tracking, (4) four overlapping maintenance/health systems (FeatureHealthService, HealthMonitorService, board-health cron, maintenance-flow LangGraph), and (5) auto-mode orchestration with its own timer hierarchy. Critically, 16+ services create their own setInterval loops outside the SchedulerService — HealthMonitorService (30s), ArchivalService (10min), WorktreeLifecycleService (6h), PRWatcherService (30s), SpecGenerationMonitor (30s), SensorRegistryService (30s), AgentManifestService (2s), GitHubMonitor (30s), DiscordMonitor (30s), LeadEngineerService (5min+30s+2.5min), FeatureScheduler (2-30s), AutoModeService (2s), CrdtSyncService (30s). There is no single control plane to view, pause, or manage all running background operations.",
     "problem": "The fragmented automation landscape creates five concrete problems: (1) No visibility — operators cannot see what background tasks are running, when they last fired, or if they are healthy. (2) Overlapping work — four different systems audit board health with different thresholds and schedules, wasting compute and potentially conflicting. (3) Missing connections — auto-mode does not create calendar events, webhooks do not feed the timeline, maintenance results are not traced in Langfuse. (4) No unified control — you cannot pause all background operations during a deploy or investigation; each service must be stopped individually. (5) Reliability gaps — webhook processing has no retry logic, no delivery tracking, no rate limiting, and no secret rotation support.",
@@ -528,6 +539,6 @@
     "generatedAt": "2026-03-15T22:05:00.000Z"
   },
   "createdAt": "2026-03-15T22:06:14.180Z",
-  "updatedAt": "2026-03-15T22:07:27.732Z",
-  "researchStatus": "running"
+  "updatedAt": "2026-03-15T23:26:59.954Z",
+  "researchStatus": "complete"
 }

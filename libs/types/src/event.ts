@@ -357,7 +357,12 @@ export type EventType =
   // Categories sync events (lightweight LWW config sync via CRDT bridge)
   | 'categories:updated'
   // Research agent events (deep research pipeline)
-  | 'project:research:completed';
+  | 'project:research:completed'
+  // Webhook delivery tracking events (reception, completion, failure, retry)
+  | 'webhook:delivery:received'
+  | 'webhook:delivery:completed'
+  | 'webhook:delivery:failed'
+  | 'webhook:delivery:retrying';
 
 export type EventCallback = (type: EventType, payload: unknown) => void;
 
@@ -893,6 +898,38 @@ export interface EventPayloadMap {
   // Ava Channel events (private multi-instance coordination channel)
   'ava-channel:message': {
     message: import('./ava-channel.js').AvaChatMessage;
+  };
+
+  // Webhook delivery tracking events
+  'webhook:delivery:received': {
+    deliveryId: string;
+    source: import('./webhook-delivery.js').WebhookDeliverySource;
+    eventType: string;
+    timestamp: string;
+  };
+  'webhook:delivery:completed': {
+    deliveryId: string;
+    source: import('./webhook-delivery.js').WebhookDeliverySource;
+    eventType: string;
+    durationMs: number;
+    timestamp: string;
+  };
+  'webhook:delivery:failed': {
+    deliveryId: string;
+    source: import('./webhook-delivery.js').WebhookDeliverySource;
+    eventType: string;
+    error: string;
+    attempts: number;
+    willRetry: boolean;
+    timestamp: string;
+  };
+  'webhook:delivery:retrying': {
+    deliveryId: string;
+    source: import('./webhook-delivery.js').WebhookDeliverySource;
+    eventType: string;
+    attempt: number;
+    nextRetryAt: string;
+    timestamp: string;
   };
 }
 
