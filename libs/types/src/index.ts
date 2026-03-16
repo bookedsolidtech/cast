@@ -194,6 +194,8 @@ export type {
 // Calendar types
 export type {
   CalendarEventType,
+  RecurrenceFrequency,
+  RecurrenceRule,
   CalendarEvent,
   CalendarEventsFile,
   CalendarQueryOptions,
@@ -1039,3 +1041,10 @@ export type {
   MaintenanceCheckResult,
   MaintenanceSweepResult,
 } from './maintenance.js';
+
+// Webhook delivery tracking types (transient in-memory operational data)
+export type {
+  WebhookDeliveryStatus,
+  WebhookDeliverySource,
+  WebhookDelivery,
+} from './webhook-delivery.js';

@@ -4,7 +4,13 @@ Consolidate 16+ independent timer loops, 4 overlapping board health systems, and
 
 **Status:** active
 **Created:** 2026-03-15T22:06:14.180Z
-**Updated:** 2026-03-15T22:06:50.584Z
+**Updated:** 2026-03-15T23:09:46.474Z
+
+## Research Summary
+
+The production codebase contains **24 independent `setInterval` timer loops** [1][2][3][8][15][16] scattered across services, **4 overlapping board health systems** [3][4][5][6], and a set of disconnected subsystems (calendar, scheduler, webhooks, maintenance) that communicate through a bespoke in-memory event bus [18] with no shared persistence layer [12]. All scheduling is hand-rolled — zero third-party scheduler libraries exist in `package.json` [37] — and the existing `SchedulerService` covers only cron-registered tasks while 16+ polling loops bypass it entirely [38]. Observability is critically gapped: the Prometheus registry exposes 10 custom metrics focused on agents and HTTP, with **zero coverage** for scheduler task durations, health-check results, loop states, or circuit-breaker activity [42][68][70][71]. Grafana dashboards and alerting rules are consequently blind to the operational subsystems this project aims to unify [74][75]. The consolidation path is viable because all services already share a common `EventEmitter` bus [18], a centralized timeout configuration [39], and a single wiring entry point [27], but the testing surface is thin in the exact areas that will change most — health, maintenance, and timer lifecycle [63][65].
+
+---
 
 ## PRD
 
@@ -34,7 +40,7 @@ No backward compatibility shims (greenfield-first). All services must continue w
 
 Extend SchedulerService to support interval-based tasks alongside cron, create a TimerRegistry interface, migrate all 16+ independent setInterval loops to register through it, and add pause/resume/list/metrics capabilities.
 
-**Status:** pending
+**Status:** completed
 
 #### Phases
 

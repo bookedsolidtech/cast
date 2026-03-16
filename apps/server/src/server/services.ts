@@ -16,6 +16,10 @@ import { SettingsService } from '../services/settings-service.js';
 import { ClaudeUsageService } from '../services/claude-usage-service.js';
 import { contentFlowService } from '../services/content-flow-service.js';
 import { calendarService } from '../services/calendar-service.js';
+import {
+  CalendarIntegrationService,
+  calendarIntegrationService,
+} from '../services/calendar-integration-service.js';
 import { GoogleCalendarSyncService } from '../services/google-calendar-sync-service.js';
 import { MCPTestService } from '../services/mcp-test-service.js';
 import { getEscalationRouter } from '../services/escalation-router.js';
@@ -32,6 +36,7 @@ import { AutomationService } from '../services/automation-service.js';
 import { getHealthMonitorService } from '../services/health-monitor-service.js';
 import { integrationService } from '../services/integration-service.js';
 import { SignalIntakeService } from '../services/signal-intake-service.js';
+import { EventRouterService } from '../services/event-router-service.js';
 import { AuthorityService } from '../services/authority-service.js';
 import { CompletionDetectorService } from '../services/completion-detector-service.js';
 import { PMAuthorityAgent } from '../services/authority-agents/pm-agent.js';
@@ -154,6 +159,7 @@ export interface ServiceContainer {
   // Calendar & scheduling
   googleCalendarSyncService: GoogleCalendarSyncService;
   calendarService: typeof calendarService;
+  calendarIntegrationService: CalendarIntegrationService;
   schedulerService: ReturnType<typeof getSchedulerService>;
   automationService: AutomationService;
   jobExecutorService: JobExecutorService;
@@ -206,6 +212,7 @@ export interface ServiceContainer {
 
   // Signal & pipeline
   signalIntakeService: SignalIntakeService;
+  eventRouterService: EventRouterService;
   channelRouter: ChannelRouter;
 
   // Docs detection
@@ -461,6 +468,9 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
     repoRoot,
     settingsService
   );
+
+  // Event Router Service — unified entry point wrapping signal classification with delivery tracking
+  const eventRouterService = new EventRouterService(signalIntakeService, events);
 
   // Channel Router — routes HITL interactions to the originating channel
   const channelRouter = new ChannelRouter();
@@ -844,6 +854,7 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
     archivalService,
     googleCalendarSyncService,
     calendarService,
+    calendarIntegrationService,
     schedulerService,
     automationService,
     jobExecutorService,
@@ -874,6 +885,7 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
     eventStreamBuffer,
     briefingCursorService,
     signalIntakeService,
+    eventRouterService,
     channelRouter,
     docsUpdateDetector,
     authorityService,
