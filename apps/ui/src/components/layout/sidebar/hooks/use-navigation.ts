@@ -104,6 +104,7 @@ export function useNavigation({
   unreadNotificationsCount,
   unreadCeremonyCount,
   isSpecGenerating,
+  healthLevel,
 }: UseNavigationProps) {
   // Build navigation sections
   const navSections: NavSection[] = useMemo(() => {
@@ -224,6 +225,18 @@ export function useNavigation({
           id: 'ops',
           label: 'Operations',
           icon: Settings2,
+          suffix: healthLevel
+            ? createElement('span', {
+                className: `inline-block h-2 w-2 rounded-full ${
+                  healthLevel === 'critical'
+                    ? 'bg-red-500 animate-pulse'
+                    : healthLevel === 'warning'
+                      ? 'bg-amber-500'
+                      : 'bg-emerald-500'
+                }`,
+                'aria-label': `System health: ${healthLevel}`,
+              })
+            : undefined,
         },
         {
           id: 'project-settings',
@@ -244,6 +257,7 @@ export function useNavigation({
     unreadNotificationsCount,
     unreadCeremonyCount,
     isSpecGenerating,
+    healthLevel,
   ]);
 
   // Build keyboard shortcuts for navigation
