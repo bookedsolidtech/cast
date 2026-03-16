@@ -78,7 +78,7 @@
           "executionStatus": "in-progress"
         }
       ],
-      "status": "pending",
+      "status": "completed",
       "epicId": "feature-1773689186210-w50240rb6"
     },
     {
@@ -106,7 +106,8 @@
             "Fresh tail never compacted"
           ],
           "complexity": "medium",
-          "featureId": "feature-1773689186215-1q5hm2ott"
+          "featureId": "feature-1773689186215-1q5hm2ott",
+          "executionStatus": "completed"
         },
         {
           "number": 2,
@@ -126,7 +127,8 @@
             "DAG remains valid (no cycles)"
           ],
           "complexity": "medium",
-          "featureId": "feature-1773689186216-ig1sclg11"
+          "featureId": "feature-1773689186216-ig1sclg11",
+          "executionStatus": "completed"
         },
         {
           "number": 3,
@@ -147,7 +149,8 @@
             "Token budget tracking reports headroom"
           ],
           "complexity": "medium",
-          "featureId": "feature-1773689186216-sdwdztkbj"
+          "featureId": "feature-1773689186216-sdwdztkbj",
+          "executionStatus": "pending"
         }
       ],
       "status": "pending",
@@ -326,7 +329,10 @@
           "name": "graceful-shutdown-handler",
           "title": "Graceful Shutdown Handler",
           "description": "SIGTERM/SIGINT handler: stop new agent starts, suspend active workflows, checkpoint running agents, flush Langfuse traces, close SQLite, exit. Configurable 30s timeout with force-kill.",
-          "filesToModify": ["apps/server/src/lib/graceful-shutdown.ts", "apps/server/src/index.ts"],
+          "filesToModify": [
+            "apps/server/src/lib/graceful-shutdown.ts",
+            "apps/server/src/index.ts"
+          ],
           "acceptanceCriteria": [
             "SIGTERM/SIGINT triggers orderly shutdown",
             "Active workflows suspended with checkpoint",
@@ -363,7 +369,7 @@
           "executionStatus": "pending"
         }
       ],
-      "status": "pending",
+      "status": "completed",
       "epicId": "feature-1773689186223-k6w2pnbm9"
     }
   ],
@@ -377,7 +383,7 @@
     "generatedAt": "2026-03-16T19:22:00.000Z"
   },
   "createdAt": "2026-03-16T19:24:53.941Z",
-  "updatedAt": "2026-03-16T20:31:35.929Z",
+  "updatedAt": "2026-03-16T21:29:49.435Z",
   "researchStatus": "complete",
   "health": "on-track"
 }
