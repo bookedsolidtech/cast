@@ -315,3 +315,8 @@ usageStats:
 - **Problem solved:** Filtering logic has subtle semantics: undefined and 'agent' behave the same way (eligible), but any other string value (human name) is skipped. Easy to misunderstand if not tested explicitly.
 - **Why this works:** Semantic behavior (not just code path) needs test coverage. Tests serve as executable documentation of field value meanings. Catches off-by-one mistakes in string comparisons or truthiness checks.
 - **Trade-offs:** Comprehensive test matrix takes more lines, but captures intent clearly. Minimal tests would miss the undefined=='agent' semantic equivalence.
+
+#### [Pattern] Library-Only Verification via TypeScript Compilation: No Playwright tests for library packages; verify via DTS + ESM build success and type checking (2026-03-16)
+- **Problem solved:** Context-engine is pure library (no UI). Decision: what verification is sufficient?
+- **Why this works:** Compilation catches structural errors, export correctness, type mismatches. Runtime behavior tested by consumers (e.g., agent packages that import this). Avoids test duplication.
+- **Trade-offs:** Faster CI for libraries; Runtime errors in non-type-caught paths only found by consumers. Requires strong consumer integration tests.

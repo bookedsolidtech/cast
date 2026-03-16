@@ -407,6 +407,50 @@
     "projectPath": "/Users/kj/dev/automaker",
     "sourceId": "ops:feature:pr-merged:feature-1773689186216-sdwdztkbj",
     "createdAt": "2026-03-16T21:27:12.739Z",
-    "updatedAt": "2026-03-16T21:27:12.739Z"
+    "updatedAt": "2026-03-16T21:55:56.271Z"
+  },
+  {
+    "title": "Started: Retrieval Tools (grep, describe, expand)",
+    "date": "2026-03-16",
+    "type": "ops",
+    "description": "Feature implementation started",
+    "id": "event-1773696782224-euz36h2e4",
+    "projectPath": "/Users/kj/dev/automaker",
+    "sourceId": "ops:feature:started:feature-1773689186218-k8vhlx0po",
+    "createdAt": "2026-03-16T21:33:02.214Z",
+    "updatedAt": "2026-03-16T21:33:02.214Z"
+  },
+  {
+    "title": "Merged: Retrieval Tools (grep, describe, expand)",
+    "date": "2026-03-16",
+    "type": "ops",
+    "description": "Feature PR merged",
+    "id": "event-1773697849417-xi6yo5poh",
+    "projectPath": "/Users/kj/dev/automaker",
+    "sourceId": "ops:feature:pr-merged:feature-1773689186218-k8vhlx0po",
+    "createdAt": "2026-03-16T21:50:49.415Z",
+    "updatedAt": "2026-03-16T21:52:17.825Z"
+  },
+  {
+    "title": "Completed: Context Assembler",
+    "date": "2026-03-16",
+    "type": "ops",
+    "description": "Feature implementation completed",
+    "id": "event-1773698148178-3l0b5l7kn",
+    "projectPath": "/Users/kj/dev/automaker",
+    "sourceId": "ops:feature:completed:feature-1773689186216-sdwdztkbj",
+    "createdAt": "2026-03-16T21:55:48.177Z",
+    "updatedAt": "2026-03-16T21:55:48.177Z"
+  },
+  {
+    "title": "Started: Agent Service Integration",
+    "date": "2026-03-16",
+    "type": "ops",
+    "description": "Feature implementation started",
+    "id": "event-1773698161116-0unosjc45",
+    "projectPath": "/Users/kj/dev/automaker",
+    "sourceId": "ops:feature:started:feature-1773689186220-t3hv64wzd",
+    "createdAt": "2026-03-16T21:56:01.113Z",
+    "updatedAt": "2026-03-16T21:56:01.113Z"
   }
 ]

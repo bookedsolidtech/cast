@@ -150,10 +150,10 @@
           ],
           "complexity": "medium",
           "featureId": "feature-1773689186216-sdwdztkbj",
-          "executionStatus": "pending"
+          "executionStatus": "completed"
         }
       ],
-      "status": "pending",
+      "status": "completed",
       "epicId": "feature-1773689186214-zoza9y3nx"
     },
     {
@@ -184,7 +184,8 @@
             "Tools work within agent sessions"
           ],
           "complexity": "large",
-          "featureId": "feature-1773689186218-k8vhlx0po"
+          "featureId": "feature-1773689186218-k8vhlx0po",
+          "executionStatus": "completed"
         },
         {
           "number": 2,
@@ -237,7 +238,8 @@
             "Agent retrieval tools available during execution"
           ],
           "complexity": "large",
-          "featureId": "feature-1773689186220-t3hv64wzd"
+          "featureId": "feature-1773689186220-t3hv64wzd",
+          "executionStatus": "in-progress"
         },
         {
           "number": 2,
@@ -380,7 +382,7 @@
     "generatedAt": "2026-03-16T19:22:00.000Z"
   },
   "createdAt": "2026-03-16T19:24:53.941Z",
-  "updatedAt": "2026-03-16T21:29:49.435Z",
+  "updatedAt": "2026-03-16T21:56:01.114Z",
   "researchStatus": "complete",
   "health": "on-track"
 }
