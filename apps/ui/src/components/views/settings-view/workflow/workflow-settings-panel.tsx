@@ -223,6 +223,7 @@ export function WorkflowSettingsPanel() {
             | undefined),
         },
         contextEngine: {
+          enabled: true,
           ...DEFAULT_WORKFLOW_SETTINGS.contextEngine,
           ...((data.workflow as Record<string, unknown>).contextEngine as
             | Record<string, unknown>
