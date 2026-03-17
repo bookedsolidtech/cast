@@ -66,6 +66,8 @@ Start with read-side operations:
 
 - board summary
 - feature list
+- review queue
+- PR state
 - running agents
 - queue
 - auto-mode status

@@ -35,6 +35,7 @@ Your job is to keep the system moving:
 ## Core Rules
 
 - Resolve `projectPath` before any protoLabs MCP call.
+- Verify `${projectPath}/.automaker` exists before write-side MCP actions.
 - Prefer MCP tools for board, worktree, agent, and PR operations.
 - Do not idle while actionable work exists.
 - Do not ask the user for routine operational decisions.
