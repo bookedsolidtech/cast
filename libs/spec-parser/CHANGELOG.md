@@ -1,5 +1,36 @@
 # @protolabsai/spec-parser
 
+## 0.72.0
+
+### Minor Changes
+
+- ### Features
+  - enable context engine by default
+  - add Discord settings panel to integrations section (#2810)
+  - enable context engine by default
+  - add Discord settings panel to integrations section (#2810)
+
+  ### Bug Fixes
+  - add required enabled default in UI contextEngine merge
+  - context engine toggle not persisting in workflow settings
+  - remove duplicate esbuild entry and add git workflow rule
+  - add esbuild and update tailwind platform bindings
+  - add required enabled default in UI contextEngine merge
+  - context engine toggle not persisting in workflow settings
+  - remove duplicate esbuild entry and add git workflow rule
+  - add esbuild and update tailwind platform bindings
+
+  ### Refactors
+  - Add Discord channel message tools to MCP server (#2809)
+  - Bug: Blocked feature with merged PR not reconciled to done (#2818)
+  - Add Discord channel message tools to MCP server (#2809)
+  - Bug: Blocked feature with merged PR not reconciled to done (#2818)
+
+### Patch Changes
+
+- Updated dependencies
+  - @protolabsai/types@0.72.0
+
 ## 0.71.3
 
 ### Patch Changes
