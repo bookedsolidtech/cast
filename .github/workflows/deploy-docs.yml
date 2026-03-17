@@ -43,7 +43,7 @@ jobs:
 
       - name: Build docs
         run: |
-          npm ci
+          npm ci --ignore-scripts
           npm run docs:build
 
       - name: Deploy to Cloudflare Pages
