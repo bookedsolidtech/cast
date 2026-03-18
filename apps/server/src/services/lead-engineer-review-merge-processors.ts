@@ -10,11 +10,19 @@ import { randomUUID } from 'node:crypto';
 import { promisify } from 'node:util';
 import { createLogger } from '@protolabsai/utils';
 import type { EventType, PRMergeStrategy } from '@protolabsai/types';
+import {
+  buildFreshEyesReviewPrompt,
+  parseFreshEyesVerdict,
+  FRESH_EYES_REVIEW_SYSTEM_PROMPT,
+} from '@protolabsai/prompts';
+import { resolveModelString } from '@protolabsai/model-resolver';
 import { resolveMergeStrategy } from '../lib/merge-strategy.js';
 import {
   parsePROwnershipWatermark,
   buildPROwnershipWatermark,
 } from '../routes/github/utils/pr-ownership.js';
+import { simpleQuery } from '../providers/simple-query-service.js';
+import { getWorkflowSettings } from '../lib/settings-helpers.js';
 import type {
   ProcessorServiceContext,
   StateContext,
@@ -163,6 +171,17 @@ export class ReviewProcessor implements StateProcessor {
     });
 
     if (reviewState === 'approved') {
+      // Run fresh-eyes review if enabled in workflow settings
+      const freshEyesResult = await this.runFreshEyesReview(ctx);
+      if (freshEyesResult === 'blocked') {
+        ctx.escalationReason = `Fresh-eyes review BLOCK: PR #${ctx.prNumber} blocked by automated review`;
+        return {
+          nextState: 'ESCALATE',
+          shouldContinue: true,
+          reason: ctx.escalationReason,
+        };
+      }
+
       // Save REVIEW handoff before transitioning to MERGE
       if (this.serviceContext.leadHandoffService) {
         await this.serviceContext.leadHandoffService.saveHandoff(ctx.projectPath, ctx.feature.id, {
@@ -297,6 +316,133 @@ export class ReviewProcessor implements StateProcessor {
     logger.info('[REVIEW] Review phase completed');
     // Clean up review start timestamp when leaving REVIEW state
     this.reviewStartedAt.delete(ctx.feature.id);
+  }
+
+  /**
+   * Run a fresh-eyes Haiku review after CI passes, before auto-merge.
+   *
+   * Returns:
+   * - 'pass'    → no issues, proceed to merge
+   * - 'concern' → comment posted, proceed to merge
+   * - 'blocked' → comment posted, block merge (caller should escalate)
+   * - 'skipped' → feature disabled or error, proceed to merge
+   */
+  private async runFreshEyesReview(
+    ctx: StateContext
+  ): Promise<'pass' | 'concern' | 'blocked' | 'skipped'> {
+    // Check if fresh-eyes review is enabled
+    const workflowSettings = await getWorkflowSettings(
+      ctx.projectPath,
+      this.serviceContext.settingsService,
+      '[ReviewProcessor]'
+    );
+    const freshEyesConfig = workflowSettings.freshEyesReview;
+    if (!freshEyesConfig?.enabled) {
+      return 'skipped';
+    }
+
+    logger.info('[REVIEW] Running fresh-eyes review', {
+      featureId: ctx.feature.id,
+      prNumber: ctx.prNumber,
+    });
+
+    try {
+      // Fetch PR diff via gh CLI
+      let prDiff = '';
+      try {
+        const { stdout } = await execAsync(`gh pr diff ${ctx.prNumber}`, {
+          cwd: ctx.projectPath,
+          timeout: 30000,
+        });
+        prDiff = stdout;
+      } catch (err) {
+        logger.warn('[REVIEW] Fresh-eyes: failed to fetch PR diff, skipping review', err);
+        return 'skipped';
+      }
+
+      // Build acceptance criteria from feature (stored as untyped extra fields in some feature formats)
+      const feature = ctx.feature;
+      const featureAny = feature as unknown as Record<string, unknown>;
+      const acceptanceCriteria: string[] = [];
+      const rawCriteria = featureAny['acceptanceCriteria'];
+      if (Array.isArray(rawCriteria)) {
+        for (const c of rawCriteria) {
+          if (typeof c === 'string') acceptanceCriteria.push(c);
+          else if (typeof c === 'object' && c !== null && 'description' in c) {
+            acceptanceCriteria.push((c as { description: string }).description);
+          }
+        }
+      }
+
+      const model = resolveModelString(freshEyesConfig.model ?? 'haiku');
+      const prompt = buildFreshEyesReviewPrompt({
+        prDiff,
+        featureTitle: feature.title || 'Untitled',
+        featureDescription: feature.description || 'No description provided.',
+        acceptanceCriteria,
+      });
+
+      const result = await simpleQuery({
+        prompt,
+        model,
+        cwd: ctx.projectPath,
+        systemPrompt: FRESH_EYES_REVIEW_SYSTEM_PROMPT,
+        maxTurns: 1,
+        allowedTools: [],
+      });
+
+      const reviewed = parseFreshEyesVerdict(result.text);
+
+      logger.info('[REVIEW] Fresh-eyes verdict', {
+        featureId: feature.id,
+        prNumber: ctx.prNumber,
+        verdict: reviewed.verdict,
+        reasoning: reviewed.reasoning,
+      });
+
+      // Track estimated cost in feature.costUsd (Haiku single call estimate)
+      const estimatedCostUsd = 0.001;
+      try {
+        const currentFeature = await this.serviceContext.featureLoader.get(
+          ctx.projectPath,
+          feature.id
+        );
+        const previousCost: number = currentFeature?.costUsd ?? 0;
+        await this.serviceContext.featureLoader.update(ctx.projectPath, feature.id, {
+          costUsd: previousCost + estimatedCostUsd,
+        });
+      } catch (costErr) {
+        logger.warn('[REVIEW] Fresh-eyes: failed to update costUsd', costErr);
+      }
+
+      if (reviewed.verdict === 'PASS') {
+        return 'pass';
+      }
+
+      // Post comment for CONCERN and BLOCK
+      const commentBody =
+        reviewed.verdict === 'BLOCK'
+          ? `**Fresh-Eyes Review: BLOCK**\n\n${reviewed.reasoning}\n\nThis PR has been flagged by automated review and will not be auto-merged. Please address the issue above.`
+          : `**Fresh-Eyes Review: CONCERN**\n\n${reviewed.reasoning}\n\nThis is a non-blocking concern. The PR will proceed to merge.`;
+
+      try {
+        await execAsync(`gh pr comment ${ctx.prNumber} --body ${JSON.stringify(commentBody)}`, {
+          cwd: ctx.projectPath,
+          timeout: 15000,
+        });
+        logger.info(
+          `[REVIEW] Fresh-eyes: posted ${reviewed.verdict} comment on PR #${ctx.prNumber}`
+        );
+      } catch (commentErr) {
+        logger.warn('[REVIEW] Fresh-eyes: failed to post PR comment', commentErr);
+      }
+
+      return reviewed.verdict === 'BLOCK' ? 'blocked' : 'concern';
+    } catch (err) {
+      // Review failure must not block the pipeline — log and skip
+      logger.warn('[REVIEW] Fresh-eyes review failed, proceeding without review', err);
+      return 'skipped';
+    }
   }
 
   /**

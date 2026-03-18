@@ -62,6 +62,7 @@ export default defineConfig({
         '../../libs/dependency-resolver/src/index.ts'
       ),
       '@protolabsai/git-utils': path.resolve(__dirname, '../../libs/git-utils/src/index.ts'),
+      '@protolabsai/prompts': path.resolve(__dirname, '../../libs/prompts/src/index.ts'),
       '@protolabsai/error-tracking': path.resolve(
         __dirname,
         '../../libs/error-tracking/src/index.ts'
