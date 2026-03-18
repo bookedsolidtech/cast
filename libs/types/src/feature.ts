@@ -363,8 +363,22 @@ export interface Feature {
    * Total remediation cycle count (feedback + CI failures combined).
    * Incremented for each feedback cycle OR CI cycle.
    * Used to enforce MAX_TOTAL_REMEDIATION_CYCLES budget.
+   * @deprecated Use ciRemediationCount + reviewRemediationCount for split tracking.
+   *   Kept for backward compatibility — systems that read this field still work.
    */
   remediationCycleCount?: number;
+  /**
+   * Number of CI failure remediation cycles (split budget).
+   * Incremented only when a CI-triggered remediation completes.
+   * Enforced independently against CIReactionSettings.maxCiRemediationCycles.
+   */
+  ciRemediationCount?: number;
+  /**
+   * Number of PR review feedback remediation cycles (split budget).
+   * Incremented only when a review-triggered remediation completes.
+   * Enforced independently against CIReactionSettings.maxReviewRemediationCycles.
+   */
+  reviewRemediationCount?: number;
   /**
    * Number of CI failure remediation cycles.
    * Tracks how many times the agent has fixed CI failures.
