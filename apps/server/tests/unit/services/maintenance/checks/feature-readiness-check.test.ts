@@ -210,7 +210,11 @@ describe('FeatureReadinessCheck', () => {
       update: vi.fn().mockResolvedValue({}),
     };
     mockEnhancementModel = {
-      enhance: vi.fn().mockResolvedValue('Enriched description with technical details about the API endpoint and service module.'),
+      enhance: vi
+        .fn()
+        .mockResolvedValue(
+          'Enriched description with technical details about the API endpoint and service module.'
+        ),
     };
     mockContextLoader = {
       load: vi.fn().mockResolvedValue('Project context: This is a TypeScript monorepo.'),
@@ -266,9 +270,7 @@ describe('FeatureReadinessCheck', () => {
   });
 
   it('persists readiness score on each backlog feature', async () => {
-    mockFeatureLoader.getAll.mockResolvedValue([
-      makeFeature({ id: 'a', description: 'Fix it' }),
-    ]);
+    mockFeatureLoader.getAll.mockResolvedValue([makeFeature({ id: 'a', description: 'Fix it' })]);
 
     await check.run('/project');
 
@@ -298,9 +300,7 @@ describe('FeatureReadinessCheck', () => {
   });
 
   it('uses warning severity for very low scores', async () => {
-    mockFeatureLoader.getAll.mockResolvedValue([
-      makeFeature({ id: 'a', description: '' }),
-    ]);
+    mockFeatureLoader.getAll.mockResolvedValue([makeFeature({ id: 'a', description: '' })]);
 
     const issues = await check.run('/project');
     expect(issues[0].severity).toBe('warning');
@@ -324,9 +324,7 @@ describe('FeatureReadinessCheck', () => {
   });
 
   it('includes deficit details in message', async () => {
-    mockFeatureLoader.getAll.mockResolvedValue([
-      makeFeature({ id: 'a', description: 'Short' }),
-    ]);
+    mockFeatureLoader.getAll.mockResolvedValue([makeFeature({ id: 'a', description: 'Short' })]);
 
     const issues = await check.run('/project');
     expect(issues[0].message).toContain('thin description');
@@ -336,9 +334,7 @@ describe('FeatureReadinessCheck', () => {
 
   it('marks issues as not autoFixable when no enhancement model provided', async () => {
     const checkNoModel = new FeatureReadinessCheck(mockFeatureLoader as any);
-    mockFeatureLoader.getAll.mockResolvedValue([
-      makeFeature({ id: 'a', description: 'Short' }),
-    ]);
+    mockFeatureLoader.getAll.mockResolvedValue([makeFeature({ id: 'a', description: 'Short' })]);
 
     const issues = await checkNoModel.run('/project');
     expect(issues[0].autoFixable).toBe(false);
@@ -402,9 +398,7 @@ describe('FeatureReadinessCheck', () => {
     });
 
     it('loads project context for enrichment', async () => {
-      mockFeatureLoader.getAll.mockResolvedValue([
-        makeFeature({ id: 'a', description: 'Fix it' }),
-      ]);
+      mockFeatureLoader.getAll.mockResolvedValue([makeFeature({ id: 'a', description: 'Fix it' })]);
 
       const issue = {
         checkId: 'feature-readiness',
@@ -425,14 +419,13 @@ describe('FeatureReadinessCheck', () => {
       const feature = makeFeature({ id: 'a', description: 'Fix it' });
       // First call: run-time getAll for fix
       // Second call: recompute score
-      mockFeatureLoader.getAll
-        .mockResolvedValueOnce([feature])
-        .mockResolvedValueOnce([
-          makeFeature({
-            id: 'a',
-            description: 'Enriched description with technical details about the API endpoint and service module.',
-          }),
-        ]);
+      mockFeatureLoader.getAll.mockResolvedValueOnce([feature]).mockResolvedValueOnce([
+        makeFeature({
+          id: 'a',
+          description:
+            'Enriched description with technical details about the API endpoint and service module.',
+        }),
+      ]);
 
       const issue = {
         checkId: 'feature-readiness',
@@ -483,9 +476,7 @@ describe('FeatureReadinessCheck', () => {
 
     it('does nothing when enhancement model returns empty string', async () => {
       (mockEnhancementModel.enhance as any).mockResolvedValue('');
-      mockFeatureLoader.getAll.mockResolvedValue([
-        makeFeature({ id: 'a', description: 'Short' }),
-      ]);
+      mockFeatureLoader.getAll.mockResolvedValue([makeFeature({ id: 'a', description: 'Short' })]);
 
       const issue = {
         checkId: 'feature-readiness',
@@ -506,9 +497,7 @@ describe('FeatureReadinessCheck', () => {
 
     it('continues without context when contextLoader fails', async () => {
       (mockContextLoader.load as any).mockRejectedValue(new Error('no context'));
-      mockFeatureLoader.getAll.mockResolvedValue([
-        makeFeature({ id: 'a', description: 'Short' }),
-      ]);
+      mockFeatureLoader.getAll.mockResolvedValue([makeFeature({ id: 'a', description: 'Short' })]);
 
       const issue = {
         checkId: 'feature-readiness',

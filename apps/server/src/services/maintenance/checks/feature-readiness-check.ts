@@ -184,7 +184,7 @@ function buildEnrichmentPrompt(feature: Feature, projectContext: string): string
     '',
     '--- Current Feature ---',
     `Title: ${feature.title ?? '(untitled)'}`,
-    `Description: ${feature.description}`,
+    `Description: ${feature.description}`
   );
 
   if (feature.successCriteria?.length) {
