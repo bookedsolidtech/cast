@@ -451,6 +451,18 @@ export interface WorkflowSettings {
    */
   heartbeat?: HeartbeatSettings;
   /**
+   * Fresh-eyes review configuration.
+   * When enabled, runs a lightweight Haiku review after CI passes but before auto-merge.
+   * Returns PASS (auto-merge), CONCERN (comment + merge), or BLOCK (comment + no merge).
+   * @default { enabled: false, model: 'haiku' }
+   */
+  freshEyesReview?: {
+    /** Enable the fresh-eyes review step. @default false */
+    enabled: boolean;
+    /** Model alias to use for the review call. @default 'haiku' */
+    model?: string;
+  };
+  /**
    * Maintenance check configuration.
    * Controls thresholds and behavior for automated board health checks.
    */
