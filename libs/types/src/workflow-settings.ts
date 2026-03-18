@@ -451,6 +451,72 @@ export interface WorkflowSettings {
    */
   heartbeat?: HeartbeatSettings;
   /**
+   * Pattern mining configuration.
+   * When enabled, runs daily to mine execution trajectories for recurring patterns
+   * and writes learned patterns to .automaker/context/learned-patterns.md,
+   * which is auto-loaded into agent prompts via loadContextFiles().
+   * Confidence decays 50% for patterns not reinforced in 90 days.
+   * Patterns below 0.2 confidence are pruned.
+   */
+  patternMining?: {
+    /** Whether pattern mining is enabled (default: true) */
+    enabled: boolean;
+    /** Minimum confidence threshold for writing patterns to context file (default: 0.5) */
+    confidenceThreshold?: number;
+    /** Minimum sample size for a pattern to be considered (default: 3) */
+    minSampleSize?: number;
+  };
+  /**
+   * Fresh-eyes review configuration.
+   * When enabled, runs a lightweight Haiku review after CI passes but before auto-merge.
+   * Returns PASS (auto-merge), CONCERN (comment + merge), or BLOCK (comment + no merge).
+   * @default { enabled: false, model: 'haiku' }
+   */
+  freshEyesReview?: {
+    /** Enable the fresh-eyes review step. @default false */
+    enabled: boolean;
+    /** Model alias to use for the review call. @default 'haiku' */
+    model?: string;
+  };
+  /**
+   * Trajectory injection configuration.
+   * When enabled, relevant past trajectories are injected into agent prompts
+   * as a "Lessons from Similar Features" section. Omitting this field defaults
+   * to enabled with a 2000-token limit.
+   */
+  trajectoryInjection?: {
+    /** Whether trajectory injection is enabled (default: true) */
+    enabled: boolean;
+    /** Maximum tokens for the trajectory context section (default: 2000) */
+    maxTokens: number;
+  };
+  /**
+   * Milliseconds to wait between agent dispatches when multiple features are ready.
+   * Prevents thundering-herd startup (API rate limits, disk I/O contention).
+   * No stagger is applied when only one feature is ready to dispatch.
+   * Set to 0 to disable staggering.
+   * @default 15000
+   */
+  agentStartStaggerMs?: number;
+  /**
+<<<<<<< HEAD
+   * When true, the readiness gate in FeatureScheduler.loadPendingFeatures() is bypassed
+   * and all features with satisfied dependencies are dispatched regardless of readinessScore.
+   * Intended for debugging and projects that have not yet enabled readiness scoring.
+   * @default false
+   */
+  skipReadinessGate?: boolean;
+  /**
+   * Minimum readinessScore (0–1) a feature must have to pass the pre-dispatch readiness gate.
+   * Features with a readinessScore below this value are filtered out and emit a
+   * feature:readiness:below-threshold event so the maintenance system can enrich them on the
+   * next sweep. Features without a readinessScore (undefined) always pass the gate.
+   * @default 0.5
+   */
+  readinessThreshold?: number;
+  /**
+=======
+>>>>>>> origin/dev
    * Maintenance check configuration.
    * Controls thresholds and behavior for automated board health checks.
    */
@@ -462,6 +528,14 @@ export interface WorkflowSettings {
      * @default 30
      */
     stuckPrThresholdMinutes?: number;
+    /**
+     * Minimum readiness score (0-100) a backlog feature must achieve before it is
+     * considered well-specified enough for agent execution. Features below this
+     * threshold generate auto-fixable maintenance issues whose fix enriches the
+     * description using an enhancement model.
+     * @default 60
+     */
+    readinessScoreThreshold?: number;
   };
 }
 

@@ -173,6 +173,18 @@ export type { LintResult, LintWarning, LintError, LintSummary } from './lint.js'
 export { getOutlinePlannerPrompt } from './content/outline-planner.js';
 export type { OutlinePlannerConfig } from './content/outline-planner.js';
 
+// Fresh-eyes review prompt
+export {
+  FRESH_EYES_REVIEW_SYSTEM_PROMPT,
+  buildFreshEyesReviewPrompt,
+  parseFreshEyesVerdict,
+} from './fresh-eyes-review-prompt.js';
+export type {
+  FreshEyesReviewInput,
+  FreshEyesVerdict,
+  FreshEyesReviewResult,
+} from './fresh-eyes-review-prompt.js';
+
 // Release notes rewriter
 export { RELEASE_NOTES_SYSTEM_PROMPT, buildReleaseNotesPrompt } from './release-notes.js';
 export type { ReleaseNotesInput } from './release-notes.js';
