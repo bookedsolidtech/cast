@@ -451,6 +451,22 @@ export interface WorkflowSettings {
    */
   heartbeat?: HeartbeatSettings;
   /**
+   * Pattern mining configuration.
+   * When enabled, runs daily to mine execution trajectories for recurring patterns
+   * and writes learned patterns to .automaker/context/learned-patterns.md,
+   * which is auto-loaded into agent prompts via loadContextFiles().
+   * Confidence decays 50% for patterns not reinforced in 90 days.
+   * Patterns below 0.2 confidence are pruned.
+   */
+  patternMining?: {
+    /** Whether pattern mining is enabled (default: true) */
+    enabled: boolean;
+    /** Minimum confidence threshold for writing patterns to context file (default: 0.5) */
+    confidenceThreshold?: number;
+    /** Minimum sample size for a pattern to be considered (default: 3) */
+    minSampleSize?: number;
+  };
+  /**
    * Fresh-eyes review configuration.
    * When enabled, runs a lightweight Haiku review after CI passes but before auto-merge.
    * Returns PASS (auto-merge), CONCERN (comment + merge), or BLOCK (comment + no merge).
