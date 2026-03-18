@@ -33,10 +33,7 @@ function makeTrajectory(overrides: Partial<VerifiedTrajectory> = {}): VerifiedTr
 }
 
 /** Create N trajectories with shared overrides */
-function makeN(
-  n: number,
-  overrides: Partial<VerifiedTrajectory> = {}
-): VerifiedTrajectory[] {
+function makeN(n: number, overrides: Partial<VerifiedTrajectory> = {}): VerifiedTrajectory[] {
   return Array.from({ length: n }, (_, i) =>
     makeTrajectory({ featureId: `feature-${i}`, attemptNumber: 1, ...overrides })
   );
@@ -77,9 +74,7 @@ function setupFsMock(config: {
     readFile: vi.fn(async (p: unknown) => {
       const filePath = String(p);
       // Find which feature this file belongs to
-      for (const [featureId, trajectories] of Object.entries(
-        config.trajectoryContents ?? {}
-      )) {
+      for (const [featureId, trajectories] of Object.entries(config.trajectoryContents ?? {})) {
         for (let idx = 0; idx < trajectories.length; idx++) {
           if (filePath.includes(`attempt-${idx + 1}.json`) && filePath.includes(featureId)) {
             return JSON.stringify(trajectories[idx]);
@@ -230,8 +225,18 @@ describe('TrajectoryPatternMiner', () => {
 
     it('does not flag pairs with < 80% success', () => {
       const ts = [
-        makeTrajectory({ model: 'claude-haiku', complexity: 'large', verified: true, retryCount: 0 }),
-        makeTrajectory({ model: 'claude-haiku', complexity: 'large', verified: false, retryCount: 1 }),
+        makeTrajectory({
+          model: 'claude-haiku',
+          complexity: 'large',
+          verified: true,
+          retryCount: 0,
+        }),
+        makeTrajectory({
+          model: 'claude-haiku',
+          complexity: 'large',
+          verified: false,
+          retryCount: 1,
+        }),
         // 50% — below threshold
       ];
       const patterns = miner.mineModelComplexitySuccess(ts);

@@ -290,10 +290,7 @@ export class TrajectoryPatternMiner {
    * Write publishable patterns to .automaker/context/learned-patterns.md
    * File is always regenerated on each run.
    */
-  async writePatternsToContextFile(
-    projectPath: string,
-    patterns: MiningPattern[]
-  ): Promise<void> {
+  async writePatternsToContextFile(projectPath: string, patterns: MiningPattern[]): Promise<void> {
     const contextDir = path.join(projectPath, '.automaker', 'context');
     const outputPath = path.join(contextDir, 'learned-patterns.md');
 
@@ -343,9 +340,7 @@ export class TrajectoryPatternMiner {
       lines.push('');
       for (const p of group.sort((a, b) => b.confidence - a.confidence)) {
         const confidencePct = Math.round(p.confidence * 100);
-        lines.push(
-          `- **${p.description}** _(confidence: ${confidencePct}%, n=${p.sampleSize})_`
-        );
+        lines.push(`- **${p.description}** _(confidence: ${confidencePct}%, n=${p.sampleSize})_`);
       }
       lines.push('');
     }
