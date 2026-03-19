@@ -243,9 +243,9 @@ describe('Review budget exhaustion message', () => {
 describe('Total budget hard cap', () => {
   it('Blocks CI when total cap is reached even if CI per-class limit not hit', () => {
     const settings: CIReactionSettings = {
-      maxCiRemediationCycles: 5,    // plenty of CI budget
+      maxCiRemediationCycles: 5, // plenty of CI budget
       maxReviewRemediationCycles: 5, // plenty of review budget
-      maxTotalRemediationCycles: 4,  // but total cap is tight
+      maxTotalRemediationCycles: 4, // but total cap is tight
     };
     const enforcer = makeEnforcer(settings);
 
