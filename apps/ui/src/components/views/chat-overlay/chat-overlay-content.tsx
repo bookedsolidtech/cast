@@ -69,6 +69,8 @@ export function ChatOverlayContent({ onHide, isModal = false }: ChatOverlayConte
     historyOpen,
     toggleHistory,
     setHistoryOpen,
+    avaEngineUrl,
+    engineQueueState,
   } = useChatSession({
     defaultModel: 'sonnet',
     projectId: currentProject?.id,
@@ -482,6 +484,8 @@ export function ChatOverlayContent({ onHide, isModal = false }: ChatOverlayConte
           historyOpen={historyOpen}
           queueOpen={queueOpen}
           queuePaused={queuePaused}
+          avaEngineUrl={avaEngineUrl}
+          engineQueueState={engineQueueState}
           projectPath={currentProject?.path}
           toolProgressLabel={activeToolLabel}
           stepCount={stepCount}
