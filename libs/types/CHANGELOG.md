@@ -1,5 +1,13 @@
 # @protolabsai/types
 
+## 0.79.6
+
+### Patch Changes
+
+- ### Bug Fixes
+  - check legacy ongoing boolean in wizard bypass (#2969)
+  - skip project wizard for ongoing projects (#2965)
+
 ## 0.79.5
 
 ### Patch Changes

@@ -1,5 +1,19 @@
 # @protolabsai/flows
 
+## 0.79.6
+
+### Patch Changes
+
+- ### Bug Fixes
+  - check legacy ongoing boolean in wizard bypass (#2969)
+  - skip project wizard for ongoing projects (#2965)
+- Updated dependencies
+  - @protolabsai/types@0.79.6
+  - @protolabsai/utils@0.79.6
+  - @protolabsai/prompts@0.79.6
+  - @protolabsai/model-resolver@0.79.6
+  - @protolabsai/observability@0.79.6
+
 ## 0.79.5
 
 ### Patch Changes
