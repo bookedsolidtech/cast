@@ -236,6 +236,7 @@ export class FeatureScheduler {
       `[AutoLoop] Starting loop for ${worktreeDesc} in ${projectPath}, maxConcurrency: ${projectState.config.maxConcurrency}`
     );
     let iterationCount = 0;
+    let lastDispatchTime = 0; // epoch ms of last agent dispatch
 
     // Configurable startup delay before first agent launch (default 10s, 0 to disable)
     const startupDelayMs = parseInt(process.env.AUTO_MODE_STARTUP_DELAY_MS || '10000', 10);
@@ -497,8 +498,28 @@ export class FeatureScheduler {
             continue;
           }
 
+          // Stagger agent starts when multiple features are ready — prevents thundering-herd
+          // startup (API rate limits, disk I/O contention). No stagger for single-feature queues.
+          if (pendingFeatures.length > 1 && lastDispatchTime > 0) {
+            const staggerMs = await this.getAgentStartStaggerMs(projectPath);
+            if (staggerMs > 0) {
+              const elapsed = Date.now() - lastDispatchTime;
+              const remaining = staggerMs - elapsed;
+              if (remaining > 0) {
+                logger.info(
+                  `[AutoLoop] Staggering agent start: ${pendingFeatures.length} features ready, waiting ${remaining}ms before dispatching ${nextFeature.id}`
+                );
+                await this.callbacks.sleep(remaining, projectState.abortController.signal);
+                if (!projectState.isRunning || projectState.abortController.signal.aborted) {
+                  return;
+                }
+              }
+            }
+          }
+
           // Mark feature as starting BEFORE calling process() to prevent race conditions
           projectState.startingFeatures.add(nextFeature.id);
+          lastDispatchTime = Date.now();
 
           logger.info(`[AutoLoop] Starting feature ${nextFeature.id}: ${nextFeature.title}`);
           // Reset idle event flag since we're doing work again
@@ -1117,7 +1138,8 @@ export class FeatureScheduler {
       }
 
       // Apply dependency-aware ordering
-      const { orderedFeatures, missingDependencies } = resolveDependencies(pendingFeatures);
+      const { orderedFeatures, missingDependencies, downstreamImpact } =
+        resolveDependencies(pendingFeatures);
 
       // Remove TRULY missing dependencies
       if (missingDependencies.size > 0) {
@@ -1216,14 +1238,56 @@ export class FeatureScheduler {
         );
       }
 
-      // Sort by priority (lower number = higher priority, picked up first)
+      // Sort by priority (lower number = higher priority, picked up first).
+      // Within the same priority tier, use downstreamImpact as secondary key
+      // so features that unblock the most downstream work are scheduled first.
       const priorityOrder = (p?: number | null): number => (p === 0 || p == null ? 3 : p);
-      readyFeatures.sort((a, b) => priorityOrder(a.priority) - priorityOrder(b.priority));
+      readyFeatures.sort((a, b) => {
+        const priorityDiff = priorityOrder(a.priority) - priorityOrder(b.priority);
+        if (priorityDiff !== 0) return priorityDiff;
+        // Higher downstreamImpact = more critical = earlier in queue (descending)
+        return (downstreamImpact.get(b.id) ?? 0) - (downstreamImpact.get(a.id) ?? 0);
+      });
+
+      // ── Readiness gate ──
+      // Filter out features whose readiness score is below the configured threshold.
+      // Features without a score (undefined) pass unconditionally — gate only applies
+      // when readiness scoring is active. Bypassed when skipReadinessGate is true.
+      const { skipReadinessGate, readinessThreshold } =
+        await this.getReadinessGateSettings(projectPath);
+
+      let gatedFeatures = readyFeatures;
+      if (!skipReadinessGate) {
+        const below: Feature[] = [];
+        gatedFeatures = readyFeatures.filter((f) => {
+          if (f.readinessScore === undefined) return true;
+          if (f.readinessScore >= readinessThreshold) return true;
+          below.push(f);
+          return false;
+        });
+        for (const f of below) {
+          logger.info(
+            `[loadPendingFeatures] Feature ${f.id} readinessScore=${f.readinessScore} below threshold=${readinessThreshold} — deferring`
+          );
+          this.events.emit('feature:readiness:below-threshold' as EventType, {
+            featureId: f.id,
+            featureTitle: f.title,
+            readinessScore: f.readinessScore,
+            threshold: readinessThreshold,
+            projectPath,
+          });
+        }
+        if (below.length > 0) {
+          logger.info(
+            `[loadPendingFeatures] Readiness gate: ${below.length} feature(s) deferred, ${gatedFeatures.length} remaining`
+          );
+        }
+      }
 
       // ── Project affinity filtering and sorting ──
       // Only applied when instance identity is configured (multi-instance deployments).
       // Single-instance setups with no proto.config.yaml identity pass through unmodified.
-      let affinityFilteredFeatures = readyFeatures;
+      let affinityFilteredFeatures = gatedFeatures;
       if (this.instanceId && this.getAssignedProjectSlugs) {
         try {
           const assignedSlugs = await this.getAssignedProjectSlugs(projectPath);
@@ -1238,8 +1302,8 @@ export class FeatureScheduler {
             return 2;
           };
 
-          const beforeCount = readyFeatures.length;
-          affinityFilteredFeatures = readyFeatures.filter((f) => {
+          const beforeCount = gatedFeatures.length;
+          affinityFilteredFeatures = gatedFeatures.filter((f) => {
             const tier = affinityTier(f);
             if (tier === 2 && !this.overflowEnabled) {
               logger.debug(
@@ -1268,7 +1332,7 @@ export class FeatureScheduler {
             '[loadPendingFeatures] Affinity filtering failed, using unfiltered list:',
             err
           );
-          affinityFilteredFeatures = readyFeatures;
+          affinityFilteredFeatures = gatedFeatures;
         }
       }
 
@@ -1315,6 +1379,50 @@ export class FeatureScheduler {
       return workflow?.maxPendingReviews ?? DEFAULT_MAX;
     } catch {
       return DEFAULT_MAX;
+    }
+  }
+
+  /**
+   * Read the agentStartStaggerMs setting from project workflow settings.
+   * Default: 15000. When multiple features are ready, the scheduler waits
+   * this many milliseconds between dispatches. Set to 0 to disable.
+   */
+  private async getAgentStartStaggerMs(projectPath: string): Promise<number> {
+    const DEFAULT_STAGGER_MS = 15_000;
+    try {
+      if (!this.settingsService) return DEFAULT_STAGGER_MS;
+      const projectSettings = await this.settingsService.getProjectSettings(projectPath);
+      const workflow = projectSettings.workflow as typeof projectSettings.workflow & {
+        agentStartStaggerMs?: number;
+      };
+      return workflow?.agentStartStaggerMs ?? DEFAULT_STAGGER_MS;
+    } catch {
+      return DEFAULT_STAGGER_MS;
+    }
+  }
+
+  /**
+   * Read readiness gate settings from project workflow settings.
+   * Returns skipReadinessGate (default: false) and readinessThreshold (default: 0.5).
+   */
+  private async getReadinessGateSettings(
+    projectPath: string
+  ): Promise<{ skipReadinessGate: boolean; readinessThreshold: number }> {
+    const DEFAULT_THRESHOLD = 0.5;
+    try {
+      if (!this.settingsService)
+        return { skipReadinessGate: false, readinessThreshold: DEFAULT_THRESHOLD };
+      const projectSettings = await this.settingsService.getProjectSettings(projectPath);
+      const workflow = projectSettings.workflow as typeof projectSettings.workflow & {
+        skipReadinessGate?: boolean;
+        readinessThreshold?: number;
+      };
+      return {
+        skipReadinessGate: workflow?.skipReadinessGate ?? false,
+        readinessThreshold: workflow?.readinessThreshold ?? DEFAULT_THRESHOLD,
+      };
+    } catch {
+      return { skipReadinessGate: false, readinessThreshold: DEFAULT_THRESHOLD };
     }
   }
 

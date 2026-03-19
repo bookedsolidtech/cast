@@ -87,6 +87,7 @@ import { getAgentManifestService } from '../agent-manifest-service.js';
 
 import { TypedEventBus } from './typed-event-bus.js';
 import { PostExecutionMiddleware } from './post-execution-middleware.js';
+import { TrajectoryQueryService } from '../trajectory-query-service.js';
 import type {
   RunningFeature,
   ParsedTask,
@@ -265,6 +266,7 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 export class ExecutionService {
   private readonly typedEventBus: TypedEventBus;
   private readonly postExecutionMiddleware: PostExecutionMiddleware;
+  private readonly trajectoryQueryService = new TrajectoryQueryService();
 
   constructor(
     private readonly events: EventEmitter,
@@ -715,10 +717,20 @@ export class ExecutionService {
       } else {
         // Normal flow: build prompt with planning phase
         // Context files are passed as the CONTEXT section in the PromptBuilder
+
+        // Query relevant past trajectories for injection (respects trajectoryInjection setting)
+        let trajectoryContext: string | undefined;
+        const trajectoryConfig = workflowSettings.trajectoryInjection;
+        if (trajectoryConfig?.enabled !== false) {
+          const maxTokens = trajectoryConfig?.maxTokens ?? 2000;
+          trajectoryContext = await this.buildTrajectoryContext(projectPath, feature, maxTokens);
+        }
+
         const featurePrompt = this.buildFeaturePrompt(
           feature,
           prompts.taskExecution,
-          combinedSystemPrompt || undefined
+          combinedSystemPrompt || undefined,
+          trajectoryContext
         );
         const planningPrefix = await this.getPlanningPromptPrefix(feature);
         prompt = planningPrefix + featurePrompt;
@@ -762,7 +774,14 @@ export class ExecutionService {
       // Persist the resolved model to the feature JSON so the UI can display it
       await this.featureLoader.update(projectPath, featureId, { model: modelResult.model });
 
-      // Merge branch with origin/dev before agent execution
+      // Resolve the effective base branch for this project (project setting → auto-detect → 'dev')
+      const preFlightBaseBranch = await getEffectivePrBaseBranch(
+        projectPath,
+        this.settingsService,
+        '[PreFlight]'
+      );
+
+      // Merge branch with the project's base branch before agent execution
       // Uses merge instead of rebase to handle concurrent .automaker/ modifications gracefully
       if (branchName && useWorktrees) {
         logger.info(`Syncing branch ${branchName} before agent execution...`);
@@ -772,16 +791,53 @@ export class ExecutionService {
           message: `Syncing branch ${branchName} with parent...`,
         });
 
+        // Validate that the resolved base branch exists on remote before attempting merge
         try {
-          await execAsync('git fetch origin', { cwd: workDir, timeout: 30000 });
+          await execAsync(`git fetch origin`, { cwd: workDir, timeout: 30000 });
+          const { stdout: lsOutput } = await execAsync(
+            `git ls-remote --heads origin ${preFlightBaseBranch}`,
+            { cwd: workDir, timeout: 10000 }
+          );
+          if (!lsOutput.trim()) {
+            const missingBranchReason =
+              `Pre-flight check failed: base branch "origin/${preFlightBaseBranch}" does not exist on remote. ` +
+              `Configure workflow.gitWorkflow.prBaseBranch in .automaker/settings.json to match the project's default branch.`;
+            logger.error(`[PreFlight] ${missingBranchReason}`);
+            this.typedEventBus.emitAutoModeEvent('sync_warning', {
+              featureId,
+              branchName,
+              message: missingBranchReason,
+              warning: true,
+            });
+            await this.featureLoader.update(projectPath, featureId, {
+              status: 'blocked',
+              statusChangeReason: missingBranchReason,
+            });
+            this.events.emit('feature:error', {
+              projectPath,
+              featureId,
+              error: missingBranchReason,
+              projectSlug: feature?.projectSlug,
+            });
+            return;
+          }
+        } catch (fetchError) {
+          logger.warn(
+            `[PreFlight] git fetch failed: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}. Continuing.`
+          );
+        }
 
-          await execAsync('git merge origin/dev', { cwd: workDir, timeout: 60000 });
-          logger.info(`Branch ${branchName} merged with origin/dev`);
+        try {
+          await execAsync(`git merge origin/${preFlightBaseBranch}`, {
+            cwd: workDir,
+            timeout: 60000,
+          });
+          logger.info(`Branch ${branchName} merged with origin/${preFlightBaseBranch}`);
 
           this.typedEventBus.emitAutoModeEvent('sync_completed', {
             featureId,
             branchName,
-            message: 'Branch merged with origin/dev',
+            message: `Branch merged with origin/${preFlightBaseBranch}`,
           });
         } catch (mergeError) {
           const mergeMsg = mergeError instanceof Error ? mergeError.message : String(mergeError);
@@ -812,7 +868,7 @@ export class ExecutionService {
                 ? ` Conflicting files: ${conflictingFiles.join(', ')}.`
                 : '';
             const reason =
-              `Pre-flight merge with origin/dev has conflicts — branch "${branchName}" must be manually merged before the agent can proceed.${fileList} ` +
+              `Pre-flight merge with origin/${preFlightBaseBranch} has conflicts — branch "${branchName}" must be manually merged before the agent can proceed.${fileList} ` +
               `Blocking feature to prevent repeated merge_conflict failures.`;
             this.typedEventBus.emitAutoModeEvent('sync_warning', {
               featureId,
@@ -3088,7 +3144,8 @@ After generating the revised spec, output:
       implementationInstructions: string;
       playwrightVerificationInstructions: string;
     },
-    contextContent?: string
+    contextContent?: string,
+    trajectoryContext?: string
   ): string {
     const title = extractTitleFromDescription(feature.description);
 
@@ -3130,6 +3187,11 @@ After generating the revised spec, output:
       );
     }
 
+    // TRAJECTORY_CONTEXT section — lessons from similar past executions (all phases)
+    if (trajectoryContext) {
+      builder.addSection('TRAJECTORY_CONTEXT', trajectoryContext);
+    }
+
     // CODING_STANDARDS section — implementation instructions (EXECUTE phase only)
     builder.addSection('CODING_STANDARDS', `\n${taskExecutionPrompts.implementationInstructions}`, [
       'EXECUTE',
@@ -3145,6 +3207,64 @@ After generating the revised spec, output:
     }
 
     return builder.build();
+  }
+
+  /**
+   * Query TrajectoryQueryService and format results as a concise "Lessons from Similar Features"
+   * section. Returns undefined when no relevant trajectories are found or on error.
+   * Truncates to maxTokens (approximated as maxTokens * 4 characters).
+   */
+  private async buildTrajectoryContext(
+    projectPath: string,
+    feature: Feature,
+    maxTokens: number
+  ): Promise<string | undefined> {
+    try {
+      const results = await this.trajectoryQueryService.findSimilar({
+        projectPath,
+        domain: feature.domain as import('@protolabsai/types').TrajectoryDomain | undefined,
+        complexity: feature.complexity as
+          | 'small'
+          | 'medium'
+          | 'large'
+          | 'architectural'
+          | undefined,
+        filesToModify: feature.filesToModify,
+        title: feature.title ?? '',
+        description: feature.description ?? '',
+      });
+
+      if (results.length === 0) return undefined;
+
+      const lines: string[] = ['## Lessons from Similar Features\n'];
+      for (let i = 0; i < results.length; i++) {
+        const r = results[i];
+        lines.push(`### ${i + 1}. ${r.featureTitle} (complexity: ${r.complexity})`);
+        lines.push(`- **Execution Summary:** ${r.executionSummary}`);
+        if (r.escalationReason) {
+          lines.push(`- **Escalation/Failure:** ${r.escalationReason}`);
+        }
+        lines.push('');
+      }
+
+      let section = lines.join('\n');
+
+      // Enforce max tokens via character approximation (4 chars ≈ 1 token)
+      const maxChars = maxTokens * 4;
+      if (section.length > maxChars) {
+        section = section.slice(0, maxChars);
+        // Trim to last complete line to avoid cutting mid-sentence
+        const lastNewline = section.lastIndexOf('\n');
+        if (lastNewline > 0) {
+          section = section.slice(0, lastNewline);
+        }
+      }
+
+      return section;
+    } catch (err) {
+      logger.warn('[ExecutionService] Failed to build trajectory context:', err);
+      return undefined;
+    }
   }
 
   /**
