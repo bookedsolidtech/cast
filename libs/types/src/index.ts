@@ -112,6 +112,13 @@ export type {
 } from './feature.js';
 export { normalizeFeatureStatus } from './feature.js';
 
+// CI Reaction Engine types — split remediation budget enforcement
+export type {
+  CIReactionSettings,
+  RemediationBudgetCheckResult,
+  RemediationBudgetInput,
+} from './ci-reaction.js';
+
 // Quarantine types
 export type {
   TrustTier,
