@@ -93,6 +93,7 @@ async function apiCall(
     headers: {
       'Content-Type': 'application/json',
       'X-API-Key': API_KEY,
+      'x-automaker-client': 'mcp',
     },
   };
 
