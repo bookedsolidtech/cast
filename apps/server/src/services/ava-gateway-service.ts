@@ -838,8 +838,34 @@ export class AvaGatewayService {
         const duration = Date.now() - startTime;
         logger.info(`Heartbeat identified ${result.alerts.length} alert(s) (${duration}ms)`);
 
+        // Batch alerts by type to avoid Discord spam. If 3+ alerts share the same
+        // title prefix, consolidate into a single message with a count.
+        const alertsByType = new Map<string, HeartbeatAlert[]>();
         for (const alert of result.alerts) {
-          await this.postToDiscord(alert);
+          const key = alert.title.replace(/:.*/s, '').trim();
+          const group = alertsByType.get(key) ?? [];
+          group.push(alert);
+          alertsByType.set(key, group);
+        }
+
+        for (const [type, alerts] of alertsByType) {
+          if (alerts.length >= 3) {
+            // Consolidate: post a single summary instead of N individual messages
+            await this.postToDiscord({
+              severity: alerts[0].severity,
+              title: `${type} (${alerts.length} issues)`,
+              description:
+                alerts
+                  .slice(0, 5)
+                  .map((a) => `- ${a.description}`)
+                  .join('\n') + (alerts.length > 5 ? `\n- ... and ${alerts.length - 5} more` : ''),
+              suggestedAction: alerts[0].suggestedAction,
+            });
+          } else {
+            for (const alert of alerts) {
+              await this.postToDiscord(alert);
+            }
+          }
         }
 
         if (this.events) {
