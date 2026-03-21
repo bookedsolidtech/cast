@@ -289,8 +289,22 @@ export class ReviewProcessor implements StateProcessor {
       };
     }
 
-    // CLI/API error — escalate instead of polling forever
+    // CLI/API error — check if PR is already merged before escalating.
+    // Merged PRs can return 'error' review state when the GitHub API returns
+    // unclear status on closed PRs. The merged check in getPRReviewState handles
+    // most cases, but this is a safety net for edge cases.
     if (reviewState === 'error') {
+      const isMerged = await this.checkBranchMerged(ctx);
+      if (isMerged) {
+        logger.info(
+          `[REVIEW] PR #${ctx.prNumber} review state errored but PR is merged — transitioning to MERGE`
+        );
+        return {
+          nextState: 'MERGE',
+          shouldContinue: true,
+          reason: 'PR already merged (detected during error recovery)',
+        };
+      }
       ctx.escalationReason = `Unable to determine PR review state for PR #${ctx.prNumber}`;
       return {
         nextState: 'ESCALATE',
@@ -586,6 +600,27 @@ export class ReviewProcessor implements StateProcessor {
 
     // Fallback: query gh CLI when PRFeedbackService hasn't tracked the PR yet
     if (!ctx.prNumber) return 'pending';
+
+    // Fast path: if the PR is already merged, skip review state resolution entirely.
+    // This prevents "Unable to determine PR review state" errors for merged PRs
+    // when the GitHub API returns unclear review status on closed/merged PRs.
+    try {
+      const { stdout: mergeCheck } = await execAsync(
+        `gh pr view ${ctx.prNumber} --json state,mergedAt --jq '{state: .state, mergedAt: .mergedAt}'`,
+        { cwd: ctx.projectPath, timeout: 10000 }
+      );
+      const mergeData = JSON.parse(mergeCheck.trim());
+      if (mergeData.state === 'MERGED' && mergeData.mergedAt) {
+        logger.info(
+          `[REVIEW] PR #${ctx.prNumber} already merged at ${mergeData.mergedAt}, fast-pathing to approved`
+        );
+        return 'approved';
+      }
+    } catch (mergeErr) {
+      logger.debug(
+        `[REVIEW] Merge check failed for PR #${ctx.prNumber}, continuing with review state check`
+      );
+    }
 
     try {
       const { stdout } = await execAsync(
