@@ -15,12 +15,30 @@
  * security check that applies to ALL AI model invocations, regardless of provider.
  */
 
-import type { Options, HookCallback } from '@anthropic-ai/claude-agent-sdk';
+import type { Options, HookCallback, PostToolUseHookInput } from '@anthropic-ai/claude-agent-sdk';
 import path from 'path';
+import { createHash } from 'node:crypto';
 import { resolveModelString } from '@protolabsai/model-resolver';
 import { createLogger } from '@protolabsai/utils';
+import type { ToolExecutionEntry } from '../services/audit-service.js';
 
 const logger = createLogger('SdkOptions');
+
+/** Module-level tool execution logger, set via setToolExecutionLogger() from services.ts */
+let _toolExecutionLogger: ((entry: ToolExecutionEntry) => Promise<void>) | null = null;
+
+/**
+ * Wire in the AuditService tool execution logger.
+ * Called once during server startup from services.ts.
+ * When set, all agent tool calls are logged as audit entries.
+ */
+export function setToolExecutionLogger(logFn: (entry: ToolExecutionEntry) => Promise<void>): void {
+  _toolExecutionLogger = logFn;
+}
+
+// Re-export ToolExecutionEntry for consumers
+export type { ToolExecutionEntry };
+
 import {
   DEFAULT_MODELS,
   CLAUDE_MODEL_MAP,
@@ -28,7 +46,13 @@ import {
   type ThinkingLevel,
   getThinkingTokenBudget,
 } from '@protolabsai/types';
-import { isPathAllowed, PathNotAllowedError, getAllowedRootDirectory } from '@protolabsai/platform';
+import {
+  isPathAllowed,
+  PathNotAllowedError,
+  getAllowedRootDirectory,
+  validateUrlTarget,
+  UrlNotAllowedError,
+} from '@protolabsai/platform';
 
 /**
  * Result of sandbox compatibility check
@@ -239,6 +263,58 @@ export function createWorktreeWriteGuard(
 }
 
 /**
+ * Create a PreToolUse hook that blocks WebFetch requests to private/internal IP ranges.
+ *
+ * This prevents SSRF attacks where agents could be tricked into fetching internal
+ * resources (AWS metadata, private services, localhost) via WebFetch calls.
+ */
+export function createSsrfGuardHook(): HookCallback {
+  return async (input) => {
+    if (input.hook_event_name !== 'PreToolUse') {
+      return {};
+    }
+
+    if (input.tool_name !== 'WebFetch') {
+      return {};
+    }
+
+    const toolInput = input.tool_input as Record<string, unknown> | undefined;
+    const url = toolInput?.url as string | undefined;
+
+    if (!url) {
+      return {};
+    }
+
+    try {
+      await validateUrlTarget(url);
+    } catch (err) {
+      if (err instanceof UrlNotAllowedError) {
+        logger.warn(`[SsrfGuard] Blocked WebFetch to private/internal URL: ${url}`);
+        return {
+          decision: 'block' as const,
+          reason: `BLOCKED: ${err.message}`,
+        };
+      }
+      if (err instanceof TypeError) {
+        logger.warn(`[SsrfGuard] Blocked WebFetch with malformed URL: ${url}`);
+        return {
+          decision: 'block' as const,
+          reason: `BLOCKED: Malformed URL - ${err.message}`,
+        };
+      }
+      // Unexpected errors: block to be safe
+      logger.error(`[SsrfGuard] Unexpected error validating URL ${url}: ${String(err)}`);
+      return {
+        decision: 'block' as const,
+        reason: `BLOCKED: URL validation failed unexpectedly`,
+      };
+    }
+
+    return {};
+  };
+}
+
+/**
  * Escape special regex characters in a string
  */
 function escapeRegExp(s: string): string {
@@ -424,28 +500,141 @@ function buildThinkingOptions(thinkingLevel?: ThinkingLevel): Partial<Options> {
 }
 
 /**
- * Build worktree write guard hooks for SDK options.
- * Returns a hooks object if projectPath is set and differs from cwd (worktree mode).
+ * Build PreToolUse hooks combining the worktree write guard and SSRF guard.
+ * Returns a hooks object if either guard applies.
  */
-function buildWorktreeGuardHooks(config: CreateSdkOptionsConfig): Partial<Options> {
-  if (!config.projectPath) return {};
+function buildPreToolUseHooks(config: CreateSdkOptionsConfig): Partial<Options> {
+  const preToolUseHooks: HookCallback[] = [];
 
-  const guard = createWorktreeWriteGuard(config.cwd, config.projectPath);
-  if (!guard) return {};
+  // SSRF guard — always enabled for any config that includes WebFetch
+  preToolUseHooks.push(createSsrfGuardHook());
 
-  logger.info(
-    `[WorktreeGuard] Enabled: writes blocked outside worktree ${config.cwd} (project: ${config.projectPath})`
-  );
+  // Worktree write guard — only when running in a worktree context
+  if (config.projectPath) {
+    const guard = createWorktreeWriteGuard(config.cwd, config.projectPath);
+    if (guard) {
+      logger.info(
+        `[WorktreeGuard] Enabled: writes blocked outside worktree ${config.cwd} (project: ${config.projectPath})`
+      );
+      preToolUseHooks.push(guard);
+    }
+  }
+
+  if (preToolUseHooks.length === 0) return {};
 
   return {
     hooks: {
       PreToolUse: [
         {
-          hooks: [guard],
+          hooks: preToolUseHooks,
         },
       ],
     },
   };
+}
+
+/**
+ * Build worktree write guard hooks for SDK options.
+ * Returns a hooks object if projectPath is set and differs from cwd (worktree mode).
+ * @deprecated Use buildAllHooks instead — it includes SSRF, worktree, and audit hooks
+ */
+function buildWorktreeGuardHooks(config: CreateSdkOptionsConfig): Partial<Options> {
+  return buildAllHooks(config);
+}
+
+/**
+ * Build all SDK hooks: PreToolUse (SSRF guard + worktree write guard + audit timing)
+ * and PostToolUse (tool execution audit logging).
+ *
+ * Combines all hook types into a single hooks object to avoid spread conflicts.
+ */
+function buildAllHooks(config: CreateSdkOptionsConfig): Partial<Options> {
+  const preHooks: HookCallback[] = [];
+
+  // SSRF guard — always enabled
+  preHooks.push(createSsrfGuardHook());
+
+  // Worktree write guard — only when running in a worktree context
+  if (config.projectPath) {
+    const guard = createWorktreeWriteGuard(config.cwd, config.projectPath);
+    if (guard) {
+      logger.info(
+        `[WorktreeGuard] Enabled: writes blocked outside worktree ${config.cwd} (project: ${config.projectPath})`
+      );
+      preHooks.push(guard);
+    }
+  }
+
+  const postHooks: HookCallback[] = [];
+
+  // Tool execution audit hook — enabled when logger is wired and agentId/featureId are set
+  if (_toolExecutionLogger && config.agentId && config.featureId) {
+    const agentId = config.agentId;
+    const featureId = config.featureId;
+    const auditLogger = _toolExecutionLogger;
+
+    // Track call start times by tool_use_id for duration measurement
+    const pendingCalls = new Map<string, number>();
+
+    const preAuditHook: HookCallback = async (input, toolUseID) => {
+      if (input.hook_event_name !== 'PreToolUse') return {};
+      const key = toolUseID ?? `${input.tool_name}:${Date.now()}`;
+      pendingCalls.set(key, Date.now());
+      return {};
+    };
+
+    const postAuditHook: HookCallback = async (input, toolUseID) => {
+      if (input.hook_event_name !== 'PostToolUse') return {};
+
+      const postInput = input as PostToolUseHookInput;
+      const key = toolUseID ?? '';
+      let durationMs = 0;
+      if (key && pendingCalls.has(key)) {
+        durationMs = Date.now() - pendingCalls.get(key)!;
+        pendingCalls.delete(key);
+      }
+
+      const toolInput = postInput.tool_input as Record<string, unknown> | undefined;
+      const inputHash = createHash('sha256')
+        .update(JSON.stringify(toolInput ?? {}))
+        .digest('hex');
+
+      const toolResponse = postInput.tool_response as Record<string, unknown> | undefined;
+      let resultStatus: ToolExecutionEntry['resultStatus'] = 'success';
+      if (toolResponse?.is_error === true) {
+        resultStatus = 'error';
+      }
+
+      await auditLogger({
+        timestamp: new Date().toISOString(),
+        agentId,
+        featureId,
+        toolName: postInput.tool_name,
+        inputHash,
+        resultStatus,
+        durationMs,
+      }).catch((err: unknown) => {
+        logger.error('[ToolAudit] Failed to log tool execution:', err);
+      });
+
+      return {};
+    };
+
+    preHooks.push(preAuditHook);
+    postHooks.push(postAuditHook);
+  }
+
+  if (preHooks.length === 0 && postHooks.length === 0) return {};
+
+  const hooks: Partial<Record<'PreToolUse' | 'PostToolUse', Array<{ hooks: HookCallback[] }>>> = {};
+  if (preHooks.length > 0) {
+    hooks.PreToolUse = [{ hooks: preHooks }];
+  }
+  if (postHooks.length > 0) {
+    hooks.PostToolUse = [{ hooks: postHooks }];
+  }
+
+  return { hooks };
 }
 
 /**
@@ -556,6 +745,12 @@ export interface CreateSdkOptionsConfig {
    * - 'execution': execution-focused tools only (no Task/Skill orchestration)
    */
   toolProfile?: 'full' | 'execution';
+
+  /** Agent ID for tool execution audit logging. Required for audit entries. */
+  agentId?: string;
+
+  /** Feature ID for tool execution audit logging. Required for audit entries. */
+  featureId?: string;
 }
 
 // Re-export MCP types from @protolabsai/types for convenience
