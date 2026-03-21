@@ -1102,7 +1102,8 @@ export class FeatureLoader implements FeatureStore {
     preloadedFeatures?: Feature[]
   ): Promise<Feature[]> {
     const features = preloadedFeatures ?? (await this.getAll(projectPath));
-    const featuresWithBranch = features.filter((f) => f.branchName);
+    // Skip done features — branch deletion after PR merge is normal, not an orphan.
+    const featuresWithBranch = features.filter((f) => f.branchName && f.status !== 'done');
 
     if (featuresWithBranch.length === 0) {
       return [];
