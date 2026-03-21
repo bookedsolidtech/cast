@@ -65,7 +65,7 @@ describe('auto-mode-service.ts (integration)', () => {
       const worktreesDir = path.join(testRepo.path, '.worktrees');
       const worktreePath = path.join(worktreesDir, 'test-feature-1');
       await fs.mkdir(worktreesDir, { recursive: true });
-      await execAsync(`git worktree add -b ${branchName} "${worktreePath}" HEAD`, {
+      await execAsync(`git worktree add -B ${branchName} "${worktreePath}" HEAD`, {
         cwd: testRepo.path,
       });
 
@@ -340,7 +340,7 @@ describe('auto-mode-service.ts (integration)', () => {
         branchName: 'feature/auto-1',
       });
       await execAsync(
-        `git worktree add -b feature/auto-1 "${path.join(worktreesDir, 'feature-auto-1')}" HEAD`,
+        `git worktree add -B feature/auto-1 "${path.join(worktreesDir, 'feature-auto-1')}" HEAD`,
         { cwd: testRepo.path }
       );
 
@@ -353,7 +353,7 @@ describe('auto-mode-service.ts (integration)', () => {
         branchName: 'feature/auto-2',
       });
       await execAsync(
-        `git worktree add -b feature/auto-2 "${path.join(worktreesDir, 'feature-auto-2')}" HEAD`,
+        `git worktree add -B feature/auto-2 "${path.join(worktreesDir, 'feature-auto-2')}" HEAD`,
         { cwd: testRepo.path }
       );
 
@@ -539,7 +539,7 @@ describe('auto-mode-service.ts (integration)', () => {
         branchName: 'feature/fail-1',
       });
       await execAsync(
-        `git worktree add -b feature/fail-1 "${path.join(worktreesDir, 'feature-fail-1')}" HEAD`,
+        `git worktree add -B feature/fail-1 "${path.join(worktreesDir, 'feature-fail-1')}" HEAD`,
         { cwd: testRepo.path }
       );
 
@@ -551,7 +551,7 @@ describe('auto-mode-service.ts (integration)', () => {
         branchName: 'feature/success-1',
       });
       await execAsync(
-        `git worktree add -b feature/success-1 "${path.join(worktreesDir, 'feature-success-1')}" HEAD`,
+        `git worktree add -B feature/success-1 "${path.join(worktreesDir, 'feature-success-1')}" HEAD`,
         { cwd: testRepo.path }
       );
 

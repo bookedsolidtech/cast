@@ -36,7 +36,7 @@ jobs:
           fi
           BRANCH="chore/regenerate-site-data-$(date +%Y%m%d)"
           git checkout -b "$BRANCH"
-          git commit -m "docs: regenerate site data [skip ci]"
+          git commit -m "docs: regenerate site data"
           git push origin "$BRANCH"
           # Create PR if one doesn't already exist for today
           EXISTING=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number' 2>/dev/null || true)

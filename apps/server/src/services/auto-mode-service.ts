@@ -3005,7 +3005,7 @@ Format your response as a structured markdown document.`;
           }
 
           // Create new branch from base (epic branch or HEAD)
-          await execAsync(`git worktree add -b "${branchName}" "${worktreePath}" ${baseBranch}`, {
+          await execAsync(`git worktree add -B "${branchName}" "${worktreePath}" ${baseBranch}`, {
             cwd: projectPath,
             env: gitEnv,
           });
