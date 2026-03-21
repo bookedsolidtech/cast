@@ -857,6 +857,49 @@ export class FeatureScheduler {
         }
       }
 
+      // ── prNumber direct check: features with prNumber set but not yet reconciled ──
+      const reconciledByPrMergedAt = new Set(staleViaPrMergedAt.map((f) => f.id));
+      const alreadyReconciled = new Set([...reconciledByBranch, ...reconciledByPrMergedAt]);
+      const staleViaPrNumber = allFeatures.filter(
+        (f) =>
+          f.prNumber &&
+          (f.status === 'backlog' || f.status === 'blocked' || f.status === 'review') &&
+          !alreadyReconciled.has(f.id)
+      );
+      for (const feature of staleViaPrNumber) {
+        try {
+          const prNum = String(feature.prNumber).replace(/[^0-9]/g, '');
+          const { stdout: prViewJson } = await execAsync(
+            `gh pr view ${prNum} --json state,mergedAt`,
+            { cwd: projectPath, timeout: 10000 }
+          );
+          const prView: { state: string; mergedAt?: string } = JSON.parse(prViewJson);
+          if (prView.state === 'MERGED') {
+            logger.info(
+              `[loadPendingFeatures] Feature ${feature.id} ("${feature.title}") PR #${feature.prNumber} is merged — reconciling to done`
+            );
+            const prevStatus = feature.status;
+            try {
+              await this.featureLoader.update(projectPath, feature.id, {
+                status: 'done',
+                prMergedAt: prView.mergedAt ?? new Date().toISOString(),
+              });
+              feature.status = 'done';
+            } catch (error) {
+              feature.status = prevStatus;
+              logger.error(
+                `[loadPendingFeatures] Failed to reconcile feature ${feature.id} to done via prNumber check:`,
+                error
+              );
+            }
+          }
+        } catch {
+          logger.debug(
+            `[loadPendingFeatures] Could not verify PR #${feature.prNumber} for feature ${feature.id} (non-fatal)`
+          );
+        }
+      }
+
       // ── Dependency re-evaluation: unblock features whose deps are now satisfied ──
       const blockedWithDeps = allFeatures.filter(
         (f) => f.status === 'blocked' && f.dependencies && f.dependencies.length > 0
