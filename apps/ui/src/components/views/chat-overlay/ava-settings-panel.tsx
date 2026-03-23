@@ -53,11 +53,6 @@ const TOOL_GROUP_ENTRIES: Array<{
     label: 'Orchestration',
     description: 'Manage feature dependencies and order',
   },
-  {
-    key: 'agentDelegation',
-    label: 'Agent Delegation',
-    description: 'Delegate tasks to specialized agents',
-  },
   { key: 'notes', label: 'Notes', description: 'Read and write project notes' },
   { key: 'metrics', label: 'Metrics', description: 'View project and capacity metrics' },
   { key: 'prWorkflow', label: 'PR Workflow', description: 'Check PR status, feedback, and merge' },
@@ -65,6 +60,11 @@ const TOOL_GROUP_ENTRIES: Array<{
   { key: 'contextFiles', label: 'Context Files', description: 'Manage agent context files' },
   { key: 'projects', label: 'Projects', description: 'List, view, and create projects' },
   { key: 'briefing', label: 'Briefing', description: 'Daily briefing and event digest' },
+  { key: 'discord', label: 'Discord', description: 'Send messages to Discord channels' },
+  { key: 'health', label: 'Health', description: 'Health monitoring and diagnostics' },
+  { key: 'settings', label: 'Settings', description: 'Access and modify global settings' },
+  { key: 'delegation', label: 'Delegation', description: 'Delegate tasks to PM agent' },
+  { key: 'scheduling', label: 'Scheduling', description: 'Create and manage recurring tasks' },
   { key: 'memory', label: 'Memory', description: 'Persistent memory across chat sessions' },
 ];
 

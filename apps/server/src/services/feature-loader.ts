@@ -1102,8 +1102,25 @@ export class FeatureLoader implements FeatureStore {
     preloadedFeatures?: Feature[]
   ): Promise<Feature[]> {
     const features = preloadedFeatures ?? (await this.getAll(projectPath));
-    // Skip done features — branch deletion after PR merge is normal, not an orphan.
-    const featuresWithBranch = features.filter((f) => f.branchName && f.status !== 'done');
+    // Only check features that have been worked on (in_progress, review, blocked).
+    // Skip done — branch deletion after PR merge is normal.
+    // Skip backlog — branches are created when agents start, not at feature creation.
+    // Skip epics whose children are all done — epic branches may never have been created
+    // when features PR directly to dev instead of the epic branch.
+    const nonOrphanStatuses = new Set(['done', 'backlog']);
+    const doneChildIds = new Set(
+      features.filter((f) => f.status === 'done' && f.epicId).map((f) => f.epicId!)
+    );
+    const featuresWithBranch = features.filter(
+      (f) =>
+        f.branchName &&
+        !nonOrphanStatuses.has(f.status ?? 'backlog') &&
+        !(
+          f.isEpic &&
+          doneChildIds.has(f.id) &&
+          !features.some((c) => c.epicId === f.id && c.status !== 'done')
+        )
+    );
 
     if (featuresWithBranch.length === 0) {
       return [];
