@@ -1,5 +1,36 @@
 # @protolabsai/ui
 
+## 0.83.6
+
+### Patch Changes
+
+- ### Bug Fixes
+  - skip backlog features in orphaned branch detection
+  - stop heartbeat alert spam for epic branches and duplicate issues
+  - fix test failures from settings overhaul agent work
+  - reduce auto-loop log noise for idle projects
+  - normalize 'in-progress' (hyphenated) status to in_progress
+  - gracefully handle missing features in Lead Engineer resume queue
+  - make create_project PRD validation more lenient
+  - add missing Ava tool group toggles to settings panel
+
+  ### Refactors
+  - Unify concurrency resolution with enforced precedence chain
+  - Restructure Global Settings navigation (#3054)
+  - Unify MCP server configuration (#3053)
+  - Fix Workflow panel scope indication (#3051)
+  - Update docs after: Settings System Overhaul (#3050)
+  - Fix prBaseBranch default and resolution (#3048)
+  - Clean Zustand sync coverage (#3047)
+  - Clean Zustand sync and stores (#3046)
+  - Remove dead GlobalSettings fields (#3045)
+  - Bug: Stale scheduler task 'Auto-Merge Eligible PRs' references removed f (#3044)
+  - reduce agent hallucinations with investigate-before-answering and external knowledge restriction
+
+- Updated dependencies
+  - @protolabsai/types@0.83.6
+  - @protolabsai/utils@0.83.6
+
 ## 0.83.5
 
 ### Patch Changes
