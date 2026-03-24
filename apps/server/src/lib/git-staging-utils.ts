@@ -10,6 +10,7 @@
  * Now uses plain `git add -A` and relies on .gitignore for exclusion.
  */
 
+import { execSync } from 'child_process';
 import { existsSync } from 'fs';
 import { join } from 'path';
 
@@ -27,7 +28,6 @@ export const DEFAULT_STAGING_EXCLUSIONS = ['.automaker/', '.claude/worktrees/', 
  */
 export function isGitignoreManaged(workDir: string, path: string): boolean {
   try {
-    const { execSync } = require('child_process');
     execSync(`git check-ignore -q ${path}`, { cwd: workDir, stdio: 'ignore' });
     return true;
   } catch {
