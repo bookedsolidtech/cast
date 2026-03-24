@@ -1,5 +1,18 @@
 # @protolabsai/observability
 
+## 0.88.0
+
+### Minor Changes
+
+- ### Features
+  - replace react-markdown with streamdown for streaming chat
+
+### Patch Changes
+
+- Updated dependencies
+  - @protolabsai/types@0.88.0
+  - @protolabsai/utils@0.88.0
+
 ## 0.87.0
 
 ### Minor Changes
