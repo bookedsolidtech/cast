@@ -52,12 +52,20 @@ export function isGitignoreManaged(workDir: string, path: string): boolean {
 export function buildGitAddCommand(workDir: string, excludeFromStaging?: string[]): string {
   const exclusions = excludeFromStaging ?? DEFAULT_STAGING_EXCLUSIONS;
 
-  // Collect all pathspec arguments into one array, then join at the end.
-  // Only emit exclusion pathspecs for dirs NOT already handled by .gitignore:
-  // using `:!dir/` for a gitignored path causes:
-  //   fatal: The following paths are ignored by one of your .gitignore files: dir
+  // Only emit exclusion pathspecs for dirs NOT already handled by .gitignore.
+  // Using `:!dir/` for a gitignored path causes a fatal error:
+  //   "The following paths are ignored by one of your .gitignore files: dir"
+  // In worktrees, `git check-ignore` can fail spuriously (missing .gitignore,
+  // shallow checkout, etc). Default to SKIPPING the exclusion when in doubt —
+  // .gitignore already covers it, and an unnecessary exclusion pathspec is the
+  // exact error that keeps blocking agents.
   const pathspecArgs: string[] = exclusions
-    .filter((dir) => !isGitignoreManaged(workDir, dir))
+    .filter((dir) => {
+      // If the dir doesn't even exist in the worktree, skip the exclusion
+      if (!existsSync(join(workDir, dir))) return false;
+      // If .gitignore already covers it, skip the exclusion
+      return !isGitignoreManaged(workDir, dir);
+    })
     .map((dir) => `':!${dir}'`);
 
   // Re-include .automaker/memory/ and .automaker/skills/ when .automaker/ is excluded.
@@ -70,6 +78,11 @@ export function buildGitAddCommand(workDir: string, excludeFromStaging?: string[
     if (existsSync(join(workDir, '.automaker/skills'))) {
       pathspecArgs.push("'.automaker/skills/'");
     }
+  }
+
+  // If no pathspec args needed, just use plain git add -A
+  if (pathspecArgs.length === 0) {
+    return 'git add -A';
   }
 
   return `git add -A -- ${pathspecArgs.join(' ')}`;
