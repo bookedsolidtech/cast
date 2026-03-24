@@ -1,5 +1,12 @@
 # @protolabsai/types
 
+## 0.88.0
+
+### Minor Changes
+
+- ### Features
+  - replace react-markdown with streamdown for streaming chat
+
 ## 0.87.0
 
 ### Minor Changes
