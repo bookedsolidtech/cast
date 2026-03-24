@@ -20,7 +20,7 @@ export function ChatSessionPool({ projectPath, projectId }: ChatSessionPoolProps
   const currentSessionId = useChatStore((s) => s.currentSessionId);
 
   return (
-    <>
+    <div className="flex min-h-0 flex-1 flex-col">
       {activeSessions.map((sessionId) => (
         <ChatSessionSlot
           key={sessionId}
@@ -30,6 +30,6 @@ export function ChatSessionPool({ projectPath, projectId }: ChatSessionPoolProps
           projectId={projectId}
         />
       ))}
-    </>
+    </div>
   );
 }

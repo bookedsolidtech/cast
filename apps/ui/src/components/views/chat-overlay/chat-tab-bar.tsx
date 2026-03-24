@@ -110,10 +110,8 @@ export function ChatTabBar({ projectId, modelAlias, className }: ChatTabBarProps
   return (
     <>
       <div
-        className={cn(
-          'flex items-center gap-0.5 overflow-x-auto border-b border-border bg-background px-1 py-0.5',
-          className
-        )}
+        className={cn('flex items-center overflow-x-auto border-b border-border px-2', className)}
+        role="tablist"
         data-testid="chat-tab-bar"
       >
         {visibleIds.map((sessionId) => {
@@ -125,16 +123,19 @@ export function ChatTabBar({ projectId, modelAlias, className }: ChatTabBarProps
           return (
             <button
               key={sessionId}
+              type="button"
+              role="tab"
               onClick={() => {
                 switchSession(sessionId);
                 activateSession(sessionId);
               }}
               className={cn(
-                'group flex min-w-0 max-w-[160px] shrink-0 items-center gap-1.5 rounded px-2 py-1 text-xs transition-colors',
+                'group flex min-w-0 max-w-[180px] shrink-0 items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors border-b-2 -mb-px',
                 isActive
-                  ? 'bg-accent text-accent-foreground'
-                  : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+                  ? 'border-primary text-foreground'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
               )}
+              aria-selected={isActive}
               title={title}
               data-testid={`chat-tab-${sessionId}`}
             >
@@ -181,8 +182,9 @@ export function ChatTabBar({ projectId, modelAlias, className }: ChatTabBarProps
 
         {/* New session button */}
         <button
+          type="button"
           onClick={handleNew}
-          className="flex shrink-0 items-center gap-1 rounded px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
+          className="flex shrink-0 items-center gap-1 px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground border-b-2 border-transparent -mb-px"
           title="New chat session"
           data-testid="chat-tab-new"
         >
