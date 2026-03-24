@@ -196,7 +196,7 @@ export function ChatSessionSlot({
   );
 
   return (
-    <div className={cn('flex min-h-0 flex-1 flex-col', !visible && 'hidden')}>
+    <div className={cn('flex min-h-0 flex-1 flex-col overflow-hidden', !visible && 'hidden')}>
       <AskAvaTab
         displayedMessages={messages}
         isStreaming={isStreaming}
