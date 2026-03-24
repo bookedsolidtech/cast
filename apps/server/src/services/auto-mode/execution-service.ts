@@ -2324,6 +2324,20 @@ This mock response was generated because AUTOMAKER_MOCK_AGENT=true was set.
       }
     }
 
+    // Map feature complexity to Claude effort level for cost optimization.
+    // small → low (fast, cheap), medium → medium, large → high, architectural → max
+    const complexityToEffort: Record<string, 'low' | 'medium' | 'high' | 'max'> = {
+      small: 'low',
+      medium: 'medium',
+      large: 'high',
+      architectural: 'max',
+    };
+    const featureForEffort = await this.featureLoader
+      .get(finalProjectPath, featureId)
+      .catch(() => null);
+    const claudeEffortLevel =
+      complexityToEffort[featureForEffort?.complexity ?? 'medium'] ?? 'medium';
+
     const executeOptions: ExecuteOptions = {
       prompt: promptContent,
       model: effectiveBareModel,
@@ -2333,13 +2347,14 @@ This mock response was generated because AUTOMAKER_MOCK_AGENT=true was set.
       abortController,
       systemPrompt: sdkOptions.systemPrompt,
       settingSources: sdkOptions.settingSources,
-      mcpServers: Object.keys(mcpServers).length > 0 ? mcpServers : undefined, // Pass MCP servers configuration
-      thinkingLevel: options?.thinkingLevel, // Pass thinking level for extended thinking
-      credentials, // Pass credentials for resolving 'credentials' apiKeySource
-      claudeCompatibleProvider, // Pass provider for alternative endpoint configuration (GLM, MiniMax, etc.)
-      sdkSessionId: options?.resume, // Forward resume session ID for session continuity
-      hooks: sdkOptions.hooks as ExecuteOptions['hooks'], // Worktree write guard
-      ...(phaseTemperature !== undefined && { temperature: phaseTemperature }), // Phase temperature
+      mcpServers: Object.keys(mcpServers).length > 0 ? mcpServers : undefined,
+      thinkingLevel: options?.thinkingLevel,
+      credentials,
+      claudeCompatibleProvider,
+      sdkSessionId: options?.resume,
+      hooks: sdkOptions.hooks as ExecuteOptions['hooks'],
+      claudeEffortLevel,
+      ...(phaseTemperature !== undefined && { temperature: phaseTemperature }),
     };
 
     // Middleware hook point: allow callers to inject additional context before the model call.
