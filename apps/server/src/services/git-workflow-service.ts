@@ -1515,6 +1515,7 @@ export class GitWorkflowService {
     prNumber?: number;
     prAlreadyExisted?: boolean;
     prCreatedAt?: string;
+    prState?: string;
   }> {
     // Check if gh CLI is available
     const ghAvailable = await isGhCliAvailable();
@@ -1579,7 +1580,6 @@ export class GitWorkflowService {
     // Always use explicit --repo to avoid gh CLI defaulting to wrong repo
     const targetRepo = originRepo || upstreamRepo;
     const headRef = branchName; // No cross-fork PR - target our own repo
-    const repoArg = targetRepo ? ` --repo "${targetRepo}"` : '';
 
     // Validate CI workflow triggers before creating/returning PR.
     // Logs a warning (non-blocking) if CI workflows don't include the base branch —
@@ -1587,8 +1587,18 @@ export class GitWorkflowService {
     await this.validateCIWorkflowTriggers(projectPath, baseBranch);
 
     try {
-      const listCmd = `gh pr list${repoArg} --head "${headRef}" --json number,title,url,state --limit 1`;
-      const { stdout: existingPrOutput } = await execAsync(listCmd, {
+      const listArgs = [
+        'pr',
+        'list',
+        '--head',
+        headRef,
+        '--json',
+        'number,title,url,state',
+        '--limit',
+        '1',
+      ];
+      if (targetRepo) listArgs.push('--repo', targetRepo);
+      const { stdout: existingPrOutput } = await execFileAsync('gh', listArgs, {
         cwd: workDir,
         env: execEnv,
       });
@@ -1596,13 +1606,14 @@ export class GitWorkflowService {
       const existingPrs = JSON.parse(existingPrOutput);
       if (Array.isArray(existingPrs) && existingPrs.length > 0) {
         const existingPr = existingPrs[0];
+        const prState = validatePRState(existingPr.state);
 
         // Store PR info in metadata
         await updateWorktreePRInfo(projectPath, branchName, {
           number: existingPr.number,
           url: existingPr.url,
           title: existingPr.title || title,
-          state: validatePRState(existingPr.state),
+          state: prState,
           createdAt: new Date().toISOString(),
         });
 
@@ -1610,10 +1621,13 @@ export class GitWorkflowService {
           prUrl: existingPr.url,
           prNumber: existingPr.number,
           prAlreadyExisted: true,
+          prState,
         };
       }
-    } catch {
-      // No existing PR found, continue to create
+    } catch (preCheckError) {
+      logger.debug(
+        `[createPullRequest] Pre-check for existing PR failed (will attempt creation): ${preCheckError instanceof Error ? preCheckError.message : String(preCheckError)}`
+      );
     }
 
     // Create new PR - use execFileAsync array args to avoid shell injection
@@ -1687,29 +1701,67 @@ export class GitWorkflowService {
       // Check if error indicates PR already exists
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.toLowerCase().includes('already exists')) {
-        // Try to fetch existing PR
+        logger.warn(
+          `[createPullRequest] PR creation returned "already exists" for branch "${branchName}" — attempting recovery`
+        );
+        // Use --state all to find the PR regardless of open/closed/merged state
         try {
-          const { stdout: viewOutput } = await execAsync(
-            `gh pr view --json number,title,url,state`,
-            { cwd: workDir, env: execEnv }
-          );
-          const existingPr = JSON.parse(viewOutput);
-          if (existingPr.url) {
+          const recoveryArgs = [
+            'pr',
+            'list',
+            '--head',
+            headRef,
+            '--state',
+            'all',
+            '--json',
+            'number,title,url,state',
+            '--limit',
+            '1',
+          ];
+          if (targetRepo) recoveryArgs.push('--repo', targetRepo);
+          const { stdout: recoveryOutput } = await execFileAsync('gh', recoveryArgs, {
+            cwd: workDir,
+            env: execEnv,
+          });
+          const recoveryPrs = JSON.parse(recoveryOutput);
+          if (Array.isArray(recoveryPrs) && recoveryPrs.length > 0) {
+            const existingPr = recoveryPrs[0];
+            const prState = validatePRState(existingPr.state);
             await updateWorktreePRInfo(projectPath, branchName, {
               number: existingPr.number,
               url: existingPr.url,
               title: existingPr.title || title,
-              state: validatePRState(existingPr.state),
+              state: prState,
               createdAt: new Date().toISOString(),
             });
+            if (prState === 'MERGED') {
+              logger.info(
+                `[createPullRequest] Recovery: PR #${existingPr.number} for "${branchName}" is already MERGED — treating as done`
+              );
+            } else if (prState === 'CLOSED') {
+              logger.warn(
+                `[createPullRequest] Recovery: PR #${existingPr.number} for "${branchName}" is CLOSED — returning existing URL`
+              );
+            } else {
+              logger.info(
+                `[createPullRequest] Recovery: found existing OPEN PR #${existingPr.number} for "${branchName}" — reusing`
+              );
+            }
             return {
               prUrl: existingPr.url,
               prNumber: existingPr.number,
               prAlreadyExisted: true,
+              prState,
             };
+          } else {
+            logger.error(
+              `[createPullRequest] Recovery: "already exists" error but no PR found via gh pr list for "${branchName}" — rethrowing original error`
+            );
           }
-        } catch {
-          // Fall through to throw
+        } catch (recoveryError) {
+          logger.error(
+            `[createPullRequest] Recovery: failed to look up existing PR for "${branchName}": ${recoveryError instanceof Error ? recoveryError.message : String(recoveryError)}`
+          );
         }
       }
       throw error;

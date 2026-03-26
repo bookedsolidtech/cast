@@ -77,6 +77,17 @@ export interface SchedulerCallbacks {
   getRunningCountForWorktree(projectPath: string, branchName: string | null): Promise<number>;
   /** Total running agents across ALL projects (for global capacity gate). */
   getGlobalRunningCount(): number;
+  /**
+   * Fair-share global capacity check. Returns true if the requesting project
+   * may start another agent without violating the global ceiling, taking into
+   * account per-project minimum reservations so that no single project can
+   * starve others.
+   *
+   * @param projectPath - The project requesting a slot.
+   * @param startingCount - Features currently being started but not yet
+   *   tracked by the ConcurrencyManager (avoids double-counting).
+   */
+  canProjectAcquireGlobalSlot(projectPath: string, startingCount: number): Promise<boolean>;
   hasInProgressFeatures(projectPath: string, branchName: string | null): Promise<boolean>;
   isFeatureRunning(featureId: string): boolean;
   /** Returns IDs of all currently running features (for hot-file overlap checks). */
@@ -336,11 +347,17 @@ export class FeatureScheduler {
           continue;
         }
 
-        // Global capacity gate: prevent cross-app overcommit
-        const globalRunning = this.callbacks.getGlobalRunningCount();
-        if (globalRunning >= MAX_SYSTEM_CONCURRENCY) {
+        // Fair-share global capacity gate: prevents any single project from
+        // consuming all global slots when other projects have pending work.
+        // Each project is guaranteed a minimum reservation (default 1 slot).
+        const canAcquire = await this.callbacks.canProjectAcquireGlobalSlot(
+          projectPath,
+          startingCount
+        );
+        if (!canAcquire) {
+          const globalRunning = this.callbacks.getGlobalRunningCount();
           logger.debug(
-            `[AutoLoop] Global capacity reached (${globalRunning}/${MAX_SYSTEM_CONCURRENCY} across all apps), waiting...`
+            `[AutoLoop] Fair-share capacity reached for ${worktreeDesc} (${globalRunning}/${MAX_SYSTEM_CONCURRENCY} global, project has ${projectRunningCount} running + ${startingCount} starting), waiting...`
           );
           await this.callbacks.sleep(SLEEP_INTERVAL_CAPACITY_MS);
           continue;
@@ -458,6 +475,11 @@ export class FeatureScheduler {
             );
             continue;
           }
+
+          // Auto-decay stalled review features before checking queue depth.
+          // This prevents deadlocks where all review slots are filled by features
+          // with failing CI that no agent can fix (the queue never drains).
+          await this.checkAndDecayStalled(projectPath);
 
           // Review queue WIP limit: pause pickup when too many PRs are in review
           const reviewDepth = await this.getReviewQueueDepth(projectPath);
@@ -699,11 +721,34 @@ export class FeatureScheduler {
    *
    * Steps 3–5 determine the desired value. Steps 1–2 apply as ceilings.
    */
-  async resolveMaxConcurrency(projectPath: string, branchName: string | null): Promise<number> {
+  async resolveMaxConcurrency(
+    projectPath: string,
+    branchName: string | null,
+    maxConcurrencyOverride?: number
+  ): Promise<number> {
     let desired: number;
     let systemCap = MAX_SYSTEM_CONCURRENCY;
 
-    if (!this.settingsService) {
+    if (typeof maxConcurrencyOverride === 'number') {
+      // Caller-supplied override bypasses steps 3–5; system cap still applies.
+      // Validate override is a finite positive integer
+      desired =
+        Number.isFinite(maxConcurrencyOverride) && maxConcurrencyOverride > 0
+          ? Math.floor(maxConcurrencyOverride)
+          : DEFAULT_MAX_CONCURRENCY;
+
+      // Still load admin UI cap so the override is properly clamped
+      if (this.settingsService) {
+        try {
+          const settings = await this.settingsService.getGlobalSettings();
+          if (typeof settings.systemMaxConcurrency === 'number') {
+            systemCap = Math.min(settings.systemMaxConcurrency, MAX_SYSTEM_CONCURRENCY);
+          }
+        } catch {
+          // Settings unavailable — use env var hard limit as system cap
+        }
+      }
+    } else if (!this.settingsService) {
       desired = DEFAULT_MAX_CONCURRENCY;
     } else {
       try {
@@ -1544,7 +1589,11 @@ export class FeatureScheduler {
       const workflow = projectSettings.workflow as typeof projectSettings.workflow & {
         maxPendingReviews?: number;
       };
-      return workflow?.maxPendingReviews ?? DEFAULT_MAX;
+      const raw = workflow?.maxPendingReviews;
+      if (raw === undefined || raw === null) return DEFAULT_MAX;
+      const value = Math.floor(raw);
+      if (!Number.isFinite(value) || value < 1 || value > 50) return DEFAULT_MAX;
+      return value;
     } catch {
       return DEFAULT_MAX;
     }
@@ -1592,6 +1641,121 @@ export class FeatureScheduler {
     } catch {
       return { skipReadinessGate: false, readinessThreshold: DEFAULT_THRESHOLD };
     }
+  }
+
+  /**
+   * Read the auto-decay timeout from project workflow settings.
+   * Default: 30 minutes. Set to 0 to disable auto-decay.
+   */
+  private async getAutoDecayTimeoutMinutes(projectPath: string): Promise<number> {
+    const DEFAULT_TIMEOUT = 30;
+    try {
+      if (!this.settingsService) return DEFAULT_TIMEOUT;
+      const projectSettings = await this.settingsService.getProjectSettings(projectPath);
+      const workflow = projectSettings.workflow as typeof projectSettings.workflow & {
+        autoDecayTimeoutMinutes?: number;
+      };
+      const raw = workflow?.autoDecayTimeoutMinutes;
+      if (raw === undefined || raw === null) return DEFAULT_TIMEOUT;
+      const value = Math.floor(raw);
+      if (!Number.isFinite(value) || value < 0) return DEFAULT_TIMEOUT;
+      return value;
+    } catch {
+      return DEFAULT_TIMEOUT;
+    }
+  }
+
+  /**
+   * Find features in 'review' status with failing CI that have been stalled
+   * beyond the configured timeout, and reset them to 'backlog' with an
+   * incremented failureCount. This prevents review queue deadlocks where
+   * all review slots are occupied by features with failing CI.
+   *
+   * @returns Number of features that were decayed.
+   */
+  async checkAndDecayStalled(projectPath: string): Promise<number> {
+    const timeoutMinutes = await this.getAutoDecayTimeoutMinutes(projectPath);
+    if (timeoutMinutes === 0) return 0;
+
+    const timeoutMs = timeoutMinutes * 60 * 1000;
+    const featuresDir = getFeaturesDir(projectPath);
+    let decayedCount = 0;
+
+    try {
+      const entries = await secureFs.readdir(featuresDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const featurePath = path.join(featuresDir, entry.name, 'feature.json');
+        const result = await readJsonWithRecovery<Feature | null>(featurePath, null, {
+          maxBackups: DEFAULT_BACKUP_COUNT,
+          autoRestore: false,
+        });
+        const feature = result.data;
+        if (!feature || feature.status !== 'review') continue;
+
+        // Determine how long the feature has been in review.
+        // Use reviewStartedAt if available, fall back to updatedAt.
+        const reviewTimestamp = feature.reviewStartedAt ?? feature.updatedAt;
+        if (!reviewTimestamp) continue;
+        const reviewStartMs =
+          typeof reviewTimestamp === 'number'
+            ? reviewTimestamp
+            : new Date(reviewTimestamp).getTime();
+        const elapsedMs = Date.now() - reviewStartMs;
+        if (elapsedMs < timeoutMs) continue;
+
+        // Check for failing CI indicators:
+        // - ciRemediationCount > 0 indicates CI failures have been detected
+        // - remediationHistory with ci_failure entries
+        // - statusChangeReason containing CI failure language
+        const hasCiFailureIndicator =
+          (feature.ciRemediationCount ?? 0) > 0 ||
+          (feature.ciIterationCount ?? 0) > 0 ||
+          (feature.remediationHistory ?? []).some((h) => h.cycleType === 'ci_failure') ||
+          /\bci\b|\bci fail/i.test(feature.statusChangeReason ?? '');
+
+        if (!hasCiFailureIndicator) continue;
+
+        // Decay the feature back to backlog
+        const prevFailureCount = feature.failureCount ?? 0;
+        const elapsedMinutes = Math.round(elapsedMs / 60000);
+        try {
+          await this.featureLoader.update(projectPath, feature.id, {
+            status: 'backlog',
+            failureCount: prevFailureCount + 1,
+            statusChangeReason: `Auto-decayed: stalled in review for ${elapsedMinutes}min with failing CI`,
+            // Clear PR linkage so the feature doesn't bounce back to review via open-PR sync
+            prNumber: undefined,
+            prUrl: undefined,
+            prCreatedAt: undefined,
+            reviewStartedAt: undefined,
+            prTrackedSince: undefined,
+          });
+          decayedCount++;
+          logger.warn(
+            `[AutoDecay] Feature ${feature.id} ("${feature.title}") decayed from review to backlog — ` +
+              `stalled ${elapsedMinutes}min with failing CI (failureCount: ${prevFailureCount} -> ${prevFailureCount + 1})`
+          );
+          this.events.emit('feature:auto-decayed' as EventType, {
+            featureId: feature.id,
+            featureTitle: feature.title,
+            elapsedMinutes,
+            failureCount: prevFailureCount + 1,
+            projectPath,
+          });
+        } catch (error) {
+          logger.error(`[AutoDecay] Failed to decay feature ${feature.id}:`, error);
+        }
+      }
+    } catch (error) {
+      logger.error('[AutoDecay] Error scanning review queue for stalled features:', error);
+    }
+
+    if (decayedCount > 0) {
+      logger.warn(`[AutoDecay] Decayed ${decayedCount} stalled review feature(s) back to backlog`);
+    }
+
+    return decayedCount;
   }
 
   /**

@@ -291,6 +291,76 @@ export class AutoModeService {
     const schedulerCallbacks: SchedulerCallbacks = {
       getRunningCountForWorktree: this.getRunningCountForWorktree.bind(this),
       getGlobalRunningCount: () => this.concurrencyManager.size,
+      canProjectAcquireGlobalSlot: async (
+        projectPath: string,
+        startingCount: number
+      ): Promise<boolean> => {
+        // Build per-project reservation map from settings
+        const reservations = new Map<string, { min: number; max: number }>();
+        const projectsWithPendingWork = new Set<string>();
+
+        // The requesting project has pending work (otherwise the scheduler
+        // would not be calling this method)
+        projectsWithPendingWork.add(projectPath);
+
+        // All projects with active leases are considered active
+        const activeProjectPaths = this.concurrencyManager.getActiveProjectPaths();
+        for (const pp of activeProjectPaths) {
+          projectsWithPendingWork.add(pp);
+        }
+
+        // Read per-project settings for min/max concurrency and admin UI cap
+        let effectiveCap = MAX_SYSTEM_CONCURRENCY;
+        if (this.settingsService) {
+          try {
+            const settings = await this.settingsService.getGlobalSettings();
+
+            // Use admin UI cap if configured, clamped by env var hard limit
+            if (typeof settings.systemMaxConcurrency === 'number') {
+              effectiveCap = Math.min(settings.systemMaxConcurrency, MAX_SYSTEM_CONCURRENCY);
+            }
+
+            const autoModeByWorktree = settings.autoModeByWorktree;
+
+            if (autoModeByWorktree && typeof autoModeByWorktree === 'object') {
+              // Build a projectPath-to-bounds map from all worktree entries.
+              // Keys are formatted as "projectId::branchName" — parse projectId
+              // directly from the key to avoid the reverse-lookup ambiguity.
+              for (const [key, entry] of Object.entries(autoModeByWorktree)) {
+                const separatorIdx = key.indexOf('::');
+                const projectId = separatorIdx >= 0 ? key.slice(0, separatorIdx) : key;
+
+                const project = settings.projects?.find((p) => p.id === projectId);
+                if (project?.path) {
+                  const existing = reservations.get(project.path);
+                  const entryMax = entry.maxConcurrency ?? effectiveCap;
+                  const entryMin = entry.minConcurrency ?? 1;
+                  if (existing) {
+                    // Merge: take the higher max and min across worktree entries
+                    existing.max = Math.max(existing.max, entryMax);
+                    existing.min = Math.max(existing.min, entryMin);
+                  } else {
+                    reservations.set(project.path, {
+                      min: Math.max(1, entryMin),
+                      max: entryMax,
+                    });
+                  }
+                }
+              }
+            }
+          } catch {
+            // Settings unavailable — fall back to default reservations (min=1)
+          }
+        }
+
+        return this.concurrencyManager.canProjectAcquireSlot(
+          projectPath,
+          effectiveCap,
+          reservations,
+          projectsWithPendingWork,
+          startingCount
+        );
+      },
       hasInProgressFeatures: this.hasInProgressFeatures.bind(this),
       isFeatureRunning: this.isFeatureRunning.bind(this),
       getRunningFeatureIds: () => [...this.runningFeatures.keys()],
@@ -735,7 +805,8 @@ export class AutoModeService {
   async startAutoLoopForProject(
     projectPath: string,
     branchName: string | null = null,
-    forceStart: boolean = false
+    forceStart: boolean = false,
+    maxConcurrencyOverride?: number
   ): Promise<number> {
     // Check data integrity before starting (unless force-start is enabled)
     if (this.integrityWatchdogService) {
@@ -769,7 +840,8 @@ export class AutoModeService {
 
     const resolvedMaxConcurrency = await this.scheduler.resolveMaxConcurrency(
       projectPath,
-      branchName
+      branchName,
+      maxConcurrencyOverride
     );
 
     const config: AutoModeLoopConfig = {
