@@ -1,5 +1,12 @@
 # @protolabsai/types
 
+## 0.92.3
+
+### Patch Changes
+
+- ### Bug Fixes
+  - workflow execution block not applied to pipeline (#3176)
+
 ## 0.92.2
 
 ### Patch Changes
