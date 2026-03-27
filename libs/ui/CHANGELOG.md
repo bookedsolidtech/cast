@@ -1,5 +1,15 @@
 # @protolabsai/ui
 
+## 0.92.3
+
+### Patch Changes
+
+- ### Bug Fixes
+  - workflow execution block not applied to pipeline (#3176)
+- Updated dependencies
+  - @protolabsai/types@0.92.3
+  - @protolabsai/utils@0.92.3
+
 ## 0.92.2
 
 ### Patch Changes
