@@ -221,7 +221,6 @@ import { utilityTools } from './tools/utility-tools.js';
 import { schedulerTools } from './tools/scheduler-tools.js';
 import { quarantineTools } from './tools/quarantine-tools.js';
 import { gitOpsTools } from './tools/git-ops-tools.js';
-import { promotionTools } from './tools/promotion-tools.js';
 import { leadEngineerTools } from './tools/lead-engineer-tools.js';
 import { knowledgeTools } from './tools/knowledge-tools.js';
 import { qaTools } from './tools/qa-tools.js';
@@ -244,7 +243,6 @@ const tools: Tool[] = [
   ...utilityTools,
   ...schedulerTools,
   ...quarantineTools,
-  ...promotionTools,
   ...leadEngineerTools,
   ...knowledgeTools,
   ...qaTools,
@@ -331,6 +329,11 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
       });
     }
 
+    case 'list_workflows':
+      return apiCall('/settings/workflows', {
+        projectPath: args.projectPath,
+      });
+
     case 'delete_feature':
       return apiCall('/features/delete', {
         projectPath: args.projectPath,
@@ -370,6 +373,7 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
     case 'stop_agent':
       return apiCall('/auto-mode/stop-feature', {
         featureId: args.featureId,
+        ...(args.targetStatus !== undefined && { targetStatus: args.targetStatus }),
       });
 
     case 'list_running_agents':
@@ -538,7 +542,6 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
         projectPath: args.projectPath,
         maxConcurrency: args.maxConcurrency || 1,
         branchName: args.branchName || null,
-        forceStart: args.forceStart || false,
       });
 
     case 'stop_auto_mode':
@@ -643,6 +646,7 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
         createEpics: args.createEpics ?? true,
         setupDependencies: args.setupDependencies ?? true,
         initialStatus: args.initialStatus || 'backlog',
+        defaultWorkflow: args.defaultWorkflow,
       });
 
     // Chief of Staff (CoS)
@@ -1341,36 +1345,6 @@ async function handleTool(name: string, args: Record<string, unknown>): Promise<
 
       return { success: true, ...results };
     }
-
-    // Promotion Pipeline
-    case 'list_staging_candidates':
-      return apiCall(
-        '/promotions/candidates',
-        { projectPath: args.projectPath, status: args.status },
-        'GET'
-      );
-
-    case 'create_promotion_batch':
-      return apiCall('/promotions/batch', {
-        projectPath: args.projectPath,
-        candidateIds: args.candidateIds,
-        batchId: args.batchId,
-      });
-
-    case 'promote_to_staging':
-      return apiCall('/promotions/promote-to-staging', {
-        projectPath: args.projectPath,
-        batchId: args.batchId,
-      });
-
-    case 'promote_to_main':
-      return apiCall('/promotions/promote-to-main', {
-        projectPath: args.projectPath,
-        batchId: args.batchId,
-      });
-
-    case 'list_promotion_batches':
-      return apiCall('/promotions/batches', {}, 'GET');
 
     // Lead Engineer Handoffs
     case 'get_feature_handoff':
