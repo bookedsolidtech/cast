@@ -331,7 +331,9 @@ export async function createServices(dataDir: string, repoRoot: string): Promise
       type,
       payload,
       ctx?.source ?? 'unknown',
-      ctx ? { correlationId: ctx.correlationId, causationId: ctx.causationId, source: ctx.source } : undefined
+      ctx
+        ? { correlationId: ctx.correlationId, causationId: ctx.causationId, source: ctx.source }
+        : undefined
     );
     eventStore.store(event);
   });

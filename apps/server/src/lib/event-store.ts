@@ -147,9 +147,7 @@ export class EventStore {
       results = results.filter((e) => e.correlationId === options.correlationId);
     }
     if (options.featureId) {
-      results = results.filter((e) =>
-        this.payloadContainsFeatureId(e.payload, options.featureId!)
-      );
+      results = results.filter((e) => this.payloadContainsFeatureId(e.payload, options.featureId!));
     }
     if (options.topic) {
       results = results.filter((e) => e.topic === options.topic);
