@@ -13,6 +13,7 @@ import { randomUUID } from 'crypto';
 import { createLogger } from '@protolabsai/utils';
 import type { MaintenanceCheck, MaintenanceSweepResult } from '@protolabsai/types';
 import type { EventEmitter } from '../lib/events.js';
+import { generateCorrelationId } from '../lib/events.js';
 import type { SchedulerService } from './scheduler-service.js';
 import type { EventHistoryService } from './event-history-service.js';
 
@@ -135,6 +136,15 @@ export class MaintenanceOrchestrator {
     const startedAt = new Date().toISOString();
     const projectPaths = this.getProjectPaths?.() ?? [];
 
+    // Set correlation context for the entire sweep run
+    const sweepCorrelationId = generateCorrelationId();
+    if (this.events) {
+      this.events.setCorrelationContext({
+        correlationId: sweepCorrelationId,
+        source: 'maintenance-service',
+      });
+    }
+
     logger.info(
       `Maintenance sweep started: sweepId=${sweepId} tier=${tier} checks=${checks.length} projects=${projectPaths.length}`
     );
@@ -183,6 +193,7 @@ export class MaintenanceOrchestrator {
 
     if (this.events) {
       this.events.emit('maintenance:sweep:completed', sweepResult);
+      this.events.clearCorrelationContext();
     }
 
     // Write results to EventHistoryService for each known project

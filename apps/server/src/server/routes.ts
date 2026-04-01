@@ -156,6 +156,7 @@ export function registerRoutes(app: Express, services: ServiceContainer): void {
     schedulerService,
     eventRouterService,
     pipelineCheckpointService,
+    eventStore,
   } = services;
 
   // Run stale validation cleanup every hour to prevent memory leaks from crashed validations
@@ -442,7 +443,8 @@ export function registerRoutes(app: Express, services: ServiceContainer): void {
       eventRouterService,
       auditService,
       autoModeService,
-      settingsService
+      settingsService,
+      eventStore
     )
   );
   logger.info('Ops routes mounted at /api/ops');
