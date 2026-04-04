@@ -369,7 +369,10 @@ export class AutoModeService {
       },
       hasInProgressFeatures: this.hasInProgressFeatures.bind(this),
       isFeatureRunning: this.isFeatureRunning.bind(this),
-      getRunningFeatureIds: () => [...this.runningFeatures.keys()],
+      getRunningFeatureIds: (projectPath: string) =>
+        [...this.runningFeatures.entries()]
+          .filter(([, rf]) => rf.projectPath === projectPath)
+          .map(([id]) => id),
       isFeatureActiveInPipeline: (featureId: string) =>
         this.leadEngineerService?.isFeatureActive(featureId) ?? false,
       isFeatureFinished: this.isFeatureFinished.bind(this),
@@ -3204,6 +3207,29 @@ Format your response as a structured markdown document.`;
         logger.debug('Failed to install dependencies in worktree (non-fatal):', err);
       }
 
+      // Set gh CLI default repo so `gh pr create` works inside the worktree.
+      // Worktrees don't inherit the gh default repo context from the parent repo,
+      // causing `gh pr create` to fail with "No default remote repository has been set."
+      try {
+        const { stdout: originUrl } = await execAsync('git config --get remote.origin.url', {
+          cwd: path.resolve(worktreePath),
+        });
+        const url = originUrl.trim();
+        // Parse owner/repo from SSH (git@github.com:owner/repo.git) or HTTPS URLs
+        const match = url.match(/[:/]([^/]+)\/([^/\s]+?)(?:\.git)?$/);
+        if (match) {
+          const ownerRepo = `${match[1]}/${match[2]}`;
+          await execFileAsync('gh', ['repo', 'set-default', ownerRepo], {
+            cwd: path.resolve(worktreePath),
+          });
+          logger.debug(`Set gh default repo to ${ownerRepo} in worktree: ${worktreePath}`);
+        } else {
+          logger.warn(`Could not parse owner/repo from origin URL: ${url}`);
+        }
+      } catch (err) {
+        logger.debug('Failed to set gh default repo in worktree (non-fatal):', err);
+      }
+
       return path.resolve(worktreePath);
     } catch (error) {
       logger.error(`Failed to create worktree for branch "${branchName}":`, error);
@@ -3577,6 +3603,43 @@ You can use the Read tool to view these images at any time during implementation
   }
 
   /**
+   * Check whether a project has any features in backlog status that are potentially
+   * ready to be scheduled. Used by startup to skip auto-mode for idle projects.
+   *
+   * This is intentionally a lightweight check — it only looks for `status === 'backlog'`
+   * without full dependency resolution. The scheduler performs the deeper eligibility
+   * check (blocked dependencies, cooldowns, open PRs) when it actually dispatches work.
+   *
+   * @returns `true` if at least one backlog feature exists for the given project.
+   */
+  async hasReadyBacklogFeatures(projectPath: string): Promise<boolean> {
+    const featuresDir = getFeaturesDir(projectPath);
+    try {
+      const entries = await secureFs.readdir(featuresDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const featurePath = path.join(featuresDir, entry.name, 'feature.json');
+        try {
+          const content = (await secureFs.readFile(featurePath, 'utf-8')) as string;
+          const feature = JSON.parse(content) as Feature;
+          if (feature.status === 'backlog') {
+            return true;
+          }
+        } catch {
+          // Skip unreadable or malformed features
+        }
+      }
+      return false;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        return false;
+      }
+      logger.warn(`[hasReadyBacklogFeatures] Failed to scan ${projectPath}:`, err);
+      return false;
+    }
+  }
+
+  /**
    * Clear execution state (called on successful shutdown or when auto-loop stops)
    */
   private async clearExecutionState(
@@ -3720,9 +3783,25 @@ You can use the Read tool to view these images at any time during implementation
         })),
       });
 
-      // Resume each interrupted feature
+      // Resume each interrupted feature — respect global system cap to prevent OOM on restart.
+      // Features that cannot be resumed immediately are reset to backlog so the scheduler
+      // picks them up once capacity is available.
       for (const feature of interruptedFeatures) {
         try {
+          // Global cap gate: prevents spawning more agents than systemMaxConcurrency allows.
+          // Each call to resumeFeature bypasses the scheduler's fair-share check, so we
+          // must enforce the hard ceiling here before launching any agent process.
+          const globalRunning = this.concurrencyManager.size;
+          if (globalRunning >= MAX_SYSTEM_CONCURRENCY) {
+            logger.warn(
+              `[RESUME] Global concurrency cap (${MAX_SYSTEM_CONCURRENCY}) reached ` +
+                `(${globalRunning} running). Resetting feature ${feature.id} (${feature.title}) ` +
+                `to backlog — scheduler will pick it up once capacity is available.`
+            );
+            await this.updateFeatureStatus(projectPath, feature.id, 'backlog');
+            continue;
+          }
+
           logger.info(`Resuming feature: ${feature.id} (${feature.title})`);
           // Use resumeFeature which will detect the existing context and continue
           await this.resumeFeature(projectPath, feature.id, true);
