@@ -358,6 +358,7 @@ export type {
   DiscordIntegrationConfig,
   ProjectIntegrations,
   IntegrationEventMapping,
+  LiteLLMGatewayConfig,
   // Trust boundary types
   PRDCategory,
   PRDComplexity,
@@ -374,8 +375,6 @@ export type {
   // OpenAI-compatible provider types
   OpenAICompatibleConfig,
   OpenAICompatibleTemplate,
-  // LiteLLM Gateway types
-  LiteLLMGatewayConfig,
   // Claude API profile types (deprecated)
   ClaudeApiProfile,
   ClaudeApiProfileTemplate,
