@@ -6,11 +6,24 @@ import { Router, Request, Response } from 'express';
 import { createLogger } from '@protolabsai/utils';
 import type { SettingsService } from '../../services/settings-service.js';
 import type {
+  LiteLLMGatewayConfig,
   ProjectIntegrations,
   ReactionAbility,
   DiscordChannelSignalConfig,
 } from '@protolabsai/types';
+
+/** Build a full LiteLLMGatewayConfig from a partial override, filling required fields with defaults. */
+function toGatewayConfig(partial: { baseUrl: string; apiKey?: string }): LiteLLMGatewayConfig {
+  return {
+    enabled: true,
+    apiKeySource: 'inline',
+    autoDiscoverModels: true,
+    modelPrefix: 'litellm/',
+    ...partial,
+  };
+}
 import { integrationService } from '../../services/integration-service.js';
+import { litellmGatewayService } from '../../services/litellm-gateway-service.js';
 import type { IntegrationRegistryService } from '../../services/integration-registry-service.js';
 import type { SignalIntakeService } from '../../services/signal-intake-service.js';
 
@@ -312,6 +325,95 @@ export function createIntegrationRoutes(
       return;
     }
     res.json({ signals: signalIntakeService.getRecentSignals() });
+  });
+
+  // ---------------------------------------------------------------------------
+  // LiteLLM Gateway endpoints
+  // ---------------------------------------------------------------------------
+
+  /**
+   * POST /api/integrations/litellm/status
+   * Get the current LiteLLM gateway configuration from global settings.
+   */
+  router.post('/litellm/status', async (req: Request, res: Response) => {
+    try {
+      const settings = await settingsService.getGlobalSettings();
+      const config = settings.litellmGateway ?? null;
+      res.json({ config });
+    } catch (error) {
+      logger.error('Failed to get LiteLLM gateway status:', error);
+      res.status(500).json({ error: 'Failed to get LiteLLM gateway status' });
+    }
+  });
+
+  /**
+   * POST /api/integrations/litellm/test
+   * Test connectivity to the configured LiteLLM gateway.
+   * Accepts an optional config override in the request body; falls back to global settings.
+   */
+  router.post('/litellm/test', async (req: Request, res: Response) => {
+    try {
+      const { config: bodyConfig } = req.body as { config?: { baseUrl?: string; apiKey?: string } };
+
+      let config = bodyConfig;
+      if (!config?.baseUrl) {
+        const settings = await settingsService.getGlobalSettings();
+        config = settings.litellmGateway ?? undefined;
+      }
+
+      if (!config?.baseUrl) {
+        res.status(400).json({
+          error: 'No LiteLLM gateway config found. Provide config or configure via settings.',
+        });
+        return;
+      }
+
+      const result = await litellmGatewayService.testConnection(
+        toGatewayConfig(config as { baseUrl: string; apiKey?: string })
+      );
+      res.json(result);
+    } catch (error) {
+      logger.error('Failed to test LiteLLM gateway:', error);
+      res.status(500).json({ error: 'Failed to test LiteLLM gateway' });
+    }
+  });
+
+  /**
+   * GET /api/integrations/litellm/models
+   * Fetch the list of models from the LiteLLM gateway.
+   * Uses global settings config; optionally accepts ?baseUrl and ?apiKey query params.
+   */
+  router.get('/litellm/models', async (req: Request, res: Response) => {
+    try {
+      const { baseUrl: queryBaseUrl, apiKey: queryApiKey } = req.query as {
+        baseUrl?: string;
+        apiKey?: string;
+      };
+
+      let config: { baseUrl: string; apiKey?: string } | undefined;
+
+      if (queryBaseUrl) {
+        config = { baseUrl: queryBaseUrl, apiKey: queryApiKey };
+      } else {
+        const settings = await settingsService.getGlobalSettings();
+        config = settings.litellmGateway?.baseUrl
+          ? (settings.litellmGateway as { baseUrl: string; apiKey?: string })
+          : undefined;
+      }
+
+      if (!config?.baseUrl) {
+        res.status(400).json({
+          error: 'No LiteLLM gateway config found. Provide baseUrl or configure via settings.',
+        });
+        return;
+      }
+
+      const models = await litellmGatewayService.fetchModels(toGatewayConfig(config));
+      res.json({ models });
+    } catch (error) {
+      logger.error('Failed to fetch LiteLLM models:', error);
+      res.status(500).json({ error: (error as Error).message });
+    }
   });
 
   // ---------------------------------------------------------------------------

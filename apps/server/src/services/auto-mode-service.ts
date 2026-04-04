@@ -369,7 +369,10 @@ export class AutoModeService {
       },
       hasInProgressFeatures: this.hasInProgressFeatures.bind(this),
       isFeatureRunning: this.isFeatureRunning.bind(this),
-      getRunningFeatureIds: () => [...this.runningFeatures.keys()],
+      getRunningFeatureIds: (projectPath: string) =>
+        [...this.runningFeatures.entries()]
+          .filter(([, rf]) => rf.projectPath === projectPath)
+          .map(([id]) => id),
       isFeatureActiveInPipeline: (featureId: string) =>
         this.leadEngineerService?.isFeatureActive(featureId) ?? false,
       isFeatureFinished: this.isFeatureFinished.bind(this),
@@ -3202,6 +3205,29 @@ Format your response as a structured markdown document.`;
         await installWorktreeDependencies(projectPath, worktreePath);
       } catch (err) {
         logger.debug('Failed to install dependencies in worktree (non-fatal):', err);
+      }
+
+      // Set gh CLI default repo so `gh pr create` works inside the worktree.
+      // Worktrees don't inherit the gh default repo context from the parent repo,
+      // causing `gh pr create` to fail with "No default remote repository has been set."
+      try {
+        const { stdout: originUrl } = await execAsync('git config --get remote.origin.url', {
+          cwd: path.resolve(worktreePath),
+        });
+        const url = originUrl.trim();
+        // Parse owner/repo from SSH (git@github.com:owner/repo.git) or HTTPS URLs
+        const match = url.match(/[:/]([^/]+)\/([^/\s]+?)(?:\.git)?$/);
+        if (match) {
+          const ownerRepo = `${match[1]}/${match[2]}`;
+          await execFileAsync('gh', ['repo', 'set-default', ownerRepo], {
+            cwd: path.resolve(worktreePath),
+          });
+          logger.debug(`Set gh default repo to ${ownerRepo} in worktree: ${worktreePath}`);
+        } else {
+          logger.warn(`Could not parse owner/repo from origin URL: ${url}`);
+        }
+      } catch (err) {
+        logger.debug('Failed to set gh default repo in worktree (non-fatal):', err);
       }
 
       return path.resolve(worktreePath);
