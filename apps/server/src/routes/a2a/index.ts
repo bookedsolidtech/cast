@@ -99,6 +99,19 @@ function buildAgentCard(host: string) {
         examples: ["what's blocked?", 'check board health', 'any stalled agents?'],
       },
       {
+        id: 'onboard_project',
+        name: 'Onboard Project',
+        description:
+          'Onboard a GitHub repository into protoLabs Studio. ' +
+          'Fetches repo metadata, scaffolds .automaker project files, ' +
+          'provisions Discord channels, updates workspace/projects.yaml, ' +
+          'and posts a kickoff message.',
+        tags: ['ops', 'onboarding'],
+        inputModes: ['text/plain'],
+        outputModes: ['text/markdown'],
+        examples: ['onboard protoLabsAI/protoWorkstacean', '/onboard_project protoLabsAI/my-repo'],
+      },
+      {
         id: 'provision_discord',
         name: 'Provision Discord Channels',
         description:
