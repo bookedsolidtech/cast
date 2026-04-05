@@ -32,7 +32,12 @@ import type {
   ExecutionContext,
   ActionProposal,
 } from '@protolabsai/types';
-import { DEFAULT_PHASE_MODELS, isClaudeModel, stripProviderPrefix } from '@protolabsai/types';
+import {
+  DEFAULT_PHASE_MODELS,
+  isClaudeModel,
+  stripProviderPrefix,
+  type PhaseModelKey,
+} from '@protolabsai/types';
 import {
   buildPromptWithImages,
   classifyError,
@@ -106,6 +111,14 @@ const execAsync = promisify(exec);
 // ---------------------------------------------------------------------------
 // Module-level helpers (ported from auto-mode-service.ts)
 // ---------------------------------------------------------------------------
+
+/** Maps feature complexity values to their corresponding PhaseModelKey for settings lookup. */
+const COMPLEXITY_PHASE_KEY: Record<string, PhaseModelKey> = {
+  small: 'complexitySmallModel',
+  medium: 'complexityMediumModel',
+  large: 'complexityLargeModel',
+  architectural: 'complexityArchitecturalModel',
+};
 
 /**
  * Complexity-to-turns mapping.
@@ -1280,8 +1293,22 @@ export class ExecutionService {
             if (gitWorkflowResult.prUrl) {
               const updates: Record<string, unknown> = {
                 prUrl: gitWorkflowResult.prUrl,
-                prNumber: gitWorkflowResult.prNumber,
               };
+
+              // Resolve prNumber: prefer the value already extracted by the git-workflow
+              // service, fall back to parsing from the PR URL.  Never assign `undefined`
+              // — doing so would spread `prNumber: undefined` onto the feature object and
+              // silently delete a previously-persisted prNumber from feature.json (because
+              // JSON.stringify drops keys with undefined values).
+              const resolvedPrNumber =
+                gitWorkflowResult.prNumber ??
+                (() => {
+                  const m = gitWorkflowResult.prUrl!.match(/\/pull\/(\d+)/);
+                  return m ? parseInt(m[1], 10) : undefined;
+                })();
+              if (resolvedPrNumber != null) {
+                updates.prNumber = resolvedPrNumber;
+              }
 
               // Set PR creation timestamp
               if (gitWorkflowResult.prCreatedAt) {
@@ -3770,12 +3797,7 @@ After generating the revised spec, output:
       logger.info(`Escalating to opus after ${feature.failureCount} failures`);
       return { model: DEFAULT_MODELS.claude };
     }
-    // 3. Architectural complexity → opus
-    if (feature.complexity === 'architectural') {
-      logger.info('Using opus for architectural feature');
-      return { model: DEFAULT_MODELS.claude };
-    }
-    // 4. AssignedRole model override (manifest takes precedence over settings)
+    // 3. AssignedRole model override (manifest takes precedence over settings)
     if (feature.assignedRole && projectPath) {
       try {
         const agentManifestService = getAgentManifestService();
@@ -3791,7 +3813,7 @@ After generating the revised spec, output:
           `Failed to read agent manifest model for role "${feature.assignedRole}": ${err}`
         );
       }
-      // 4b. Settings roleModelOverrides fallback
+      // 3b. Settings roleModelOverrides fallback
       try {
         const workflowSettings = await getWorkflowSettings(projectPath, this.settingsService);
         const roleOverride =
@@ -3809,7 +3831,31 @@ After generating the revised spec, output:
         logger.warn(`Failed to read roleModelOverrides for role "${feature.assignedRole}": ${err}`);
       }
     }
-    // 5. phaseModels.agentExecutionModel from settings
+    // 4. Complexity-tier model from settings (small/medium/large/architectural)
+    if (feature.complexity && COMPLEXITY_PHASE_KEY[feature.complexity]) {
+      try {
+        const complexityKey = COMPLEXITY_PHASE_KEY[feature.complexity];
+        const { phaseModel } = await getPhaseModelWithOverrides(
+          complexityKey,
+          this.settingsService,
+          projectPath
+        );
+        if (phaseModel?.model) {
+          logger.info(
+            `Using ${feature.complexity} complexity model "${phaseModel.model}" (${complexityKey})`
+          );
+          return {
+            model: resolveModelString(phaseModel.model, DEFAULT_MODELS.autoMode),
+            providerId: phaseModel.providerId,
+          };
+        }
+      } catch (err) {
+        logger.warn(
+          `Failed to read complexity tier model for "${feature.complexity}", falling through: ${err}`
+        );
+      }
+    }
+    // 5. phaseModels.agentExecutionModel from settings (catch-all for features without complexity)
     try {
       const { phaseModel } = await getPhaseModelWithOverrides(
         'agentExecutionModel',
@@ -3824,11 +3870,6 @@ After generating the revised spec, output:
       }
     } catch (err) {
       logger.warn(`Failed to read agentExecutionModel setting, using fallback: ${err}`);
-    }
-    // 6. Complexity fallback
-    if (feature.complexity === 'small') {
-      logger.info('Using haiku for small feature');
-      return { model: DEFAULT_MODELS.trivial };
     }
     return { model: DEFAULT_MODELS.autoMode };
   }
