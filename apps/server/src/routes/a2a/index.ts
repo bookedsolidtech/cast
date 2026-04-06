@@ -252,6 +252,7 @@ export function createA2AHandlerRoutes(projectPath: string): Router {
           parts?: Array<{ kind?: string; type?: string; text?: string }>;
         };
         metadata?: Record<string, unknown>;
+        contextId?: string;
       };
     };
 
@@ -272,6 +273,7 @@ export function createA2AHandlerRoutes(projectPath: string): Router {
 
     const parts = body.params?.message?.parts ?? [];
     const userText = extractText(parts);
+    const skillOverride = body.params?.metadata?.skillHint as string | undefined;
 
     if (!userText) {
       res.status(200).json({
@@ -309,6 +311,7 @@ export function createA2AHandlerRoutes(projectPath: string): Router {
             },
           ],
           projectPath,
+          ...(skillOverride ? { skillOverride } : {}),
         }),
       });
 

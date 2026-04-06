@@ -341,12 +341,14 @@ export function createChatRoutes(services: ServiceContainer): Router {
         system,
         context,
         projectPath,
+        skillOverride,
       } = req.body as {
         messages: UIMessage[];
         model?: string;
         system?: string;
         context?: NotesContext;
         projectPath?: string;
+        skillOverride?: string;
       };
 
       if (!rawMessages || !Array.isArray(rawMessages) || rawMessages.length === 0) {
@@ -492,52 +494,65 @@ export function createChatRoutes(services: ServiceContainer): Router {
       );
       const tools = applyToolCompaction(withCheckpoints) as typeof rawTools;
 
-      // ── Slash command expansion ─────────────────────────────────────────────
-      // If the last user message starts with a slash command, intercept it:
-      //   1. Look up the command body from CommandRegistryService
-      //   2. Expand placeholders ($ARGUMENTS, $1/$2, @file, `!cmd`)
-      //   3. Prepend the expanded body to the system prompt for this turn
-      //   4. Restrict tools to the command's allowed-tools (if specified)
-      // Unknown slash commands pass through as normal messages (no-op).
+      // ── Skill loading ────────────────────────────────────────────────────────
+      // Two paths, same outcome — load skill body as system prompt prefix:
+      //   A2A path:  skillOverride from Workstacean metadata (takes priority)
+      //   UI path:   /command-name slash prefix in user message text
+      //
+      // When skillOverride is set, the full user message is passed as the
+      // argument string so the skill can extract what it needs (e.g. repo slug).
+      // Unknown skill names pass through as normal messages (no-op).
 
       let commandSystemPrefix: string | undefined;
-      // Start with the full tool set; may be narrowed by command frontmatter
+      // Start with the full tool set; may be narrowed by skill frontmatter
       let activeTools: typeof tools = tools;
 
-      if (lastUserMessage) {
-        const lastText = extractMessageText(lastUserMessage);
-        const parsed = parseSlashCommand(lastText);
+      let skillToLoad: string | undefined = skillOverride;
+      let slashArgumentString: string | undefined;
 
+      if (!skillToLoad && lastUserMessage) {
+        const parsed = parseSlashCommand(extractMessageText(lastUserMessage));
         if (parsed) {
-          const command = services.commandRegistryService?.get(parsed.name);
-
-          if (command?.body) {
-            try {
-              commandSystemPrefix = await expandCommandBody(command.body, {
-                argumentString: parsed.argumentString,
-                positionalArgs: parsed.positionalArgs,
-                projectPath: projectPath,
-              });
-              logger.info(
-                `Slash command /${parsed.name} expanded (${commandSystemPrefix?.length} chars)`
-              );
-            } catch (err) {
-              logger.warn(`Command expansion failed for /${parsed.name}:`, err);
-            }
-
-            // Apply tool restrictions from command frontmatter
-            if (command.allowedTools && command.allowedTools.length > 0) {
-              const allowedSet = new Set(command.allowedTools);
-              activeTools = Object.fromEntries(
-                Object.entries(tools).filter(([name]) => allowedSet.has(name))
-              ) as typeof tools;
-              logger.info(
-                `Tool set restricted to [${[...allowedSet].join(', ')}] for /${parsed.name}`
-              );
-            }
-          }
-          // If command not found or has no body, pass through as a normal message
+          skillToLoad = parsed.name;
+          slashArgumentString = parsed.argumentString;
         }
+      }
+
+      if (skillToLoad) {
+        const command = services.commandRegistryService?.get(skillToLoad);
+
+        if (command?.body) {
+          try {
+            const argumentString = skillOverride
+              ? extractMessageText(
+                  lastUserMessage ?? (rawMessages[rawMessages.length - 1] as UIMessage)
+                )
+              : (slashArgumentString ?? '');
+
+            commandSystemPrefix = await expandCommandBody(command.body, {
+              argumentString,
+              positionalArgs: argumentString ? argumentString.split(/\s+/) : [],
+              projectPath: projectPath,
+            });
+            logger.info(
+              `Skill "${skillToLoad}" loaded (${commandSystemPrefix?.length} chars)${skillOverride ? ' [A2A]' : ''}`
+            );
+          } catch (err) {
+            logger.warn(`Skill expansion failed for "${skillToLoad}":`, err);
+          }
+
+          // Apply tool restrictions from skill frontmatter
+          if (command.allowedTools && command.allowedTools.length > 0) {
+            const allowedSet = new Set(command.allowedTools);
+            activeTools = Object.fromEntries(
+              Object.entries(tools).filter(([name]) => allowedSet.has(name))
+            ) as typeof tools;
+            logger.info(
+              `Tool set restricted to [${[...allowedSet].join(', ')}] for "${skillToLoad}"`
+            );
+          }
+        }
+        // Unknown skill name — pass through as normal message
       }
 
       // Prepend the expanded command body to the system prompt for this turn
