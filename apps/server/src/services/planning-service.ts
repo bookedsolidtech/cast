@@ -24,6 +24,7 @@ import type { EventEmitter } from '../lib/events.js';
 import { resolveModelString } from '@protolabsai/model-resolver';
 import { simpleQuery } from '../providers/simple-query-service.js';
 import { slugify } from '@protolabsai/utils';
+import { PlanStore } from './plan-store.js';
 
 const logger = createLogger('PlanningService');
 
@@ -193,11 +194,8 @@ export class PlanningService {
   private featureLoader: FeatureLoader;
   private events: EventEmitter;
 
-  /**
-   * In-memory plan state store keyed by correlationId.
-   * TODO: Replace with LangGraph SQLite checkpointer for persistence across restarts.
-   */
-  private planStore = new Map<string, PlanState>();
+  /** SQLite-backed plan store — survives server restarts. */
+  private planStore: PlanStore;
 
   constructor(deps: {
     antagonisticReview: AntagonisticReviewService;
@@ -209,6 +207,7 @@ export class PlanningService {
     this.projectService = deps.projectService;
     this.featureLoader = deps.featureLoader;
     this.events = deps.events;
+    this.planStore = new PlanStore();
   }
 
   /**
@@ -283,7 +282,7 @@ export class PlanningService {
       source,
       createdAt: new Date().toISOString(),
     };
-    this.planStore.set(correlationId, planState);
+    this.planStore.save(correlationId, planState);
 
     // 5. Publish HITLRequest
     const hitlRequest: HITLRequest = {
@@ -470,7 +469,7 @@ export class PlanningService {
   /**
    * Get a pending plan state (for inspection / debugging).
    */
-  getPlanState(correlationId: string): PlanState | undefined {
+  getPlanState(correlationId: string): PlanState | null {
     return this.planStore.get(correlationId);
   }
 }
