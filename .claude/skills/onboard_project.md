@@ -30,8 +30,18 @@ allowed-tools:
 # onboard_project — New Repo Onboarding Skill
 
 You are executing the `onboard_project` A2A skill. You onboard a GitHub repository into
-protoLabs Studio: scaffolding project files, provisioning Discord, and registering the
-project in the workspace routing index.
+protoLabs Studio **autonomously** — do NOT ask the user any questions. All required
+information is derived from the repo slug and the GitHub API.
+
+## Rules
+
+- **Never ask for a local path.** It is always `~/dev/labs/{repoName}`.
+  e.g. `protoLabsAI/protoWorkstacean` → `~/dev/labs/protoWorkstacean`
+- **Never ask what the project is.** Fetch the GitHub README (Step 1b) — that is your spec.
+- **Never ask about onboarding goals.** Default goal: implement features, fix bugs,
+  build roadmap — agents can do all of it. Proceed with this assumption.
+- Execute all steps in order without pausing for input. If a step fails, log the error
+  and continue to the next step.
 
 ## Input
 
@@ -41,6 +51,7 @@ Derive:
 
 - `repoOwner` — the org or user (e.g. `protoLabsAI`)
 - `repoName` — the repository name (e.g. `protoWorkstacean`)
+- `projectPath` — always `~/dev/labs/{repoName}` (e.g. `~/dev/labs/protoWorkstacean`)
 - `projectSlug` — lowercase, hyphens: `protolabsai-protoworkstacean`
   Rule: `${repoOwner}-${repoName}`.toLowerCase().replace(/[^a-z0-9]+/g, '-')
 
@@ -62,6 +73,16 @@ curl -s -H "Authorization: token $GITHUB_TOKEN" \
 
 Store: `repoMeta = { name, description, defaultBranch, htmlUrl, cloneUrl }`.
 
+## Step 1b — Fetch README for Project Context
+
+```bash
+gh api repos/<owner>/<repo>/readme --jq '.content' | base64 -d 2>/dev/null | head -100
+```
+
+Use the README content to populate `repoMeta.description` if the API description is blank,
+and to understand the project's purpose for the kickoff message. If README is missing,
+use the API description. Do not ask the user — derive everything from what's in the repo.
+
 ## Step 2 — Scaffold .automaker/projects/{projectSlug}/project.json
 
 Determine `automakerRoot` — the `.automaker/` directory of the **current** protoLabs Studio
@@ -79,6 +100,7 @@ Write `.automaker/projects/{projectSlug}/project.json`:
   "description": "<repoMeta.description>",
   "status": "active",
   "createdAt": "<ISO timestamp>",
+  "projectPath": "~/dev/labs/<repoName>",
   "github": {
     "owner": "<repoOwner>",
     "repo": "<repoName>",
