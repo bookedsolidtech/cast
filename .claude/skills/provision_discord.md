@@ -55,7 +55,21 @@ The tool returns:
 }
 ```
 
-## Step 3 — Return Channel Info
+## Step 3 — Send Kickoff Message
+
+After channels are created, post a kickoff message to the #dev channel using
+`mcp__plugin_protolabs_discord__discord_send`:
+
+```
+🚀 **<projectTitle>** is now onboarded to protoLabs Studio.
+
+Discord channels are ready. Agents can start working.
+```
+
+Use the dev channel ID/name returned in Step 2. If `discord_send` fails, log a warning
+and continue — the kickoff message is not blocking.
+
+## Step 4 — Return Channel Info
 
 Return the channel map to the caller:
 
@@ -82,6 +96,6 @@ Return the channel map to the caller:
 
 ## Notes
 
-- This skill is called by `onboard_project` (Step 6) and should be fast — no interactive
-  prompts or confirmation loops.
+- This skill is called by `onboard_project` (Step 6) via A2A and should be fast — no
+  interactive prompts or confirmation loops.
 - The caller (onboard_project) is responsible for writing returned channel IDs to settings.json.
