@@ -13,26 +13,21 @@ allowed-tools:
   - WebFetch
   - WebSearch
   - Task
-  # Automaker board / project management
-  - mcp__plugin_protolabs_studio__health_check
-  - mcp__plugin_protolabs_studio__get_settings
-  - mcp__plugin_protolabs_studio__list_projects
-  - mcp__plugin_protolabs_studio__create_project
-  - mcp__plugin_protolabs_studio__update_project
-  - mcp__plugin_protolabs_studio__provision_discord
-  # Discord - send messages and read channels
-  - mcp__plugin_protolabs_discord__discord_send
-  - mcp__plugin_protolabs_discord__discord_read_messages
-  - mcp__plugin_protolabs_discord__discord_get_server_info
-  - mcp__plugin_protolabs_discord__discord_add_reaction
 ---
 
 # onboard_project — New Repo Onboarding Skill
 
-**EXECUTE IMMEDIATELY. DO NOT ASK ANY QUESTIONS.**
+**EXECUTE IMMEDIATELY. DO NOT ASK ANY QUESTIONS. DO NOT CHECK MEMORY FIRST.**
 
 All information is derived from the repo slug and GitHub API. Every unknown has a
 hard-coded default below. Start executing Step 0 right now.
+
+## Tooling
+
+- **GitHub API**: use `gh api` via the `Bash` tool. `gh` is installed and authenticated.
+  Example: `gh api repos/protoLabsAI/quinn --jq '.name'`
+- **Filesystem**: use `Read`, `Write`, `Edit`, `Bash` for local file operations.
+- No MCP tools required — all steps use `gh` CLI and direct file writes.
 
 ## Hard-Coded Defaults (never ask — always use these)
 
