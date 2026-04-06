@@ -325,7 +325,24 @@ and update `integrations.discord.channels` with the returned channel names/IDs:
 
 Write the updated settings.json back to disk.
 
-## Step 8 — Append Entry to workspace/projects.yaml
+## Step 8 — Register Project in protoLabs Studio
+
+Call the setup endpoint to register the project in the UI project list and initialize its
+`.automaker/` directory structure. This is what makes the project appear in the project
+switcher — it writes to the global settings volume (`/data/settings.json`).
+
+```bash
+SETUP_RESULT=$(curl -sf -X POST "http://localhost:${PORT:-3008}/api/setup/project" \
+  -H "Content-Type: application/json" \
+  -d "{\"projectPath\": \"${HOME}/dev/labs/<repoName>\"}" 2>&1)
+echo "Setup result: $SETUP_RESULT"
+```
+
+This call is **unauthenticated** (the `/api/setup` path is open). If it fails (e.g., the
+project path doesn't exist yet because the clone failed), log a warning and continue —
+the user can register manually by opening protoLabs Studio and adding the project.
+
+## Step 9 — Append Entry to workspace/projects.yaml
 
 The routing index lives at `workspace/projects.yaml` in the protoLabs Studio repo root.
 If the file does not exist, create it with the header comment.
@@ -349,7 +366,7 @@ Append (or add to the `projects` list):
 Read the file first. If it already contains a `slug: <projectSlug>` entry, update it
 in-place instead of appending.
 
-## Step 9 — Kickoff Message
+## Step 10 — Kickoff Message
 
 The `provision_discord` subskill (Step 6) sends the kickoff message to the project's
 #dev channel as part of its own execution. No additional action needed here if Step 6
@@ -374,6 +391,7 @@ Target repo:
   - .gitignore updated (or already had .automaker/)
   - .automaker/settings/worktree-init created
 Discord: <provisioned channel names or "skipped">
+protoLabs Studio: registered (or "skipped — path not cloned")
 Routing index: workspace/projects.yaml updated
 Kickoff message: posted
 ```
@@ -382,8 +400,9 @@ Kickoff message: posted
 
 - If GitHub API returns 404 for the repo slug, stop and report: "Repo <owner>/<repo> not found or not accessible."
 - If any file write fails, report the specific step and error.
-- If Discord provisioning fails, log a warning but continue to Steps 8 and 9.
+- If Discord provisioning fails, log a warning but continue to Steps 9 and 10.
 - If `workspace/projects.yaml` cannot be written, report it but do not block the Discord kickoff.
+- If the setup endpoint call fails (Step 8), log a warning — the project is still partially onboarded and can be registered manually in the UI.
 
 ## Notes
 
