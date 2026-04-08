@@ -558,7 +558,7 @@ export class ExecutionService {
               model,
               systemPrompt:
                 'You generate git branch names. Output ONLY the branch name, nothing else — no explanation, no punctuation, no quotes.',
-              userPrompt: `Generate a concise git branch name for this feature. Rules:
+              prompt: `Generate a concise git branch name for this feature. Rules:
 - Prefix: "feature/"
 - Lowercase letters, numbers, hyphens only
 - Max 60 characters total (including prefix)
