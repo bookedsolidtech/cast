@@ -23,7 +23,9 @@ import {
 } from '../routes/health/index.js';
 import { createSessionsRoutes } from '../routes/sessions/index.js';
 import { createFeaturesRoutes } from '../routes/features/index.js';
-import { createBackfillProjectSlugHandler } from '../routes/features/routes/backfill-project-slug.js';
+import {
+  createBackfillProjectSlugHandler,
+} from '../routes/features/routes/backfill-project-slug.js';
 import { createProjectsRoutes } from '../routes/projects/index.js';
 import { createAutoModeRoutes } from '../routes/auto-mode/index.js';
 import { createEnhancePromptRoutes } from '../routes/enhance-prompt/index.js';
@@ -61,6 +63,7 @@ import { createCosRoutes } from '../routes/cos/index.js';
 import { createCeremoniesRoutes } from '../routes/ceremonies/index.js';
 import { createWebhooksRoutes } from '../routes/webhooks/index.js';
 import { createDiscordRoutes } from '../routes/discord/index.js';
+import { ProjectRegistryService } from '../services/project-registry-service.js';
 import { createAvaRoutes } from '../routes/ava/index.js';
 import { createKnowledgeRoutes } from '../routes/knowledge/index.js';
 import { createPromotionsRoutes } from '../routes/promotions/index.js';
@@ -376,7 +379,11 @@ export function registerRoutes(app: Express, services: ServiceContainer): void {
   );
   app.use('/api/automations', createAutomationsRoutes(automationService));
   app.use('/api/ava', createAvaRoutes(services));
-  app.use('/api/discord', createDiscordRoutes(discordBotService));
+  const projectRegistry = new ProjectRegistryService({ projectRoot: repoRoot });
+  projectRegistry
+    .start()
+    .catch((err: unknown) => logger.warn('ProjectRegistry start failed:', err));
+  app.use('/api/discord', createDiscordRoutes(projectRegistry));
   app.use(
     '/api/ceremonies',
     createCeremoniesRoutes(events, featureLoader, projectService, ceremonyService, ceremonyAuditLog)
