@@ -1013,7 +1013,7 @@ Output the branch name only.`,
           if (!lsOutput.trim()) {
             const missingBranchReason =
               `Pre-flight check failed: base branch "origin/${preFlightBaseBranch}" does not exist on remote. ` +
-              `Configure workflow.gitWorkflow.prBaseBranch in .automaker/settings.json to match the project's default branch.`;
+              `Configure gitWorkflow.prBaseBranch in global settings or workflow.gitWorkflow.prBaseBranch in .automaker/settings.json to match the project's default branch.`;
             logger.error(`[PreFlight] ${missingBranchReason}`);
             this.typedEventBus.emitAutoModeEvent('sync_warning', {
               featureId,
@@ -1343,7 +1343,7 @@ Output the branch name only.`,
             }
           }
 
-          // Resolve per-project prBaseBranch: project settings → auto-detect (never global)
+          // Resolve effective prBaseBranch: project settings → global settings → auto-detect → default
           const projectPrBaseBranch = await getEffectivePrBaseBranch(
             projectPath,
             this.settingsService,
