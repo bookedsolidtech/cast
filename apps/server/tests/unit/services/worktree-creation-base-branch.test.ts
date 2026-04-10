@@ -298,7 +298,11 @@ describe('AutoModeService - createWorktreeForBranch base branch resolution', () 
     });
 
     const svc = makeService();
-    const epicFeature = makeFeature({ id: 'epic-123', isEpic: true, branchName: 'epic/my-feature' });
+    const epicFeature = makeFeature({
+      id: 'epic-123',
+      isEpic: true,
+      branchName: 'epic/my-feature',
+    });
     // Inject a mock featureLoader that returns the epic feature for the epicId lookup
     (svc as any).featureLoader = {
       get: vi.fn().mockResolvedValue(epicFeature),
@@ -355,7 +359,11 @@ describe('AutoModeService - createWorktreeForBranch base branch resolution', () 
     });
 
     const svc = makeService();
-    const epicFeature = makeFeature({ id: 'epic-123', isEpic: true, branchName: 'epic/my-feature' });
+    const epicFeature = makeFeature({
+      id: 'epic-123',
+      isEpic: true,
+      branchName: 'epic/my-feature',
+    });
     (svc as any).featureLoader = {
       get: vi.fn().mockResolvedValue(epicFeature),
       update: vi.fn().mockResolvedValue(undefined),
