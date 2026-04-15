@@ -392,6 +392,12 @@ async function executeNativeSkill(
   skill: SkillMeta,
   userText: string
 ): Promise<string> {
+  if (!projectPath) {
+    throw new Error(
+      'executeNativeSkill requires a valid projectPath but received a falsy value. ' +
+        'Cross-project dispatches must include metadata.projectPath.'
+    );
+  }
   const resolvedModel = resolveModelString('claude-sonnet');
   const provider = ProviderFactory.getProviderForModel(resolvedModel);
   const stream = provider.executeQuery({
@@ -445,6 +451,12 @@ async function callChatEndpoint(
   correlationId?: string,
   timeoutMs: number = A2A_DEFAULT_TIMEOUT_MS
 ): Promise<string> {
+  if (!projectPath) {
+    throw new Error(
+      `callChatEndpoint requires a valid projectPath but received "${String(projectPath)}". ` +
+        `Skill: ${skillOverride ?? 'none'}.`
+    );
+  }
   const baseUrl = `http://localhost:${process.env['PORT'] ?? 3008}`;
 
   // AbortSignal.timeout() is built-in since Node 18 — creates a signal that
@@ -516,7 +528,8 @@ async function callChatEndpointWithRetry(
       lastError = err instanceof Error ? err : new Error(String(err));
       // Retry only on timeout (TimeoutError name, set by AbortSignal.timeout) or 5xx
       const isTransient =
-        lastError.name === 'TimeoutError' || lastError.message.startsWith('chat endpoint returned 5');
+        lastError.name === 'TimeoutError' ||
+        lastError.message.startsWith('chat endpoint returned 5');
       if (!isTransient || attempt === maxRetries) {
         if (attempt < maxRetries) {
           logger.warn(
@@ -825,6 +838,37 @@ export function createA2AHandlerRoutes(projectPath: string, deps?: A2AHandlerDep
           `A2A projectPath override rejected: "${metaProjectPath}" has no .automaker/ — falling back to ${projectPath}`
         );
       }
+    }
+
+    // Guard: effectiveProjectPath must be a non-empty string. If the route-level
+    // projectPath was somehow undefined (e.g. misconfigured ServiceContainer) or
+    // the metadata override resolved to a falsy value, reject early with a clear
+    // error rather than passing undefined to downstream services (which causes
+    // Python NoneType crashes in the Claude Agent SDK).
+    if (!effectiveProjectPath) {
+      logger.error(
+        `A2A skill dispatch failed: effectiveProjectPath is falsy (route=${projectPath}, meta=${String(metaProjectPath)})`
+      );
+      res.status(200).json({
+        jsonrpc: '2.0',
+        id: rpcId,
+        result: {
+          id: randomUUID(),
+          contextId: contextId ?? randomUUID(),
+          status: { state: 'completed' },
+          artifacts: [
+            {
+              parts: [
+                {
+                  type: 'text',
+                  text: `ERROR: projectPath is missing — cannot execute skill "${skillOverride ?? 'chat'}". Ensure metadata.projectPath is set for cross-project dispatches.`,
+                },
+              ],
+            },
+          ],
+        },
+      });
+      return;
     }
 
     // Load A2A execution settings for this project — controls timeout and retry behavior.
